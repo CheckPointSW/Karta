@@ -1,5 +1,4 @@
 from ida_utils  import *
-from elementals import Logger
 
 import os
 import sys
@@ -1453,7 +1452,7 @@ def matchFiles() :
                                 if matched_ea is not None and matched_ea not in bin_matched_ea:
                                     bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                                     src_ext._ea = matched_ea
-                                    logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, get_func_name(matched_ea))
+                                    logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, ida.get_func_name(matched_ea))
                     else :
                         # continue on only if the match is valid
                         if src_candidate.isValidCandidate(bin_candidate) :
@@ -1478,8 +1477,8 @@ def matchFiles() :
     success_finish = success_finish and len(filter(lambda x : x.active(), src_external_functions)) == 0
     if not success_finish :
         # If matched nothing, debug and exit
-        logger.error("Completed a full scan without any improvement")
-        debugPrintState(error = True)
+        logger.warning("Completed a full scan without any improvement")
+        debugPrintState()
     else:
         logger.info("Matched all library and external functions :)")
 
@@ -1748,7 +1747,7 @@ def loadAndMatchAnchors(state_path):
     anchor_bin_strs = {}
     # Scanning the entire string list and checking against each anchor string - O(kN) - efficient in memory
     if len(all_string_clues) > 0 :
-        for bin_str_ctx in ida.Strings() :
+        for bin_str_ctx in ida.stringList() :
             bin_str = str(bin_str_ctx)
             if bin_str in all_string_clues :
                 if bin_str not in anchor_bin_strs :
@@ -2110,21 +2109,22 @@ def prepareBinFunctions():
         if not outer_ref :
             bin_func_ctx.markStatic()
 
-def startMatch(state_path):
+def startMatch(state_path, used_logger):
     """Starts matching the wanted source library to the loaded binary
 
     Args:
         state_path (str): path to the state files of the source library
+        used_logger (logger): logger instance to be used (init for us already)
     """
     global logger
 
-    log_files  = []
-#    log_files += [(os.path.join(state_path, "debug.log"), "w", logging.DEBUG)]
-    log_files += [(os.path.join(state_path, "info.log"), "w", logging.INFO)]
-    log_files += [(os.path.join(state_path, "warning.log"), "w", logging.WARNING)]
-    logger = Logger(LIBRARY_NAME, log_files, use_stdout = False, min_log_level = logging.INFO)
-    logger.linkHandler(ida.IdaLogHandler())
-    logger.info("Started the Script")
+    logger = used_logger
+
+    # always init the utils before we start
+    initUtils()
+
+    # Init our variables too
+    initMatchVars()
 
     # Load the source functions, and prepare them for use
     loadAndPrepareSource(state_path)
@@ -2140,14 +2140,3 @@ def startMatch(state_path):
 
     # Now try to match all of the files
     matchFiles()
-
-    logger.info("Finished Successfully")
-
-# always init the utils before we start
-initUtils()
-# Init our variables too
-initMatchVars()
-# Start to analyze the file
-#startMatch('/home/eyalitki/Documents/Tools/SrcToBin/tests/libpng-1.2.29')
-startMatch('/home/eyalitki/Documents/Tools/SrcToBin/tests/zlib-1.2.3')
-#startMatch('/home/eyalitki/Documents/Tools/SrcToBin/tests/openssl-1.0.1j')

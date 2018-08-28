@@ -8,6 +8,8 @@ import logging
 ## Global Variables ##
 ######################
 
+all_bin_string = None  # singleton list of all of the strings in the binary (heavy to calculate, so done once)
+
 IDA_KERNEL_VERSION = get_kernel_version()
 
 class IdaLogHandler(logging.Handler) :
@@ -48,3 +50,18 @@ def isDataRef(oper, ea) :
         True iff the operation is in fact a reference to the Data section
     """
     return oper.value in DataRefsFrom(ea)
+
+def stringList():
+    """Returns a list of all of the string in the binary (singleton style)
+
+    Return Value:
+        list of all of the used strings in the *.idb
+    """
+    global all_bin_string
+
+    # singleton
+    if all_bin_string is None :
+        all_bin_string = list(Strings())
+
+    # return the result
+    return all_bin_string

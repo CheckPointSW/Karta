@@ -909,7 +909,7 @@ def updateHints(src_index, func_ea) :
             if matched_ea is not None and matched_ea not in bin_matched_ea:
                 bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                 src_ext._ea = matched_ea
-                logger.debug("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, ida.get_func_name(matched_ea))
+                logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, ida.get_func_name(matched_ea))
 
 def declareMatch(src_index, func_ea, is_anchor = False) :
     """Officially declare a match of a source function to code that starts with the given binary ea
@@ -1607,24 +1607,22 @@ def criticalError():
     """Encounterred a critical error, and must stop the script"""
     exit(1)
 
-def loadAndPrepareSource(state_path):
+def loadAndPrepareSource(files_config):
     """Loads the stored info on the source files, and prepares the source contexts for use
 
     Args:
-        state_path (str): path to the state files of the source library
+        files_config (dict): the files configuration part of the overall JSON config
     """
     global src_file_names, src_external_functions, src_functions_list, src_functions_ctx, src_file_mappings, str_file_hints
 
     # Prepare & load the stats from each file (using the functions file)
-    fd = open(os.path.join(state_path, FILES_FILE_PATH), "r")
     src_file_names = []
     logger.info("Loading the information regarding the compiled source files")
     logger.addIndent()
-    for full_file_path in map(lambda x : x.strip(), fd.readlines()) :
+    for full_file_path in files_config :
         logger.debug("Parsing the canonical representation of file: %s", full_file_path.split(os.path.sep)[-1])
         src_file_names.append(full_file_path)
-        parseFileStats(full_file_path)
-    fd.close()
+        parseFileStats(full_file_path, files_config[full_file_path])
     logger.removeIndent()
 
     # get the variables from the utils file
@@ -1691,22 +1689,16 @@ def loadAndPrepareSource(state_path):
         for call in src_func_ctx._calls :
             call._xrefs.add(src_func_ctx)
 
-def loadAndMatchAnchors(state_path):
-    """Loads the list of anchor files, and try to match them with the binary
+def loadAndMatchAnchors(anchors_config):
+    """Loads the list of anchor functions, and try to match them with the binary
 
     Args:
-        state_path (str): path to the state files of the source library
+        anchors_config (list): list of anchor src indices as extracted from the JSON config
     """
     global src_anchor_list, bin_anchor_list, matched_anchors_ea, src_file_names, src_file_mappings
     # Parse the anchors file
     logger.info("Loading the list of Anchor functions")
-    fd = open(os.path.join(state_path, ANCHORS_FILE_PATH), "r")
-    src_anchor_list = []
-    logger.addIndent()
-    for line in map(lambda x : x.strip(), fd.readlines()) :
-        src_anchor_list.append(int(line))
-    fd.close()
-    logger.removeIndent()
+    src_anchor_list = anchors_config
 
     # Locate the anchor functions
     logger.info("Searching for the Anchor functions in the binary")
@@ -1736,6 +1728,11 @@ def loadAndMatchAnchors(state_path):
     for src_anchor_index in list(src_anchor_list) :
         src_func_ctx = src_functions_ctx[src_anchor_index]
         is_str, threshold, anchor_clues = isAnchor(src_func_ctx, logger)
+        # sanity check
+        if anchor_clues is None :
+            src_anchor_list.remove(src_anchor_index)
+            logger.warning("Anchor candidate %s (%d) failed as an anchor function", src_func_ctx._name, src_anchor_index)
+            continue
         anchor_stats.append((src_anchor_index, src_func_ctx, is_str, threshold, anchor_clues))
         if is_str :
             all_string_clues = all_string_clues.union(anchor_clues)
@@ -2109,11 +2106,11 @@ def prepareBinFunctions():
         if not outer_ref :
             bin_func_ctx.markStatic()
 
-def startMatch(state_path, used_logger):
+def startMatch(config_path, used_logger):
     """Starts matching the wanted source library to the loaded binary
 
     Args:
-        state_path (str): path to the state files of the source library
+        config_path (str): path to the config file of the source library
         used_logger (logger): logger instance to be used (init for us already)
     """
     global logger
@@ -2126,11 +2123,16 @@ def startMatch(state_path, used_logger):
     # Init our variables too
     initMatchVars()
 
+    # Load the configuration file
+    fd = open(config_path, 'r')
+    config_dict = json.load(fd, object_pairs_hook=collections.OrderedDict)
+    fd.close()
+
     # Load the source functions, and prepare them for use
-    loadAndPrepareSource(state_path)
+    loadAndPrepareSource(config_dict['Files'])
 
     # Load and match the anchor functions
-    loadAndMatchAnchors(state_path)
+    loadAndMatchAnchors(config_dict['Anchors (Src Index)'])
 
     # Locate the file boundaries in the binary functions list
     locateFileBoundaries()

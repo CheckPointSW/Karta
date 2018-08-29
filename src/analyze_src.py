@@ -38,11 +38,11 @@ def resolveUnknowns() :
             src_func_ctx.recordCall(resolved_call)
             src_func_ctx._unknowns.remove(resolved_call)
 
-def analyzeLibrary(base_dir, bin_dirs, compiled_ars, logger) :
+def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     """Analyze of the open source library, file-by-file and merge the results
     
     Args:
-        base_dir (str): path to the base working folder
+        config_name (str): name of the final JSON config file
         bin_dirs (list): list of paths to the binary folders containing the compiled *.o files
         compiled_ars (list): list of paths to the compiled *.ar files
         logger (logger): logger instance
@@ -52,7 +52,6 @@ def analyzeLibrary(base_dir, bin_dirs, compiled_ars, logger) :
     logger.addIndent()
 
     # Prepare & load the stats from each file
-    file_names = []
     for index, compiled_ar in enumerate(compiled_ars) :
         bin_dir = bin_dirs[index]
         logger.info("Analyze each of the files in the archive - %s", compiled_ar)
@@ -61,20 +60,20 @@ def analyzeLibrary(base_dir, bin_dirs, compiled_ars, logger) :
             logger.info("%s - %s", compiled_file, full_file_path)
             # analyze the file
             analyzeFile(full_file_path)
-            parseFileStats(full_file_path)
-            # add it to the file list (if it exists)
-            if len(src_file_mappings[full_file_path]) > 0 :
-                file_names.append(full_file_path)
+            # load the JSON data from it
+            fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
+            parseFileStats(full_file_path, json.load(fd, object_pairs_hook=collections.OrderedDict))
+            fd.close()
         logger.removeIndent()
 
     # Resolve several unknowns refs as code refs
     logger.info("Resolve cross-references between different files")
     resolveUnknowns()
-    
-    # Update the files accordingly
-    logger.info("Update the metadata of the analyzed files")
-    for file_name in filter(lambda x : len(src_file_mappings[x]) > 0, src_file_mappings) :
-        functionsToFile(file_name, src_file_mappings[file_name])
+
+    # Remove empty files
+    logger.info("Filter out empty files")
+    for file_name in filter(lambda x : len(src_file_mappings[x]) == 0, src_file_mappings) :
+        src_file_mappings.pop(file_name)
 
     # Create the list of anchors
     str_anchors   = []
@@ -105,20 +104,39 @@ def analyzeLibrary(base_dir, bin_dirs, compiled_ars, logger) :
         exit(2)
 
     # Create the anchors file
-    logger.info("Creating the anchor file: %s", ANCHORS_FILE_PATH)
-    fd = open(os.path.join(base_dir, ANCHORS_FILE_PATH), "w")
-    for src_anchor_index in anchors_list :
-        fd.write("%d\n" % (src_anchor_index))
-    fd.close()
-    
-    # Create the files file
-    logger.info("Creating the files file: %s", FILES_FILE_PATH)
-    fd = open(os.path.join(base_dir, FILES_FILE_PATH), "w")
-    for src_file_name in file_names :
-        fd.write(src_file_name + '\n')
-    fd.close()
+    logger.info("Generating the full JSON file: %s", config_name)
+    logger.addIndent()
+    full_json = {}
 
-    logger.info("Anchor to file ratio is: %d/%d", len(anchors_files), len(file_names))
+    # Serialize the anchor list
+    logger.info("Writing the anchor list")
+    full_json['Anchors (Src Index)'] = anchors_list
+
+    # Serialize the functions of each files
+    logger.info("Writing the function list for each of the files")
+    file_dict = collections.OrderedDict()
+    # find a common file prefix, and remove it form the file path
+    if len(src_file_mappings) > 1 :
+        base_value = src_file_mappings.keys()[0].split(os.path.sep)
+        comparison_value = src_file_mappings.keys()[-1].split(os.path.sep)
+        for index in xrange(min(len(comparison_value), len(base_value))) :
+            if base_value[index] != comparison_value[index] :
+                break
+        common_path_len = len(os.path.sep.join(base_value[:index])) + 1
+    else :
+        common_path_len = len(bin_dirs[0])
+
+    for src_file_name in src_file_mappings :
+        file_dict[src_file_name[common_path_len:]] = map(lambda c : c.serialize(), src_file_mappings[src_file_name])
+    full_json['Files'] = file_dict
+
+    # actually dump it
+    fd = open(config_name, "w")
+    json.dump(full_json, fd)
+    fd.close()
+    logger.removeIndent()
+
+    logger.info("Anchor to file ratio is: %d/%d", len(anchors_files), len(src_file_mappings))
     logger.info("Anchor to function ratio is: %d/%d", len(anchors_list), len(src_functions_list))
     logger.removeIndent()
 
@@ -128,21 +146,22 @@ def printUsage(args):
     Args:
         args (list): list of cmd line arguments
     """
-    print 'Usage: %s <bin dir> <.ar compiled archive>' % (args[0])
+    print 'Usage: %s <library name> <library version> <bin dir> <.ar compiled archive>' % (args[0])
     print 'Exitting'
     exit(1)
 
 def main(args):
     # Check the arguments
-    if len(args) < 1 + 3 or (len(args) - 2) % 2 != 0:
-        print 'Wrong amount of arguments, got %d, expected %d' % (len(args) - 1, 3)
+    if len(args) < 1 + 4 or (len(args) - 3) % 2 != 0:
+        print 'Wrong amount of arguments, got %d, expected %d' % (len(args) - 1, 4)
         printUsage( args )
         
     # parse the args
-    base_dir      = args[1]
+    library_name    = args[1]
+    library_version = args[2]
     bin_dirs      = []
     archive_paths = []
-    for i in xrange(2, len(args), 2) :
+    for i in xrange(3, len(args), 2) :
         bin_dirs.append(args[i])
         archive_paths.append(args[i + 1])
 
@@ -151,7 +170,7 @@ def main(args):
     prompter.info('Starting the Script')
 
     # analyze the open source library
-    analyzeLibrary(base_dir, bin_dirs, archive_paths, prompter)
+    analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, prompter)
 
     # finished
     prompter.info('Finished Successfully')

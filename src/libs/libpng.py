@@ -30,6 +30,7 @@ class LibpngSeeker(Seeker):
         # return the result
         return match_counter
 
+    # Overriden base function
     def identifyVersion(self, logger):
         # extract the version from the copyright string
         start_index = self._copyright_string.find(self.VERSION_STRING) + len(self.VERSION_STRING)

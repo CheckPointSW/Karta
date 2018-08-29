@@ -1,6 +1,5 @@
 from ida_utils  import *
 from elementals import Logger
-import time
 
 def analyzeFile() :
     """Analyzes all of the (source) functions for a single compiled file"""
@@ -8,7 +7,6 @@ def analyzeFile() :
     logger = Logger(LIBRARY_NAME, use_stdout = False, min_log_level = logging.INFO)
     logger.linkHandler(ida.IdaLogHandler())
     logger.info("Started the Script")
-    # TODO: create a database
     contexts = []
     extern_seg = ida.get_segm_by_name("extern")
     # build the list of exported (non-static) functions

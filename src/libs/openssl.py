@@ -34,6 +34,7 @@ class OpenSSLSeeker(Seeker):
         # return the result
         return match_counter
 
+    # Overriden base function
     def identifyVersion(self, logger):
         # extract the version from the copyright string
         start_index = self._copyright_string.find(self.NAME) + len(self.NAME) + 1 # skip the space

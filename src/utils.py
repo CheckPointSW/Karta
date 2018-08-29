@@ -2,11 +2,11 @@ from score_config import *
 from elementals   import Logger
 import libc_config as    libc
 import logging
+import json
+import collections
 
 import os
 import time
-import sqlite3
-import base64
 
 #################################
 ## Basic Global Configurations ##
@@ -21,9 +21,8 @@ SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
 
 LIBRARY_NAME        = "LibSeeker" 
 LIBRARY_NAME_PREFIX = LIBRARY_NAME + "_" 
-ANCHORS_FILE_PATH   = LIBRARY_NAME_PREFIX + "anchors.txt"
-FILES_FILE_PATH     = LIBRARY_NAME_PREFIX + "files.txt"
-STATE_FILE_SUFFIX   = "_state.bin"
+STATE_FILE_SUFFIX   = "_file_state.json"
+LIBRARY_FILE_SUFFIX = "_library_state.json"
 
 ######################
 ## Global Variables ##
@@ -33,7 +32,7 @@ src_seen_consts         = []
 src_seen_strings        = []
 src_functions_list      = []
 src_functions_ctx       = []
-src_file_mappings       = {}
+src_file_mappings       = collections.OrderedDict()
 
 src_instr_count         = 0
 bin_instr_count         = 0
@@ -786,81 +785,55 @@ class FunctionContext(ComparableContext):
         return score
 
     def serialize(self) :
-        """Serializes the context into it's file representation (TODO: should be replaced when switching to a DB-based storage)
+        """Serializes the context into a dict
 
         Return Value:
-            String representing the context instance
+            dict representing the context instance, prepared for a future JSON dump
         """
-        parts  = [self._name]
-        parts.append(str(self._ea))
-        parts.append('#'.join(map(str, self._consts)))
-        parts.append('#'.join(map(base64.b64encode, self._strings)))
-        parts.append('#'.join(map(base64.b64encode, self._calls)))
-        parts.append('#'.join(map(base64.b64encode, self._unknowns)))
-        parts.append(str(self._frame))
-        parts.append(str(self._instrs))
-        parts.append('#'.join(map(str, self._blocks)))
-        internal_parts = []
-        for ref in self._call_order :
-            internal_parts.append('@'.join([base64.b64encode(ref)] + map(lambda path: '*'.join(map(base64.b64encode, path)), self._call_order[ref])))
-        parts.append('#'.join(internal_parts))
-        parts.append(str(self._is_static))
-        return ','.join(parts)
+        result = collections.OrderedDict()
+        result['Function Name'] = self._name
+        result['Function EA'] = self._ea
+        result['Instruction Count'] = self._instrs
+        result['Stack Frame Size'] = self._frame
+        result['Is Static'] = self._is_static
+        result['Numeric Consts'] = list(self._consts)
+        result['Strings'] = list(self._strings)
+        result['Calls'] = list(self._calls)
+        result['Unknowns'] = list(self._unknowns)
+        result['Code Block Sizes'] = self._blocks
+        result['Call Order'] = self._call_order
+        return result
 
     @staticmethod
     def deserialize(serialized_ctx) :
-        """Deserializes the stored context from it's file representation
+        """Deserializes the stored context from it's file representation dict
 
         Args:
-            serialized_ctx (str): a string containg a serialize()d context instance
+            serialized_ctx (dict): a dict containg a serialize()d context instance
 
         Return value:
-            The newly created context instance, built according to the serialized string
+            The newly created context instance, built according to the serialized form
         """
-        parts = serialized_ctx.split(',')
-        context = FunctionContext(parts[0], int(parts[1]))
-        part_id = 2
+        context = FunctionContext(serialized_ctx['Function Name'], serialized_ctx['Function EA'])
         # Numeric Consts
-        for inner_part in parts[part_id].split('#') :
-            context.recordConst(int(inner_part))
-        part_id += 1
+        map(lambda x : context.recordConst(x), serialized_ctx['Numeric Consts'])
         # Strings
-        for inner_part in parts[part_id].split('#') :
-            context.recordString(base64.b64decode(inner_part))
-        part_id += 1
+        map(lambda x : context.recordString(x), serialized_ctx['Strings'])
         # Function Calls
-        for inner_part in parts[part_id].split('#') :
-            context.recordCall(base64.b64decode(inner_part))
-        part_id += 1
+        map(lambda x : context.recordCall(x), serialized_ctx['Calls'])
         # Unknowns
-        for inner_part in parts[part_id].split('#') :
-            context.recordUnknown(base64.b64decode(inner_part))
-        part_id += 1
+        map(lambda x : context.recordUnknown(x), serialized_ctx['Unknowns'])
         # Frame size
-        context.setFrame(int(parts[part_id]))
-        part_id += 1
+        context.setFrame(serialized_ctx['Stack Frame Size'])
         # Function size
-        context.setInstrCount(int(parts[part_id]))
-        part_id += 1
+        context.setInstrCount(serialized_ctx['Instruction Count'])
         # Function Blocks
-        for inner_part in parts[part_id].split('#') :
-            context.recordBlock(int(inner_part))    
-        part_id += 1
+        map(lambda x : context.recordBlock(x), serialized_ctx['Code Block Sizes'])
         # Call order
-        call_order = {}
-        for inner_part in parts[part_id].split('#') :
-            inner_parts = inner_part.split('@')
-            key = base64.b64decode(inner_parts[0])
-            paths = inner_parts[1:]
-            call_order[key] = []
-            for path in paths :
-                call_order[key].append(set(map(base64.b64decode, path.split('*'))))
-        context.setCallOrder(call_order)
-        part_id += 1
+        context.setCallOrder(serialized_ctx['Call Order'])
         # Is static
-        if parts[part_id] == str('True') :
+        if serialized_ctx['Is Static'] :
             context.markStatic()
-        part_id += 1
         # Now rank the consts
         context.rankConsts()
         return context
@@ -872,11 +845,22 @@ def functionsToFile(file_name, contexts) :
         file_name (str): file name of a compiled source file
         contexts (list): list of FunctionContext instances for all of the functions in the file
     """
-    # TODO: create a database
-    fd = open(file_name + STATE_FILE_SUFFIX, "wb")
-    for context in contexts :
-        fd.write(context.serialize() + '\n')        
+    # Temporary JSON (later will be merged to a single JSON)
+    fd = open(file_name + STATE_FILE_SUFFIX, "w")
+    json.dump(map(lambda c : c.serialize(), contexts), fd)
     fd.close()
+
+def constructConfigPath(library_name, library_version):
+    """Generates the name for the JSON config file that will store the library's canonical data
+    
+    Args:
+        library_name (str): name of the library (as extracted by the identifiers)
+        library_version (str): version of the library (as extracted by the identifiers)
+
+    Return value:
+        file name for the JSON config file
+    """
+    return library_name + "_" + library_version + ".json"
 
 def recordInstrRatio(src_instr, bin_instr) :
     """Records a single ratio sample for measuring src_instr / bin_instr ratio
@@ -985,7 +969,7 @@ def initUtils():
     src_seen_strings        = []
     src_functions_list      = []
     src_functions_ctx       = []
-    src_file_mappings       = {}
+    src_file_mappings       = collections.OrderedDict()
     # don't forget the instruction ratio
     resetRatio()
 
@@ -997,18 +981,18 @@ def getSourceFunctions() :
     """
     return src_functions_list, src_functions_ctx, src_file_mappings
 
-def parseFileStats(file_name) :
+def parseFileStats(file_name, functions_config) :
     """Parses the file metadata from the given file
     
     Args:
-        file_name (str): file name of the compiled file (*.o file)
+        file_name (str): name of the compiled *.o function
+        functions_config (list): list of serialized functions, as extracted from the JSON file
     """
     global src_seen_consts, src_seen_strings, src_functions_list, src_functions_ctx, src_file_mappings
 
-    fd = open(file_name + STATE_FILE_SUFFIX, 'rb')
     src_file_mappings[file_name] = []
-    for line in map(lambda x : x.strip(), fd.readlines()) :
-        context = FunctionContext.deserialize(line)
+    for func_config in functions_config :
+        context = FunctionContext.deserialize(func_config)
         context._file = file_name
         # accumulate the artefacts
         src_seen_consts  += context._consts
@@ -1017,7 +1001,6 @@ def parseFileStats(file_name) :
         src_functions_list.append(context._name)
         src_functions_ctx.append(context)
         src_file_mappings[file_name].append(context)
-    fd.close()
 
 def isAnchor(context, logger) :
     """Checks if the given context represents an Anchor function

@@ -106,7 +106,7 @@ def analyzeFunctionGraph(func_ea, src_mode) :
             call_to_reach[ref_to_call[ref]] = []
         current_record = set(filter(lambda x : x != ref_to_call[ref], map(lambda x : ref_to_call[x], reachable_from)))
         if current_record not in call_to_reach[ref_to_call[ref]] :
-            call_to_reach[ref_to_call[ref]].append(current_record)
+            call_to_reach[ref_to_call[ref]].append(list(current_record))
     # return the results
     return call_to_reach
 

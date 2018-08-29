@@ -8,8 +8,11 @@ class Seeker(object):
         _all_strings (list): list of all of the string in the *.idb (to avoid re-generating this list)
 
     Static Attributes:
+        VERSION_UNKNOWN (str): the default value when we failed to fingerprint the version of a closed source library
         NAME (str): name of the open source library (without versioning info)
     """
+
+    VERSION_UNKNOWN = '(unknown)'
 
     def __init__(self, all_strings):
         """Inits the base seeker with useful data.
@@ -26,7 +29,15 @@ class Seeker(object):
             The textual name of the open source library
         """
         return self.NAME
-    
+
+    def openSource(self):
+        """Checks if the library is an open source or closed source
+
+        Return Value:
+            True iff the library is an open source (True by default)
+        """
+        return True
+        
     def searchLib(self, logger):
         """Checks if the open source library is located somewhere in the binary.
 

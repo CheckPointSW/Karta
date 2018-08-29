@@ -1,8 +1,10 @@
+import collections
+
 ######################
 ## Global Variables ##
 ######################
 
-libraries_factory   = {}        # Mapping from library name => init function for the library plugin
+libraries_factory   = collections.OrderedDict()        # Mapping from library name => init function for the library plugin
 
 def registerLibrary(name, init_fn):
     """Registers the library in the overall factory

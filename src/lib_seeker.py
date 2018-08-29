@@ -17,19 +17,24 @@ logger              = None      # elementals logger instance
 def matchLibrary(lib_name, lib_version):
     """Checks if the library was already compiled, and matches it"""
 
-    # TODO: no check right now
+    # Check for existance
+    config_name = constructConfigPath(lib_name, lib_version)
+    config_path = os.path.join(workdir_path, config_name)
+    if not os.path.exists(config_path) :
+        logger.error("Missing configuration file (%s) for \"%s\" Version: \"%s\"", config_name, lib_name, lib_version)
+        return
 
     # Start the actual matching
     logger.addIndent()
     logger.info("Starting to match \"%s\" Version: \"%s\"", lib_name, lib_version)
-    # startMatch(workdir_path, logger)
+    startMatch(config_path, logger)
     logger.info("Finished the matching")
     logger.removeIndent()
 
 def seekLibraries():
     """Iterates over the supported libraries, and activates each of them"""
     libraries_factory = lib_factory.getLibFactory()
-    for lib_name in libraries_factory:
+    for lib_name in filter(lambda k : libraries_factory[k].openSource(), libraries_factory) :
         # create the instance
         lib_instance = libraries_factory[lib_name](all_bin_strings)
         logger.debug("Searching for library \"%s\" in the binary", lib_name)
@@ -63,7 +68,7 @@ def pluginMain(state_path):
     workdir_path = state_path
 
     log_files  = []
-#    log_files += [(os.path.join(workdir_path, "debug.log"), "w", logging.DEBUG)]
+    log_files += [(os.path.join(workdir_path, "debug.log"), "w", logging.DEBUG)]
     log_files += [(os.path.join(workdir_path, "info.log"), "w", logging.INFO)]
     log_files += [(os.path.join(workdir_path, "warning.log"), "w", logging.WARNING)]
     logger = Logger(LIBRARY_NAME, log_files, use_stdout = False, min_log_level = logging.INFO)
@@ -82,6 +87,4 @@ def pluginMain(state_path):
     logger.info("Finished Successfully")
 
 # Start to analyze the file
-#pluginMain('/home/eyalitki/Documents/Tools/SrcToBin/tests/libpng-1.2.29')
-#pluginMain('/home/eyalitki/Documents/Tools/SrcToBin/tests/zlib-1.2.3')
-pluginMain('/home/eyalitki/Documents/Tools/SrcToBin/tests/openssl-1.0.1j')
+pluginMain('/home/eyalitki/Documents/Tools/SrcToBin/LibSeeker')

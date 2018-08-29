@@ -43,7 +43,10 @@ str_file_hints          = set()     # global list of strings that hints about th
 floating_bin_functions  = None      # single global dictionary for the binary function contexts in the floating files
 floating_files          = []        # list of currently floating files
 
+bin_suggested_names     = {}        # Suggested Names for the matched and unmatched binary functions: ea => name
+
 logger                  = None      # Global logger instance
+library_name            = None      # name of the matched open source library
         
 
 class MatchSequence(object) :
@@ -2106,16 +2109,67 @@ def prepareBinFunctions():
         if not outer_ref :
             bin_func_ctx.markStatic()
 
-def startMatch(config_path, used_logger):
+def generateSuggestedNames():
+    """Generates the suggested names for the binary functions"""
+    global bin_suggested_names
+
+    # We have several goals:
+    # 0. Clean naming convention - includes the library's name
+    # 1. Avoid collisions - same name in different filse
+    # 2. Best effort #1 - use file name if known, and function name isn't
+    # 3. Best effort #2 - use lib name if a locked function
+
+    rename_file = lambda x : '.'.join(x.split('.')[:-1]).replace(os.path.sep, '_')
+    logger.info("Generating the suggested names for the located functions")
+
+    # 1. check which (matched) functions share the same name
+    matched_src_ctxs = filter(lambda x : x.matched(), src_functions_ctx)
+    all_match_name = map(lambda x : x._name, matched_src_ctxs)
+    duplicate_match_names = filter(lambda x : all_match_name.count(x) > 1, all_match_name)
+    # 2. Now rename them if necessary
+    for src_ctx in filter(lambda x : x._name in duplicate_match_names, matched_src_ctxs):
+        src_ctx._name = rename_file(src_ctx._file._name) + '_' + src_ctx._name
+
+    # 3. Scan all of the files, and name their functions
+    for match_file in filter(lambda x : x.valid() and x.located(), match_files) :
+        file_name = rename_file(match_file._name)
+        for bin_ctx in match_file._bin_functions_ctx :
+            # 1. Matched
+            if bin_ctx.matched():
+                bin_suggested_names[bin_ctx._ea] = library_name + '_' + bin_ctx.match()._name
+            # 2. Single file
+            elif len(bin_ctx._files) == 1 :
+                bin_suggested_names[bin_ctx._ea] = library_name + '_' + file_name + '_' + ('%X' % (bin_ctx._ea))
+            # 3. Library related
+            else:
+                bin_suggested_names[bin_ctx._ea] = library_name + '_' + ('%X' % (bin_ctx._ea))
+
+def renameChosenFunctions(bin_ctxs):
+    """Renames the chosed set ot binary functions
+
+    Args:
+        bin_cts (list): list of binary contexts for the renamed (located) functions
+    """
+    for bin_ctx in bin_ctxs:
+        # sanity check
+        if bin_ctx._ea not in bin_suggested_names:
+            logger.warning("Failed to rename function at 0x%x, has no name for it", bin_ctx._ea)
+            continue
+        # rename it
+        ida.renameFunction(bin_ctx._ea, bin_suggested_names[bin_ctx._ea])
+
+def startMatch(config_path, lib_name, used_logger):
     """Starts matching the wanted source library to the loaded binary
 
     Args:
         config_path (str): path to the config file of the source library
+        lib_name (str): name of the matched open source library
         used_logger (logger): logger instance to be used (init for us already)
     """
-    global logger
+    global logger, library_name
 
     logger = used_logger
+    library_name = lib_name
 
     # always init the utils before we start
     initUtils()
@@ -2142,3 +2196,11 @@ def startMatch(config_path, used_logger):
 
     # Now try to match all of the files
     matchFiles()
+
+    # Generate the suggested function names
+    generateSuggestedNames()
+
+    # Show the GUI window with the matches
+
+    # Stub:
+    # renameChosenFunctions(filter(lambda x : x._ea in bin_suggested_names, bin_functions_ctx.values()))

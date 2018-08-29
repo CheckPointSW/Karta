@@ -65,3 +65,12 @@ def stringList():
 
     # return the result
     return all_bin_string
+
+def renameFunction(ea, name):
+    """Renames the function at the specified address, using the supplied name
+    
+    Args:
+        ea (int): effective address of the wanted function
+        name (str): new name for the function
+    """
+    MakeName(ea, name.encode("ascii"))

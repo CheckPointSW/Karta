@@ -27,16 +27,19 @@ def matchLibrary(lib_name, lib_version):
     # Start the actual matching
     logger.addIndent()
     logger.info("Starting to match \"%s\" Version: \"%s\"", lib_name, lib_version)
-    startMatch(config_path, logger)
+    startMatch(config_path, lib_name, logger)
     logger.info("Finished the matching")
     logger.removeIndent()
 
 def seekLibraries():
     """Iterates over the supported libraries, and activates each of them"""
     libraries_factory = lib_factory.getLibFactory()
-    for lib_name in filter(lambda k : libraries_factory[k].openSource(), libraries_factory) :
+    for lib_name in libraries_factory :
         # create the instance
         lib_instance = libraries_factory[lib_name](all_bin_strings)
+        # stopped when the first closed source shows up
+        if not lib_instance.openSource() :
+            break
         logger.debug("Searching for library \"%s\" in the binary", lib_name)
         logger.addIndent()
         # search for it

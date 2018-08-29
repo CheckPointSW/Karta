@@ -50,7 +50,7 @@ def writeSuffix(fd):
     """
     writeLine(fd, "Final Note - LibSeeker")
     writeLine(fd, "----------------------")
-    writeLine(fd, "If you encounterred any bug, or wanted to add a new extension / feature, don't hesitate to contact us on GitHub.")
+    writeLine(fd, "If you encountered any bug, or wanted to add a new extension / feature, don't hesitate to contact us on GitHub.")
 
 def identifyLibraries():
     """Iterates over the supported libraries, and activates each of them"""

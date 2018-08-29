@@ -1,0 +1,7 @@
+1. Executed the default configure script
+2. Added flags to avoid inlining: -O0 -fno-inline-functions -fno-builtin
+3. Removed flags to avoid PIC compilation: -fPIC -DOPENSSL_PIC
+4. Compiled to 32 bits: -m32
+
+Overall the relevant Makefile flags were:
+CFLAG= -DOPENSSL_THREADS -D_REENTRANT -DDSO_DLFCN -DHAVE_DLFCN_H -O0 -m32 -fno-inline-functions -fno-builtin -DTERMIO -fomit-frame-pointer -Wall

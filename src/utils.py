@@ -4,9 +4,7 @@ import libc_config as    libc
 import logging
 import json
 import collections
-
 import os
-import time
 
 #################################
 ## Basic Global Configurations ##
@@ -19,7 +17,7 @@ SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
 ## Basic Configurations ##
 ##########################
 
-LIBRARY_NAME        = "LibSeeker" 
+LIBRARY_NAME        = "Karta" 
 LIBRARY_NAME_PREFIX = LIBRARY_NAME + "_" 
 STATE_FILE_SUFFIX   = "_file_state.json"
 LIBRARY_FILE_SUFFIX = "_library_state.json"

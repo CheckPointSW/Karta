@@ -931,26 +931,17 @@ def declareMatch(src_index, func_ea, is_anchor = False) :
         # double check the match
         if not bin_candidate.isPartial() and not src_candidate.isValidCandidate(bin_candidate) :
             logger.error("Cancelled an invalid match: %s (%d) != 0x%x (%s)", src_candidate._name, src_candidate._src_index, bin_candidate._ea, ida.get_func_name(bin_candidate._ea))
-            # 1. They must be in the same file
-            if src_candidate._file not in bin_candidate._files :
-                logger.info(src_candidate._file._name + ' : ' + ', '.join(map(lambda x : x._name, bin_candidate._files)))
-            # 2. A static function can not have an xref from a different file
-            if src_candidate._is_static :
-                logger.info('static')
-                for xref in bin_candidate._xrefs :
-                    logger.info(xref._name + " " + hex(xref._ea))
-                    if src_candidate._file not in xref._files :
-                        logger.info(src_candidate._file._name + ' : ' + ', '.join(map(lambda x : x._name, xref._files)))
-                        break
             debugPrintState(error = True)
+        # no need to declare it twice for anchors
+        logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
 
-    logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
+    # debug sanity checks
     if ida.get_func_name(func_ea) != src_functions_list[src_index] :
         # check if this is an unnamed IDA functions
         if ida.get_func_name(func_ea).startswith("sub_") :
-            logger.warning("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
+            logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
         else :
-            logger.warning("Probably matched a False Positive: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
+            logger.debug("Probably matched a False Positive: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
 
     # register the match
     function_matches[src_index] = func_ea
@@ -1000,7 +991,7 @@ def roundMatchResults() :
         func_ea   = match_record['func_ea']
         src_candidate = src_functions_ctx[src_index]
         bin_candidate = bin_functions_ctx[func_ea]
-        logger.info("record match attempt: %s, 0x%x (%s), %f", src_candidate._name, func_ea, bin_candidate._name, match_record['score'])
+        logger.debug("record match attempt: %s, 0x%x (%s), %f", src_candidate._name, func_ea, bin_candidate._name, match_record['score'])
         # 1. Make sure it is a valid candidate
         if not src_candidate.isValidCandidate(bin_candidate) :
             continue

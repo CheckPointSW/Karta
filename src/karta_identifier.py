@@ -1,5 +1,5 @@
 from utils          import *
-from seek_binary    import startMatch
+from match_library  import startMatch
 from libs           import lib_factory
 
 import ida_api as ida
@@ -37,8 +37,8 @@ def writeHeader(fd):
     Args:
         fd (fd): fd for the results file
     """
-    header_template = "LibSeeker Identifier - %s:"
-    writeLine(fd, header_template % (PROGRAM_NAME))
+    header_template = "%s Identifier - %s:"
+    writeLine(fd, header_template % (LIBRARY_NAME, PROGRAM_NAME))
     writeLine(fd, '=' * (len(header_template) + len(PROGRAM_NAME) - 2))
     writeLine(fd, '')
 
@@ -48,8 +48,8 @@ def writeSuffix(fd):
     Args:
         fd (fd): fd for the results file
     """
-    writeLine(fd, "Final Note - LibSeeker")
-    writeLine(fd, "----------------------")
+    writeLine(fd, "Final Note - Karta")
+    writeLine(fd, "------------------")
     writeLine(fd, "If you encountered any bug, or wanted to add a new extension / feature, don't hesitate to contact us on GitHub.")
 
 def identifyLibraries():
@@ -121,7 +121,7 @@ def identifyLibraries():
     logger.info("Wrote the results to file: %s", result_file)
 
 def pluginMain(state_path):
-    """Main function for the LibSeeker (identifier) plugin
+    """Main function for the Karta (identifier) plugin
 
     Args:
         state_path (str): path to the stored state files
@@ -147,4 +147,4 @@ def pluginMain(state_path):
     logger.info("Finished Successfully")
 
 # Start to analyze the file
-pluginMain('/home/eyalitki/Documents/Tools/SrcToBin/LibSeeker')
+pluginMain('/home/eyalitki/Documents/Tools/Karta/Karta')

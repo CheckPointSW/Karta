@@ -47,7 +47,6 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         compiled_ars (list): list of paths to the compiled *.ar files
         logger (logger): logger instance
     """
-
     logger.info("Starting to analyze the library")
     logger.addIndent()
 

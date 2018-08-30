@@ -1,5 +1,5 @@
 from utils          import *
-from seek_binary    import startMatch
+from match_library  import startMatch
 from libs           import lib_factory
 
 import ida_api as ida
@@ -31,7 +31,7 @@ def matchLibrary(lib_name, lib_version):
     logger.info("Finished the matching")
     logger.removeIndent()
 
-def seekLibraries():
+def matchLibraries():
     """Iterates over the supported libraries, and activates each of them"""
     libraries_factory = lib_factory.getLibFactory()
     for lib_name in libraries_factory :
@@ -60,7 +60,7 @@ def seekLibraries():
         logger.removeIndent()
 
 def pluginMain(state_path):
-    """Main function for the LibSeeker plugin
+    """Main function for the Karta (matcher) plugin
 
     Args:
         state_path (str): path to the stored state files
@@ -82,12 +82,12 @@ def pluginMain(state_path):
     logger.info("Building a list of all of the strings in the binary")
     all_bin_strings = ida.stringList()
 
-    # Start seeking the libraries
-    logger.info("Going to seek the open source libraries")
-    seekLibraries()
+    # Start matching the libraries
+    logger.info("Going to locate and match the open source libraries")
+    matchLibraries()
 
     # Finished successfully
     logger.info("Finished Successfully")
 
 # Start to analyze the file
-pluginMain('/home/eyalitki/Documents/Tools/SrcToBin/LibSeeker')
+pluginMain('/home/eyalitki/Documents/Tools/Karta/Karta')

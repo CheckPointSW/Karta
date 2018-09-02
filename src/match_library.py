@@ -4,6 +4,21 @@ import os
 import sys
 import time
 
+####################
+## Global Configs ##
+####################
+
+REASON_ANCHOR           = "Anchor - Complex unique string / const"
+REASON_FILE_HINT        = "Hint - Includes filename string"
+REASON_AGENT            = "Agent - File-unique string / const"
+REASON_NEIGHBOUR        = "Neighbour matching"
+REASON_SINGLE_CALL      = "Single called (xref) option"
+REASON_SINGLE_XREF      = "Single caller (xref) option"
+REASON_FILE_SINGLETON   = "Last (referenced) function in file"
+REASON_CALL_ORDER       = "Call order in caller function"
+REASON_SWALLOW          = "Swallow - Identified IDA analysis problem"
+REASON_SCORE            = "Score-based Matching"
+
 ######################
 ## Global Variables ##
 ######################
@@ -31,6 +46,7 @@ ext_unused_functions    = set()     # Set of (src) names for unused external fun
 
 function_matches        = {}        # Dictionary of all (non-external) matches: src index => bin ea
 bin_matched_ea          = {}        # Reverse dictionary for all matches: bin ea => src index / external ctx
+matching_reason         = {}        # Dictionary of all (non-external) matching reasons: src index => reason
 
 changed_functions       = {}        # Mappings for hints derived at the current matching round: src index => set of bin function ea
 once_seen_couples_src   = {}        # archive of all seen matching attempts. Mapping from src index => bin ctx
@@ -565,8 +581,7 @@ class FileMatch(object) :
             # if used, just match it
             if singleton_ctx.isHinted() or (0 < self._bin_functions_ctx.index(singleton_ctx) and self._bin_functions_ctx.index(singleton_ctx) < len(self._bin_functions_ctx) - 1) :
                 singleton_index = filter(lambda x : x not in function_matches, xrange(self._src_index_start, self._src_index_end + 1))[0]
-                logger.info("Matching using a hinted singleton")
-                match_result = declareMatch(singleton_index, singleton_ctx._ea) or match_result
+                match_result = declareMatch(singleton_index, singleton_ctx._ea, REASON_FILE_SINGLETON) or match_result
         # check for a (locked) bin singleton
         if len(filter(lambda ctx : ctx.active(), self._bin_functions_ctx)) == 1 :
             singleton_ctx = filter(lambda ctx : ctx.active(), self._bin_functions_ctx)[0]
@@ -593,8 +608,7 @@ class FileMatch(object) :
                     prev_match_index = next_match_index
                 # check if we made it
                 if best_src_index is not None :
-                    logger.info("Matching using a locked (bin) singleton")
-                    match_result = declareMatch(best_src_index, singleton_ctx._ea) or match_result
+                    match_result = declareMatch(best_src_index, singleton_ctx._ea, REASON_FILE_SINGLETON) or match_result
         # scan the sequences in search for a potential match
         if len(self._match_sequences) > 1 :
             for sequence in self._match_sequences :
@@ -616,14 +630,10 @@ class FileMatch(object) :
             # file start
             self._lower_neighbours[self._src_index_start] = (self._bin_functions_ctx[0]._ea, False)
             is_match = matchAttempt(self._src_index_start, self._bin_functions_ctx[0]._ea, file_match = self)
-            if is_match :
-                logger.debug("(tentative) match through file start")
             match_result = is_match or match_result
             # file end
             self._upper_neighbours[self._src_index_end] = (self._bin_functions_ctx[-1]._ea, False)
             is_match = matchAttempt(self._src_index_end, self._bin_functions_ctx[-1]._ea, file_match = self)
-            if is_match :
-                logger.debug("(tentative) match through file end")
             match_result = is_match or match_result
         # Return the result
         return match_result
@@ -646,9 +656,7 @@ class FileMatch(object) :
         if matched_src_index == self._src_index_start :
             return False
         self._lower_neighbours[matched_src_index - 1] = (self._bin_functions_ctx[matched_bin_index - 1]._ea, True)
-        is_match = matchAttempt(matched_src_index - 1, self._bin_functions_ctx[matched_bin_index - 1]._ea, file_match = self)
-        if is_match :
-            logger.debug("(tentative) match through sequence start")
+        if matchAttempt(matched_src_index - 1, self._bin_functions_ctx[matched_bin_index - 1]._ea, file_match = self) :
             return True
         return False
 
@@ -670,9 +678,7 @@ class FileMatch(object) :
         if matched_src_index == self._src_index_end :
             return False
         self._upper_neighbours[matched_src_index + 1] = (self._bin_functions_ctx[matched_bin_index + 1]._ea, True)
-        is_match = matchAttempt(matched_src_index + 1, self._bin_functions_ctx[matched_bin_index + 1]._ea, file_match = self)
-        if is_match :
-            logger.debug("(tentative) match through sequence end")
+        if matchAttempt(matched_src_index + 1, self._bin_functions_ctx[matched_bin_index + 1]._ea, file_match = self) :
             return True
         return False
 
@@ -705,9 +711,8 @@ class FileMatch(object) :
                     continue
                 # now attempt to score them (the boost is embedded in the scoring of the matched hint string)
                 score = src_ctx.compare(bin_ctx, logger)
-                logger.debug("String file hint candidate, compared %s to 0x%x (%s) = %f", src_ctx._name, bin_ctx._ea, bin_ctx._name, score)
                 # record the result (the final decision about it will be received later)
-                recordRoundMatchAttempt(src_index, bin_ctx._ea, 0, score)
+                recordRoundMatchAttempt(src_index, bin_ctx._ea, 0, score, REASON_FILE_HINT)
 
     def attemptFindAgents(self) :
         """Attempt to find "agents" functions according to unique file artefacts"""
@@ -750,9 +755,8 @@ class FileMatch(object) :
                     continue
                 # now attempt to score them
                 score = src_candidate.compare(bin_ctx, logger)
-                logger.debug("Agent candidate, compared %s to 0x%x (%s) = %f", src_candidate._name, bin_ctx._ea, bin_ctx._name, score + score_boost)
                 # record the result (the final decision about it will be received later)
-                recordRoundMatchAttempt(src_index, bin_ctx._ea, score_boost, score + score_boost)
+                recordRoundMatchAttempt(src_index, bin_ctx._ea, score_boost, score + score_boost, REASON_AGENT)
 
     def attemptMatchSwallows(self) :
         """Attempt to match new functions by searching for swallowd functions (islands)
@@ -850,8 +854,7 @@ class FileMatch(object) :
                 score += LOCATION_BOOST_SCORE
             if score >= MINIMAL_ISLAND_SCORE :
                 bin_functions_ctx[island_ctx._ea] = island_ctx
-                logger.info("Matching using swallow in sequence")
-                declareMatch(src_candidate_ctx._src_index, island_ctx._ea)
+                declareMatch(src_candidate_ctx._src_index, island_ctx._ea, REASON_SWALLOW)
                 return True
         return False
 
@@ -914,17 +917,18 @@ def updateHints(src_index, func_ea) :
                 src_ext._ea = matched_ea
                 logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
 
-def declareMatch(src_index, func_ea, is_anchor = False) :
+def declareMatch(src_index, func_ea, reason) :
     """Officially declare a match of a source function to code that starts with the given binary ea
 
     Args:
         src_index (int): (source) index of the matched (source) function
         func_ea (int): ea of the matched (binary) function (maybe an island)
-        is_anchor (bool, optional): True iff matched an anchor function (False by default)
+        reason (enum): matching reason, taken from the string enum options
     """
-    global changed_functions, anchor_hints, bin_matched_ea, src_functions_ctx
+    global changed_functions, anchor_hints, bin_matched_ea, src_functions_ctx, matching_reason
 
-    function = sark.Function(func_ea)    
+    function = sark.Function(func_ea)
+    is_anchor = reason == REASON_ANCHOR
     # Sanitation logic that uses contexts (non available in anchor phase)
     if not is_anchor:
         src_candidate = src_functions_ctx[src_index]
@@ -935,6 +939,7 @@ def declareMatch(src_index, func_ea, is_anchor = False) :
             debugPrintState(error = True)
         # no need to declare it twice for anchors
         logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, function.name)
+        logger.debug("Matching reason is: %s", reason)
 
     # debug sanity checks
     if function.name != src_functions_list[src_index] :
@@ -946,7 +951,8 @@ def declareMatch(src_index, func_ea, is_anchor = False) :
 
     # register the match
     function_matches[src_index] = func_ea
-    bin_matched_ea[func_ea] = src_index
+    bin_matched_ea[func_ea]     = src_index
+    matching_reason[src_index]  = reason
 
     # no need to keep track of the source function any more
     if src_index in changed_functions :
@@ -992,7 +998,8 @@ def roundMatchResults() :
         func_ea   = match_record['func_ea']
         src_candidate = src_functions_ctx[src_index]
         bin_candidate = bin_functions_ctx[func_ea]
-        logger.debug("record match attempt: %s, 0x%x (%s), %f", src_candidate._name, func_ea, bin_candidate._name, match_record['score'])
+        logger.debug("Round match attempt: %s (%d) vs %s (0x%x): %f (+%f = %f)" % (src_candidate._name, src_index, bin_candidate._name, bin_candidate._ea, 
+                                                                                            match_record['score'] - match_record['boost'], match_record['boost'], match_record['score']))
         # 1. Make sure it is a valid candidate
         if not src_candidate.isValidCandidate(bin_candidate) :
             continue
@@ -1004,7 +1011,7 @@ def roundMatchResults() :
         else :
             # actually match the couple
             logger.info("Matching in a round match according to score: %f (%f)", match_record['score'] - match_record['boost'], match_record['score'])
-            declareMatch(src_index, func_ea)
+            declareMatch(src_index, func_ea, match_record['reason'])
             declared_match = True
             # store them for a later filter
             matched_src_index.add(src_index)
@@ -1029,7 +1036,7 @@ def roundMatchResults() :
     # return the final results
     return declared_match
 
-def recordRoundMatchAttempt(src_index, func_ea, score_boost, score) :
+def recordRoundMatchAttempt(src_index, func_ea, score_boost, score, reason) :
     """Records a match attempt into the round's records
 
     Args:
@@ -1037,6 +1044,7 @@ def recordRoundMatchAttempt(src_index, func_ea, score_boost, score) :
         func_ea (int): ea of the candidate (binary) function (can't be an island)
         score_boost (int): score boost given to the match attempt because of it's circumstances
         score (int): final matching score (including the score_boost) 
+        reason (enum): matching reason, taken from the string enum
     """
     global match_round_candidates, match_round_src_index, match_round_bin_ea, match_round_losers
 
@@ -1047,6 +1055,7 @@ def recordRoundMatchAttempt(src_index, func_ea, score_boost, score) :
                         'score'     : score,
                         'gap-safe'  : True,
                         'gap'       : None,
+                        'reason'    : reason,
                     }
 
     # check using the src_index
@@ -1063,8 +1072,9 @@ def recordRoundMatchAttempt(src_index, func_ea, score_boost, score) :
             # be safe with the gaps
             elif prev_record['gap-safe'] :
                 # simply adjust it's score (no need to throw him out)
-                prev_record['score'] = match_record['score']
-                prev_record['boost'] = match_record['boost']
+                prev_record['score']  = match_record['score']
+                prev_record['boost']  = match_record['boost']
+                prev_record['reason'] = match_record['reason']
                 return
             # still the winner in the binary match - had a gap in the binary or the source
             elif match_round_bin_ea[func_ea] == prev_record :
@@ -1076,8 +1086,9 @@ def recordRoundMatchAttempt(src_index, func_ea, score_boost, score) :
                     match_round_candidates.append(prev_record)
                     match_round_losers.remove(prev_record)
                 # always preform the update
-                prev_record['score'] = match_record['score']
-                prev_record['boost'] = match_record['boost']
+                prev_record['score']  = match_record['score']
+                prev_record['boost']  = match_record['boost']
+                prev_record['reason'] = match_record['reason']
                 return
             # lost the binary match - match_round_bin_ea[func_ea] != prev_record
             else :
@@ -1103,8 +1114,9 @@ def recordRoundMatchAttempt(src_index, func_ea, score_boost, score) :
                         match_round_candidates.remove(prev_bin_record)
                         match_round_losers.append(prev_bin_record)
                 # always preform the update
-                prev_record['score'] = match_record['score']
-                prev_record['boost'] = match_record['boost']
+                prev_record['score']  = match_record['score']
+                prev_record['boost']  = match_record['boost']
+                prev_record['reason'] = match_record['reason']
         # check if our candidate even needs to compete
         if score + SAFTEY_GAP_SCORE < prev_record['score'] :
             # tough luck, we should get rejected
@@ -1223,7 +1235,7 @@ def matchAttempt(src_index, func_ea, file_match = None) :
         score_boost += LOCATION_BOOST_SCORE 
     logger.debug("%s (%d) vs %s (0x%x): %f (+%f = %f)" % (src_candidate._name, src_index, bin_candidate._name, bin_candidate._ea, score, score_boost, score + score_boost))
     # record the result (the final decision about it will be received later)
-    recordRoundMatchAttempt(src_index, func_ea, score_boost, score + score_boost)
+    recordRoundMatchAttempt(src_index, func_ea, score_boost, score + score_boost, REASON_NEIGHBOUR if score_boost > 0 else REASON_SCORE)
     # now behave as we expect (unless a better record will win the race)
     if score + score_boost >= MINIMAL_MATCH_SCORE :
         return True
@@ -1232,7 +1244,6 @@ def matchAttempt(src_index, func_ea, file_match = None) :
         if file_match is not None and score <= MINIMAL_NEIGHBOUR_THRESHOLD :
             if src_index not in function_matches :
                 if matchAttempt(src_index + 1, func_ea, file_match) :
-                    logger.debug("(tentative) match through skipping a source neighbour - onwards")
                     return True
         return False
 
@@ -1306,19 +1317,16 @@ def matchFiles() :
                         continue
                     # check for a single call hint - this should be a sure match
                     if bin_ctx._call_hints is not None and len(bin_ctx._call_hints) == 1 :
-                        logger.info("Matching using single call hints")
-                        declareMatch(list(bin_ctx._call_hints)[0]._src_index, bin_ctx._ea)
+                        declareMatch(list(bin_ctx._call_hints)[0]._src_index, bin_ctx._ea, REASON_SINGLE_CALL)
                         finished = False
                         continue
                     # check for a single xref hint - this should be a sure match
                     if len(set(bin_ctx._xref_hints)) == 1 :
-                        logger.info("Matching using single xref call hints")
-                        declareMatch(bin_ctx._xref_hints[0]._src_index, bin_ctx._ea)
+                        declareMatch(bin_ctx._xref_hints[0]._src_index, bin_ctx._ea, REASON_SINGLE_XREF)
                         finished = False
                         continue
                     # simply compare them both
-                    if matchAttempt(src_index, bin_ctx._ea) :
-                        logger.debug("(tentative) match through %s functions", "changed" if scoped_functions == changed_functions else "seen")
+                    matchAttempt(src_index, bin_ctx._ea)
                     # add it to the once seen couples
                     if src_index not in once_seen_couples_src :
                         once_seen_couples_src[src_index] = set()
@@ -1456,8 +1464,7 @@ def matchFiles() :
                     else :
                         # continue on only if the match is valid
                         if src_candidate.isValidCandidate(bin_candidate) :
-                            logger.info("matching using sequential call hints")
-                            declareMatch(src_candidate._src_index, bin_candidate._ea)
+                            declareMatch(src_candidate._src_index, bin_candidate._ea, REASON_CALL_ORDER)
                             finished = False
             # update the data-structure
             call_hints_records = new_call_hints_records
@@ -1575,7 +1582,7 @@ def debugPrintState(error = False) :
 
 def initMatchVars():
     """Prepares the global variables used for the matching for a new script execution"""
-    global bin_functions_ctx, match_files, match_round_candidates, match_round_src_index, match_round_bin_ea, match_round_losers, src_unused_functions, ext_unused_functions, function_matches, bin_matched_ea, changed_functions, once_seen_couples_src, once_seen_couples_bin, call_hints_records, anchor_hints, str_file_hints, floating_bin_functions, floating_files, bin_suggested_names
+    global bin_functions_ctx, match_files, match_round_candidates, match_round_src_index, match_round_bin_ea, match_round_losers, src_unused_functions, ext_unused_functions, function_matches, bin_matched_ea, matching_reason, changed_functions, once_seen_couples_src, once_seen_couples_bin, call_hints_records, anchor_hints, str_file_hints, floating_bin_functions, floating_files, bin_suggested_names
 
     # same as the init list on the top of the file
     bin_functions_ctx       = {}        # bin ea => bin function ctx
@@ -1591,6 +1598,7 @@ def initMatchVars():
 
     function_matches        = {}        # Dictionary of all (non-external) matches: src index => bin ea
     bin_matched_ea          = {}        # Reverse dictionary for all matches: bin ea => src index / external ctx
+    matching_reason         = {}        # Dictionary of all (non-external) matching reasons: src index => reason
 
     changed_functions       = {}        # Mappings for hints derived at the current matching round: src index => set of bin function ea
     once_seen_couples_src   = {}        # archive of all seen matching attempts. Mapping from src index => bin ctx
@@ -1851,7 +1859,7 @@ def loadAndMatchAnchors(anchors_config):
             logger.info("Anchor function - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, caller_func.name)
             matched_anchors_ea[src_anchor_index] = caller_func.startEA
             anchor_eas.append(caller_func.startEA)
-            declareMatch(src_anchor_index, caller_func.startEA, is_anchor = True)
+            declareMatch(src_anchor_index, caller_func.startEA, REASON_ANCHOR)
             # use the match to improve our search range
             # first anchor
             if len(matched_anchors_ea.keys()) == 1 :
@@ -1901,7 +1909,7 @@ def loadAndMatchAnchors(anchors_config):
                 logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, caller_func.name)
                 matched_anchors_ea[src_anchor_index] = caller_func.startEA
                 anchor_eas.append(caller_func.startEA)
-                declareMatch(src_anchor_index, caller_func.startEA, is_anchor = True)
+                declareMatch(src_anchor_index, caller_func.startEA, REASON_ANCHOR)
             # still not found
             else :
                 src_anchor_list.remove(src_anchor_index)

@@ -1,17 +1,14 @@
 from utils          import *
 from match_library  import startMatch
 from libs           import lib_factory
-
-import ida_api as ida
+from ida_api        import *
 
 ######################
 ## Global Variables ##
 ######################
 
 workdir_path        = None      # path to the working directory (including the databases with the pre-compiled libraries)
-
 all_bin_strings     = None      # list of all of the binary strings in the *.idb
-
 logger              = None      # elementals logger instance
 
 def matchLibrary(lib_name, lib_version):
@@ -19,7 +16,7 @@ def matchLibrary(lib_name, lib_version):
 
     # Check for existance
     config_name = constructConfigPath(lib_name, lib_version)
-    config_path = os.path.join(workdir_path, config_name)
+    config_path = os.path.join(workdir_path, CONFIG_DIR_PATH, config_name)
     if not os.path.exists(config_path) :
         logger.error("Missing configuration file (%s) for \"%s\" Version: \"%s\"", config_name, lib_name, lib_version)
         return
@@ -75,12 +72,12 @@ def pluginMain(state_path):
     log_files += [(os.path.join(workdir_path, "info.log"), "w", logging.INFO)]
     log_files += [(os.path.join(workdir_path, "warning.log"), "w", logging.WARNING)]
     logger = Logger(LIBRARY_NAME, log_files, use_stdout = False, min_log_level = logging.INFO)
-    logger.linkHandler(ida.IdaLogHandler())
+    logger.linkHandler(IdaLogHandler())
     logger.info("Started the Script")
 
     # Init the strings list (Only once, because it's heavy to calculate)
     logger.info("Building a list of all of the strings in the binary")
-    all_bin_strings = ida.stringList()
+    all_bin_strings = idaStringList()
 
     # Start matching the libraries
     logger.info("Going to locate and match the open source libraries")

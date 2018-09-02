@@ -1,9 +1,15 @@
 from ar_parser  import getArchiveFiles
 from utils      import *
-from elementals import Prompter
+from elementals import Prompter, ProgressBar
 
 import os
 import sys
+
+####################
+## Global Configs ##
+####################
+
+PROGRESS_BAR_THRESHOLD = 25
 
 def locateFiles(bin_dir, file_list) :
     """Locates the inner path of the compiled *.o files
@@ -55,14 +61,28 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         bin_dir = bin_dirs[index]
         logger.info("Analyze each of the files in the archive - %s", compiled_ar)
         logger.addIndent()
-        for full_file_path, compiled_file in locateFiles(bin_dir, getArchiveFiles(compiled_ar)) :
-            logger.info("%s - %s", compiled_file, full_file_path)
+        archive_files = filter(lambda x : x.endswith(".o"), getArchiveFiles(compiled_ar))
+        # check if we need a progress bar
+        if len(archive_files) >= PROGRESS_BAR_THRESHOLD :
+            progress_bar = ProgressBar('Analyzed %d/%d files - %d%% Completed', len(archive_files), 20, True, time_format = "Elapsed %M:%S -")
+            progress_bar.start()
+        else :
+            progress_bar = None
+        # start the work itself
+        for full_file_path, compiled_file in locateFiles(bin_dir, archive_files) :
+            if progress_bar is None :
+                logger.info("%s - %s", compiled_file, full_file_path)
             # analyze the file
             analyzeFile(full_file_path)
             # load the JSON data from it
             fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
             parseFileStats(full_file_path, json.load(fd, object_pairs_hook=collections.OrderedDict))
             fd.close()
+            if progress_bar is not None :
+                progress_bar.advance(1)
+        # wrap it up
+        if progress_bar is not None :
+            progress_bar.finish()
         logger.removeIndent()
 
     # Resolve several unknowns refs as code refs

@@ -1,14 +1,13 @@
 from utils          import *
 from match_library  import startMatch
 from libs           import lib_factory
-
-import ida_api as ida
+from ida_api        import *
 
 ####################
 ## Global Configs ##
 ####################
 
-PROGRAM_NAME = '.'.join((ida.GetInputFile().split(os.path.sep))[-1].split('.')[:-1])
+PROGRAM_NAME = '.'.join((idc.GetInputFile().split(os.path.sep))[-1].split('.')[:-1])
 LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (PROGRAM_NAME)
 
 ######################
@@ -16,9 +15,7 @@ LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (PROGRAM_NAME)
 ######################
 
 workdir_path        = None      # path to the working directory (including the databases with the pre-compiled libraries)
-
 all_bin_strings     = None      # list of all of the binary strings in the *.idb
-
 logger              = None      # elementals logger instance
 
 def writeLine(fd, line):
@@ -132,12 +129,12 @@ def pluginMain(state_path):
     workdir_path = state_path
 
     logger = Logger(LIBRARY_NAME, [], use_stdout = False, min_log_level = logging.INFO)
-    logger.linkHandler(ida.IdaLogHandler())
+    logger.linkHandler(IdaLogHandler())
     logger.info("Started the Script")
 
     # Init the strings list (Only once, because it's heavy to calculate)
     logger.info("Building a list of all of the strings in the binary")
-    all_bin_strings = ida.stringList()
+    all_bin_strings = idaStringList()
 
     # Start identifying the libraries
     logger.info("Going to identify the open (and closed) source libraries")

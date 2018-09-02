@@ -19,6 +19,7 @@ SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
 
 LIBRARY_NAME        = "Karta" 
 LIBRARY_NAME_PREFIX = LIBRARY_NAME + "_" 
+CONFIG_DIR_PATH     = "configs"
 STATE_FILE_SUFFIX   = "_file_state.json"
 LIBRARY_FILE_SUFFIX = "_library_state.json"
 

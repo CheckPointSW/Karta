@@ -1,5 +1,5 @@
-from utils     import *
-import ida_api as ida
+from utils   import *
+from ida_api import *
 
 def analyzeFunctionGraph(func_ea, src_mode) :
     """Analyzes the flow graph of a given function, generating a call-order mapping
@@ -17,49 +17,49 @@ def analyzeFunctionGraph(func_ea, src_mode) :
     block_to_reach = {}
     call_to_reach  = {}
     # 1st scan, build up the mappings - O(N) time, O(k) storage
-    func = ida.get_func(func_ea)
-    flow = ida.FlowChart(func)
+    func = sark.Function(func_ea)
+    func_start = func.startEA
+    flow = idaapi.FlowChart(func.func_t)
     for block in flow :
-        instr_pos = block.start_ea
         block_to_reach[block.start_ea] = set()
-        while instr_pos < block.end_ea :
-            instr_size, instr = ida.decodeInstruction(instr_pos)
-            if instr_size == 0 :
-                instr_pos += 1
-                continue
-            for ref in ida.CodeRefsFrom(instr_pos, False) :
-                # Check for a function call
-                call = ida.get_func(ref)
-                if call is not None and (call != func or (ref == func_ea)) :
-                    if block.start_ea not in block_to_ref :
-                        block_to_ref[block.start_ea] = set()
-                    block_to_ref[block.start_ea].add(instr_pos)
-                    ref_to_block[instr_pos] = block
-                    ref_to_call[instr_pos] = ida.GetFunctionName(ref) if src_mode else ref
-            # could be an external function (or a function pointer)
-            for ref in ida.DataRefsFrom(instr_pos) :
-                # Check for a string
-                str_const = ida.GetString(ref, -1, -1)
+        try :
+            block_lines = sark.CodeBlock(block.start_ea).lines
+        except :
+            continue
+        for line in block_lines :
+            instr_pos = line.ea
+            call_candidates = set()
+            # Data Refs (strings, fptrs)
+            for ref in line.drefs_from :
+                # Check for a string (finds un-analyzed strings too)
+                str_const = idc.GetString(ref, -1, -1)
                 if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                     continue
-                # Check for a function pointer
-                fptr = ida.get_func(ref)
-                if fptr is not None and fptr.start_ea != func_ea :
-                    if block.start_ea not in block_to_ref :
-                        block_to_ref[block.start_ea] = set()
-                    block_to_ref[block.start_ea].add(instr_pos)
-                    ref_to_block[instr_pos] = block
-                    ref_to_call[instr_pos] = ida.GetFunctionName(fptr.start_ea) if src_mode else fptr.start_ea
+                # Check for an fptr
+                try :
+                    call_candidates.add(sark.Function(ref).startEA)
+                except :
                     continue
-                # Maybe an unknown (external) function
-                if src_mode and ida.get_name(ref) is not None :
-                    if block.start_ea not in block_to_ref :
-                        block_to_ref[block.start_ea] = set()
-                    block_to_ref[block.start_ea].add(instr_pos)
-                    ref_to_block[instr_pos] = block
-                    ref_to_call[instr_pos] = ida.get_name(ref)
-            # Advance to the next instruction
-            instr_pos += instr_size
+            # Check for a function call
+            for cref in line.crefs_from :
+                try :
+                    if (cref == func_start and line.insn.is_call) or sark.Function(cref).startEA != func_start :
+                        call_candidates.add(sark.Function(cref).startEA)
+                except Exception, e:
+                    continue
+            # handle each ref (beware of unknowns)
+            for ref in call_candidates :
+                call = sark.Function(ref)
+                # Make sure it is not an unknown
+                if src_mode and sark.Line(ref).disasm.startswith("extrn ") :
+                    continue
+                # record the call
+                if block.start_ea not in block_to_ref :
+                    block_to_ref[block.start_ea] = set()
+                block_to_ref[block.start_ea].add(instr_pos)
+                ref_to_block[instr_pos] = block
+                ref_to_call[instr_pos] = call.name if src_mode else call.startEA
+
     # 2nd scan, start from each reference, and propagate till the end - O(kN), E(N) time, O(N) storage
     sorted_refs = ref_to_block.keys()
     sorted_refs.sort()
@@ -97,6 +97,7 @@ def analyzeFunctionGraph(func_ea, src_mode) :
                     working_set.update(block_to_reach[cur_block.start_ea])
                     new_search_list += map(lambda x : (x, set(working_set)), cur_block.succs())
             search_list = new_search_list
+
     # 3rd scan, sum up the results - O(k) time, O(k*k) storage
     for ref in ref_to_block.keys() :
         reachable_from = block_to_reach[ref_to_block[ref].start_ea]
@@ -107,6 +108,7 @@ def analyzeFunctionGraph(func_ea, src_mode) :
         current_record = set(filter(lambda x : x != ref_to_call[ref], map(lambda x : ref_to_call[x], reachable_from)))
         if current_record not in call_to_reach[ref_to_call[ref]] :
             call_to_reach[ref_to_call[ref]].append(list(current_record))
+
     # return the results
     return call_to_reach
 
@@ -120,62 +122,64 @@ def analyzeFunction(func_ea, src_mode) :
     Return Value:
         FunctionContext object representing the analyzed function
     """
-    func = ida.get_func(func_ea)
-    func_name = ida.GetFunctionName(func_ea)
-    context = FunctionContext(func_name, func_ea)
+    func = sark.Function(func_ea)
+    context = FunctionContext(func.name, func_ea)
     
-    func_start = func.start_ea
-    func_end   = func.end_ea
-    instr_pos  = func_start
+    func_start = func.startEA
     instr_count = 0
-    while instr_pos < func_end :
+    call_candidates = set()
+    for line in func.lines :
         instr_count += 1
-        instr_size, instr = ida.decodeInstruction(instr_pos)
-        if instr_size == 0 :
-            instr_pos += 1
-            continue
         # Numeric Constants
-        for oper in instr.Operands :
-            if not ida.isDataRef(oper, instr_pos) :
-                context.recordConst(oper.value)
-        # Data Refs (strings and fptrs)
-        for ref in ida.DataRefsFrom(instr_pos) :
-            # Check for a string
-            str_const = ida.GetString(ref, -1, -1)
+        data_refs = list(line.drefs_from)
+        for oper in filter(lambda x : x.type.is_imm, line.insn.operands) :
+            if oper.imm not in data_refs :
+                context.recordConst(oper.imm)
+        # Data Refs (strings, fptrs)
+        for ref in data_refs :
+            # Check for a string (finds un-analyzed strings too)
+            str_const = idc.GetString(ref, -1, -1)
             if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                 context.recordString(str_const)
                 continue
-            # Check for a function pointer (should point to the start of a different function)
-            fptr = ida.get_func(ref)
-            if fptr is not None and fptr.start_ea != func_start and fptr.start_ea in [ref, ref + 1] :
-                context.recordCall(ida.GetFunctionName(fptr.start_ea) if src_mode else fptr.start_ea)
+            # Check for an fptr
+            try :
+                call_candidates.add(sark.Function(ref).startEA)
+            except Exception, e:
                 continue
-            # Maybe an unknown (external) function
-            if ida.get_name(ref) is not None :
-                context.recordUnknown(ida.get_name(ref))
-        # Code Refs (calls)
-        for ref in ida.CodeRefsFrom(instr_pos, False) :
-            # Check for a function call
-            call = ida.get_func(ref)
-            if call is not None and (call != func or (ref == func_start)) :
-                context.recordCall(ida.GetFunctionName(call.start_ea) if src_mode else call.start_ea)
-        # Advance to the next instruction
-        instr_pos += instr_size
+        # Code Refs (calls and unknowns)
+        for cref in line.crefs_from :
+            try :
+                if (cref == func_start and line.insn.is_call) or sark.Function(cref).startEA != func_start :
+                    call_candidates.add(sark.Function(cref).startEA)
+            except Exception, e:
+                continue
+        # in binary mode don't let the call_candidates expand too much
+        if not src_mode :
+            map(lambda x : context.recordCall(x), call_candidates)
+            call_candidates = set()
 
-    context.setFrame(func.frsize)
+    # check all the call candidates together
+    if src_mode :
+        for candidate in call_candidates :
+            ref_func = sark.Function(candidate)
+            # check if known or unknown
+            if sark.Line(ref).disasm.startswith("extrn ") :
+                context.recordUnknown(ref_func.name)
+            else :
+                context.recordCall(ref_func.name)
+
+    context.setFrame(func.frame_size)
     context.setInstrCount(instr_count)
 
     # Now, record the code blocks
-    flow = ida.FlowChart(func)
+    flow = idaapi.FlowChart(func.func_t)
     for block in flow :
-        instr_count = 0
-        instr_pos = block.start_ea
-        while instr_pos < block.end_ea :
-            instr_count += 1
-            instr_size, instr = ida.decodeInstruction(instr_pos)
-            instr_pos += instr_size
-        context.recordBlock(instr_count)
-
+        try :
+            context.recordBlock(len(list(sark.CodeBlock(block.start_ea).lines)))
+        except :
+            # happens with code outside of a function
+            continue
     context._blocks.sort(reverse = True)
 
     # Now add the flow analysis
@@ -195,8 +199,8 @@ def searchIslands(func_ea, range_start, range_end) :
         Orderred list of code blocks for the found island, or None if found nothing
     """
     island_guess = None
-    func = ida.get_func(func_ea)
-    flow = ida.FlowChart(func)
+    func = sark.Function(func_ea)
+    flow = idaapi.FlowChart(func.func_t)
     for block in flow :
         if range_start <= block.start_ea and block.end_ea <= range_end :
             if island_guess is None or block.start_ea < island_guess.start_ea :
@@ -205,7 +209,7 @@ def searchIslands(func_ea, range_start, range_end) :
     if island_guess is None :
         return None
     # make sure that the island is indeed an island, and not a well known function
-    if ida.get_func(island_guess.start_ea).start_ea == island_guess.start_ea :
+    if sark.Function(island_guess.start_ea).startEA == island_guess.start_ea :
         return None
     # find the contained flow, that island_guess is the start of
     island_blocks = []
@@ -231,40 +235,36 @@ def analyzeIslandFunction(blocks) :
         IslandContext object representing the analyzed island
     """
     island_start = blocks[0].start_ea
-    func = ida.get_func(island_start)
-    context = IslandContext(ida.get_name(island_start), island_start)
+    func = sark.Function(island_start)
+    func_start = func.startEA
+    context = IslandContext(func.name, island_start)
     for block in blocks :
-        instr_pos = block.start_ea
-        while instr_pos < block.end_ea :
-            instr_size, instr = ida.decodeInstruction(instr_pos)
-            if instr_size == 0 :
-                instr_pos += 1
-                continue
+        for line in sark.CodeBlock(block.start_ea).lines :
             # Numeric Constants
-            for oper in instr.Operands :
-                if not ida.isDataRef(oper, instr_pos) :
-                    context.recordConst(oper.value)
-                    context._const_ranks[oper.value] = rankConst(oper.value, None)
-            # Data Refs (strings and fptrs)
-            for ref in ida.DataRefsFrom(instr_pos) :
-                # Check for a string
-                str_const = ida.GetString(ref, -1, -1)
+            data_refs = list(line.drefs_from)
+            for oper in filter(lambda x : x.type.is_imm, line.insn.operands) :
+                if oper.imm not in data_refs :
+                    context.recordConst(oper.imm)
+                    context._const_ranks[oper.imm] = rankConst(oper.imm, None)
+            # Data Refs (strings, fptrs)
+            for ref in data_refs :
+                # Check for a string (finds un-analyzed strings too)
+                str_const = idc.GetString(ref, -1, -1)
                 if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                     context.recordString(str_const)
                     continue
-                # Check for a function pointer (should point to the start of a different function)
-                fptr = ida.get_func(ref)
-                if fptr is not None and fptr.start_ea != func_start and fptr.start_ea in [ref, ref + 1] :
-                    context.recordCall(ida.GetFunctionName(fptr.start_ea) if src_mode else fptr.start_ea)
+                # Check for an fptr
+                try :
+                    context.recordCall(sark.Function(ref).startEA)
+                except :
                     continue
             # Code Refs (calls)
-            for ref in ida.CodeRefsFrom(instr_pos, False) :
-                # Check for a function call
-                call = ida.get_func(ref)
-                if call is not None and (call != func or (ref == island_start)) :
-                    context.recordCall(call.start_ea)
-            # Advance to the next instruction
-            instr_pos += instr_size
+            for cref in line.crefs_from :
+                try :
+                    if (cref == func_start and line.insn.is_call) or sark.Function(cref).startEA != func_start :
+                        context.recordCall(sark.Function(cref).startEA)
+                except Exception, e:
+                    continue
 
     return context
 
@@ -279,21 +279,10 @@ def locateAnchorConsts(func_ea, const_set) :
         a set that contains the matched immediate value, an empty set if found none)
     """
     results = set()
-    func = ida.get_func(func_ea)
-    func_start = func.start_ea
-    func_end   = func.end_ea
-    instr_pos  = func_start
-    instr_count = 0
-    while instr_pos < func_end :
-        instr_count += 1
-        instr_size, instr = ida.decodeInstruction(instr_pos)
-        if instr_size == 0 :
-            instr_pos += 1
-            continue
+    for line in sark.Function(func_ea).lines :
         # Numeric Constants
-        for oper in instr.Operands :
-            if not ida.isDataRef(oper, instr_pos) and oper.value in const_set :
-                results.add(oper.value)
-        # Advance to the next instruction
-        instr_pos += instr_size
+        data_refs = list(line.drefs_from)
+        for oper in filter(lambda x : x.type.is_imm, line.insn.operands) :
+            if oper.imm in const_set and oper.imm not in data_refs :
+                results.add(oper.imm)
     return results

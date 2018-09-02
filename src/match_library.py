@@ -108,8 +108,8 @@ class FileMatch(object) :
         _lower_leftovers (int): size (in functions) of the lower "safety" gap (from a last valid match to the start of the file)
         _upper_leftovers (int): size (in functions) of the upper "safety" gap (from a last valid match to the end of the file)
         _match_sequences (list): Orderred list of match sequences in the file (containing MatchSequence instances)
-        _lower_neighbours (dict): Dictionary containig failed matched "lower" adjacent neighbours: src index => ea
-        _upper_neighbours (dict): Dictionary containig failed matched "upper" adjacent neighbours: src index => ea
+        _lower_neighbours (dict): Dictionary containig failed matched "lower" adjacent neighbours: src index => (ea, is_match_neighbour)
+        _upper_neighbours (dict): Dictionary containig failed matched "upper" adjacent neighbours: src index => (ea, is_match_neighbour)
         _unique_strings (list): List of unique string artefacts that were found in the source file
         _unique_consts (list): List of unique numeric const artefacts that were found in the source file
         _remain_size (int): number of source functions that are still to be matched
@@ -614,13 +614,13 @@ class FileMatch(object) :
         # for a full size match, check the file borders too
         if len(self._bin_functions_ctx) == (self._src_index_end - self._src_index_start + 1) :
             # file start
-            self._lower_neighbours[self._src_index_start] = self._bin_functions_ctx[0]._ea
+            self._lower_neighbours[self._src_index_start] = (self._bin_functions_ctx[0]._ea, False)
             is_match = matchAttempt(self._src_index_start, self._bin_functions_ctx[0]._ea, file_match = self)
             if is_match :
                 logger.debug("(tentative) match through file start")
             match_result = is_match or match_result
             # file end
-            self._upper_neighbours[self._src_index_end] = self._bin_functions_ctx[-1]._ea
+            self._upper_neighbours[self._src_index_end] = (self._bin_functions_ctx[-1]._ea, False)
             is_match = matchAttempt(self._src_index_end, self._bin_functions_ctx[-1]._ea, file_match = self)
             if is_match :
                 logger.debug("(tentative) match through file end")
@@ -645,7 +645,7 @@ class FileMatch(object) :
         # can't extend the source downard
         if matched_src_index == self._src_index_start :
             return False
-        self._lower_neighbours[matched_src_index - 1] = self._bin_functions_ctx[matched_bin_index - 1]._ea
+        self._lower_neighbours[matched_src_index - 1] = (self._bin_functions_ctx[matched_bin_index - 1]._ea, True)
         is_match = matchAttempt(matched_src_index - 1, self._bin_functions_ctx[matched_bin_index - 1]._ea, file_match = self)
         if is_match :
             logger.debug("(tentative) match through sequence start")
@@ -669,7 +669,7 @@ class FileMatch(object) :
         matched_src_index = sequence._bin_upper_ctx.match()._src_index
         if matched_src_index == self._src_index_end :
             return False
-        self._upper_neighbours[matched_src_index + 1] = self._bin_functions_ctx[matched_bin_index + 1]._ea
+        self._upper_neighbours[matched_src_index + 1] = (self._bin_functions_ctx[matched_bin_index + 1]._ea, True)
         is_match = matchAttempt(matched_src_index + 1, self._bin_functions_ctx[matched_bin_index + 1]._ea, file_match = self)
         if is_match :
             logger.debug("(tentative) match through sequence end")
@@ -912,7 +912,7 @@ def updateHints(src_index, func_ea) :
             if matched_ea is not None and matched_ea not in bin_matched_ea:
                 bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                 src_ext._ea = matched_ea
-                logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, ida.get_func_name(matched_ea))
+                logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
 
 def declareMatch(src_index, func_ea, is_anchor = False) :
     """Officially declare a match of a source function to code that starts with the given binary ea
@@ -923,25 +923,26 @@ def declareMatch(src_index, func_ea, is_anchor = False) :
         is_anchor (bool, optional): True iff matched an anchor function (False by default)
     """
     global changed_functions, anchor_hints, bin_matched_ea, src_functions_ctx
-    
+
+    function = sark.Function(func_ea)    
     # Sanitation logic that uses contexts (non available in anchor phase)
     if not is_anchor:
         src_candidate = src_functions_ctx[src_index]
         bin_candidate = bin_functions_ctx[func_ea]
         # double check the match
         if not bin_candidate.isPartial() and not src_candidate.isValidCandidate(bin_candidate) :
-            logger.error("Cancelled an invalid match: %s (%d) != 0x%x (%s)", src_candidate._name, src_candidate._src_index, bin_candidate._ea, ida.get_func_name(bin_candidate._ea))
+            logger.error("Cancelled an invalid match: %s (%d) != 0x%x (%s)", src_candidate._name, src_candidate._src_index, bin_candidate._ea, function.name)
             debugPrintState(error = True)
         # no need to declare it twice for anchors
-        logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
+        logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, function.name)
 
     # debug sanity checks
-    if ida.get_func_name(func_ea) != src_functions_list[src_index] :
+    if function.name != src_functions_list[src_index] :
         # check if this is an unnamed IDA functions
-        if ida.get_func_name(func_ea).startswith("sub_") :
-            logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
+        if function.name.startswith("sub_") :
+            logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, function.name)
         else :
-            logger.debug("Probably matched a False Positive: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, ida.get_func_name(func_ea))
+            logger.debug("Probably matched a False Positive: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, function.name)
 
     # register the match
     function_matches[src_index] = func_ea
@@ -1197,17 +1198,20 @@ def matchAttempt(src_index, func_ea, file_match = None) :
         return False
     score = src_candidate.compare(bin_candidate, logger)
     score_boost = 0
+    neighbour_match = False
     # lower neighbour
-    if file_match is not None and src_index in file_match._lower_neighbours and file_match._lower_neighbours[src_index] == func_ea :
+    if file_match is not None and src_index in file_match._lower_neighbours and file_match._lower_neighbours[src_index][0] == func_ea :
         score_boost += LOCATION_BOOST_SCORE
+        neighbour_match = file_match._lower_neighbours[src_index][1]
     # upper neighbour
-    if file_match is not None and src_index in file_match._upper_neighbours and file_match._upper_neighbours[src_index] == func_ea :
+    if file_match is not None and src_index in file_match._upper_neighbours and file_match._upper_neighbours[src_index][0] == func_ea :
         score_boost += LOCATION_BOOST_SCORE
+        neighbour_match = file_match._upper_neighbours[src_index][1]
     # handle the functions on the file's edge:
     # 1. File's edge when |bin| == |src|
     # 2. Lower edge when previous (adjacent) file was completed
     # 3. Upper edge when next (adjacent) file was completed
-    if file_match is not None and score_boost > 0 and src_index in [file_match._src_index_start, file_match._src_index_end] and \
+    if file_match is not None and neighbour_match and src_index in [file_match._src_index_start, file_match._src_index_end] and \
             (len(file_match._bin_functions_ctx) == (file_match._src_index_end - file_match._src_index_start + 1) or \
             (src_index == file_match._src_index_start and \
                     file_match._lower_leftovers < file_match._remain_size - (len(file_match._locked_eas) + len(file_match._upper_locked_eas))) or \
@@ -1216,7 +1220,7 @@ def matchAttempt(src_index, func_ea, file_match = None) :
         score_boost += LOCATION_BOOST_SCORE
     # triple the bonus if both apply
     if score_boost >= 2 * LOCATION_BOOST_SCORE :
-        score_boost += LOCATION_BOOST_SCORE
+        score_boost += LOCATION_BOOST_SCORE 
     logger.debug("%s (%d) vs %s (0x%x): %f (+%f = %f)" % (src_candidate._name, src_index, bin_candidate._name, bin_candidate._ea, score, score_boost, score + score_boost))
     # record the result (the final decision about it will be received later)
     recordRoundMatchAttempt(src_index, func_ea, score_boost, score + score_boost)
@@ -1348,9 +1352,10 @@ def matchFiles() :
 
                 # merge the results into the changed functions list
                 for src_index, func_ea in match_round_losers :
+                    bin_ctx = bin_functions_ctx[func_ea]
                     if src_index not in once_seen_couples_src :
                         once_seen_couples_src[src_index] = set()
-                    once_seen_couples_src[src_index].add(bin_functions_ctx[func_ea])
+                    once_seen_couples_src[src_index].add(bin_ctx)
                     if bin_ctx._ea not in once_seen_couples_bin :
                         once_seen_couples_bin[bin_ctx._ea] = set()
                     once_seen_couples_bin[bin_ctx._ea].add(src_index)
@@ -1386,7 +1391,8 @@ def matchFiles() :
                 # build the bin order
                 for bin_ctx in bin_calls :
                     if bin_ctx not in bin_parent._call_order :
-                        logger.warning("Found a probable Island inside function: 0x%x (%s)", bin_ctx._ea, bin_ctx._name)
+                        if not is_ext :
+                            logger.warning("Found a probable Island inside function: 0x%x (%s)", bin_ctx._ea, bin_ctx._name)
                         continue
                     for call_path in bin_parent._call_order[bin_ctx] :
                         order_score = len(call_path.intersection(bin_calls))
@@ -1446,7 +1452,7 @@ def matchFiles() :
                                 if matched_ea is not None and matched_ea not in bin_matched_ea:
                                     bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                                     src_ext._ea = matched_ea
-                                    logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, ida.get_func_name(matched_ea))
+                                    logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
                     else :
                         # continue on only if the match is valid
                         if src_candidate.isValidCandidate(bin_candidate) :
@@ -1558,7 +1564,7 @@ def debugPrintState(error = False) :
     for external_func in src_external_functions :
         ext_ctx = src_external_functions[external_func]
         if ext_ctx.matched() : 
-            logger.info("+ %s - 0x%x (%s)", ext_ctx._name, ext_ctx._ea, ida.get_func_name(ext_ctx._ea))
+            logger.info("+ %s - 0x%x (%s)", ext_ctx._name, ext_ctx._ea, sark.Function(ext_ctx._ea).name)
         elif external_func in ext_unused_functions :
             logger.info("- %s", ext_ctx._name)            
         else :
@@ -1569,7 +1575,8 @@ def debugPrintState(error = False) :
 
 def initMatchVars():
     """Prepares the global variables used for the matching for a new script execution"""
-    global bin_functions_ctx, match_files, src_unused_functions, ext_unused_functions, function_matches, bin_matched_ea, changed_functions, call_hints_records, anchor_hints
+    global bin_functions_ctx, match_files, match_round_candidates, match_round_src_index, match_round_bin_ea, match_round_losers, src_unused_functions, ext_unused_functions, function_matches, bin_matched_ea, changed_functions, once_seen_couples_src, once_seen_couples_bin, call_hints_records, anchor_hints, str_file_hints, floating_bin_functions, floating_files, bin_suggested_names
+
     # same as the init list on the top of the file
     bin_functions_ctx       = {}        # bin ea => bin function ctx
     match_files             = []        # Orderred list of FileMatch instances, each for every source file
@@ -1595,6 +1602,8 @@ def initMatchVars():
 
     floating_bin_functions  = None      # single global dictionary for the binary function contexts in the floating files
     floating_files          = []        # list of currently floating files
+
+    bin_suggested_names     = {}        # Suggested Names for the matched and unmatched binary functions: ea => name
 
 def criticalError():
     logger.error("Exitting the script")
@@ -1697,14 +1706,14 @@ def loadAndMatchAnchors(anchors_config):
     # Locate the anchor functions
     logger.info("Searching for the Anchor functions in the binary")
     logger.addIndent()
-    all_bin_functions = list(ida.Functions())
+    all_bin_functions = list(idautils.Functions())
     # range narrowing variables
     lower_match_ea = None
     upper_match_ea = None
     lower_match_index = None
     upper_match_index = None
     lower_border_ea = 0
-    upper_border_ea = ida.BADADDR
+    upper_border_ea = idc.BADADDR
     lower_border_index = None
     upper_border_index = None
     function_range = None
@@ -1738,7 +1747,7 @@ def loadAndMatchAnchors(anchors_config):
     anchor_bin_strs = {}
     # Scanning the entire string list and checking against each anchor string - O(kN) - efficient in memory
     if len(all_string_clues) > 0 :
-        for bin_str_ctx in ida.stringList() :
+        for bin_str_ctx in idaStringList() :
             bin_str = str(bin_str_ctx)
             if bin_str in all_string_clues :
                 if bin_str not in anchor_bin_strs :
@@ -1757,8 +1766,8 @@ def loadAndMatchAnchors(anchors_config):
                 # found the string clue in the binary
                 if clue in anchor_bin_strs :
                     for bin_str in anchor_bin_strs[clue] :
-                        for ref in ida.DataRefsTo(bin_str.ea) :
-                            caller_func = ida.get_func(ref)
+                        for ref in idautils.DataRefsTo(bin_str.ea) :
+                            caller_func = idaapi.get_func(ref)
                             if caller_func is None :
                                 continue
                             if lower_border_ea <= caller_func.start_ea and caller_func.start_ea <= upper_border_ea :
@@ -1774,13 +1783,13 @@ def loadAndMatchAnchors(anchors_config):
                 if lower_match_index is None or not efficient_const_search :
                     search_pos = lower_border_ea if not first_const_anchor else 0
                     while first_const_anchor or search_pos < upper_border_ea :
-                        match_ea, garbage = ida.FindImmediate(search_pos, ida.SEARCH_DOWN, clue)
+                        match_ea, garbage = idc.FindImmediate(search_pos, idc.SEARCH_DOWN, clue)
                         search_pos = match_ea + 1
                         # Filter out mismatches
-                        if match_ea == ida.BADADDR :
+                        if match_ea == idc.BADADDR :
                             break
                         # Filter out matches that are not inside functions
-                        caller_func = ida.get_func(match_ea)
+                        caller_func = idaapi.get_func(match_ea)
                         if caller_func is not None :
                             current_set.add(caller_func.start_ea)
                     # measure the end time too
@@ -1838,32 +1847,32 @@ def loadAndMatchAnchors(anchors_config):
             logger.warning("Anchor function - %s: Failed to find a match", src_functions_list[src_anchor_index])
             src_anchor_list.remove(src_anchor_index)
         elif len(candidates) == 1 :
-            caller_func = ida.get_func(candidates.pop())
-            logger.info("Anchor function - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.start_ea, ida.get_func_name(caller_func.start_ea))
-            matched_anchors_ea[src_anchor_index] = caller_func.start_ea
-            anchor_eas.append(caller_func.start_ea)
-            declareMatch(src_anchor_index, caller_func.start_ea, is_anchor = True)
+            caller_func = sark.Function(candidates.pop())
+            logger.info("Anchor function - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, caller_func.name)
+            matched_anchors_ea[src_anchor_index] = caller_func.startEA
+            anchor_eas.append(caller_func.startEA)
+            declareMatch(src_anchor_index, caller_func.startEA, is_anchor = True)
             # use the match to improve our search range
             # first anchor
             if len(matched_anchors_ea.keys()) == 1 :
-                lower_match_ea = caller_func.start_ea
+                lower_match_ea = caller_func.startEA
                 upper_match_ea = lower_match_ea
-                lower_match_index = all_bin_functions.index(caller_func.start_ea)
+                lower_match_index = all_bin_functions.index(caller_func.startEA)
                 upper_match_index = lower_match_index
                 change = True
             else :
                 # try to improve the lower border
-                if caller_func.start_ea < lower_match_ea :
-                    lower_match_ea = caller_func.start_ea
-                    new_lower_index = all_bin_functions.index(caller_func.start_ea)
+                if caller_func.startEA < lower_match_ea :
+                    lower_match_ea = caller_func.startEA
+                    new_lower_index = all_bin_functions.index(caller_func.startEA)
                     if function_range is not None :
                         function_range = function_range[new_lower_index - lower_match_index : ]
                     lower_match_index = new_lower_index
                     change = True
                 # try to improve the lower border
-                elif upper_match_ea < caller_func.start_ea :
-                    upper_match_ea = caller_func.start_ea
-                    new_upper_index = all_bin_functions.index(caller_func.start_ea)
+                elif upper_match_ea < caller_func.startEA :
+                    upper_match_ea = caller_func.startEA
+                    new_upper_index = all_bin_functions.index(caller_func.startEA)
                     if function_range is not None :
                         function_range = function_range[ : new_upper_index - upper_match_index]
                     upper_match_index = new_upper_index
@@ -1888,11 +1897,11 @@ def loadAndMatchAnchors(anchors_config):
             filterred_candidates = filter(lambda x : lower_match_ea <= x and x <= upper_match_ea, candidates)
             # matched
             if len(filterred_candidates) == 1 :
-                caller_func = ida.get_func(filterred_candidates.pop())
-                logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.start_ea, ida.get_func_name(caller_func.start_ea))
-                matched_anchors_ea[src_anchor_index] = caller_func.start_ea
-                anchor_eas.append(caller_func.start_ea)
-                declareMatch(src_anchor_index, caller_func.start_ea, is_anchor = True)
+                caller_func = sark.Function(filterred_candidates.pop())
+                logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, caller_func.name)
+                matched_anchors_ea[src_anchor_index] = caller_func.startEA
+                anchor_eas.append(caller_func.startEA)
+                declareMatch(src_anchor_index, caller_func.startEA, is_anchor = True)
             # still not found
             else :
                 src_anchor_list.remove(src_anchor_index)
@@ -1947,7 +1956,7 @@ def locateFileBoundaries():
 
     # construct the list of minimal bound and maximal bound for each file
     # this could be tricky since not all of our files are going to have anchor functions - including the first and the last file
-    all_bin_functions = list(ida.Functions())
+    all_bin_functions = list(idautils.Functions())
     file_min_bound = []
     file_max_bound = []
     file_lower_gap = []
@@ -2093,8 +2102,8 @@ def prepareBinFunctions():
     # Now check for outer xrefs
     for bin_func_ctx in bin_functions_ctx.values() :
         outer_ref = False
-        for ref in filter(lambda x : ida.get_func(x) is not None, ida.CodeRefsTo(bin_func_ctx._ea, False)) :
-            if ida.get_func(ref).start_ea not in bin_functions_ctx :
+        for ref in filter(lambda x : idaapi.get_func(x) is not None, sark.Line(bin_func_ctx._ea).crefs_to) :
+            if sark.Function(ref).startEA not in bin_functions_ctx :
                 outer_ref = True
                 break
         if not outer_ref :
@@ -2147,7 +2156,7 @@ def renameChosenFunctions(bin_ctxs):
             logger.warning("Failed to rename function at 0x%x, has no name for it", bin_ctx._ea)
             continue
         # rename it
-        ida.renameFunction(bin_ctx._ea, bin_suggested_names[bin_ctx._ea])
+        renameIDAFunction(bin_ctx._ea, bin_suggested_names[bin_ctx._ea])
 
 def startMatch(config_path, lib_name, used_logger):
     """Starts matching the wanted source library to the loaded binary

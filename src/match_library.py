@@ -1,4 +1,5 @@
 from ida_utils  import *
+from idaapi     import Choose2
 
 import os
 import sys
@@ -18,6 +19,22 @@ REASON_FILE_SINGLETON   = "Last (referenced) function in file"
 REASON_CALL_ORDER       = "Call order in caller function"
 REASON_SWALLOW          = "Swallow - Identified IDA analysis problem"
 REASON_SCORE            = "Score-based Matching"
+GUI_MATCH_REASONS       = [REASON_ANCHOR, REASON_FILE_HINT, REASON_AGENT, REASON_NEIGHBOUR, REASON_SINGLE_CALL, 
+                           REASON_SINGLE_XREF, REASON_FILE_SINGLETON, REASON_CALL_ORDER, REASON_SWALLOW, REASON_SCORE]
+
+REASON_DISABLED         = "ifdeffed out / inlined"
+REASON_LIBRARY_UNUSED   = "Unused - No xrefs inside the open source"
+REASON_STATIC_UNUSED    = "Unused - Static function without internal xrefs"
+
+GUI_CMD_IMPORT_SELECTED = "Import Selected"
+GUI_CMD_IMPORT_MATCHED  = "Import ALL Matches"
+
+GUI_COLOR_DARK_GREEN    = 0x136B09
+GUI_COLOR_GREEN         = 0x0E8728
+GUI_COLOR_LIGHT_GREEN   = 0x39BA16
+GUI_COLOR_GRAY          = 0x75726B
+GUI_COLOR_DARK_RED      = 0x0B1DE2
+GUI_COLOR_RED           = 0x0000FF
 
 ######################
 ## Global Variables ##
@@ -63,7 +80,89 @@ bin_suggested_names     = {}        # Suggested Names for the matched and unmatc
 
 logger                  = None      # Global logger instance
 library_name            = None      # name of the matched open source library
-        
+
+#################
+## GUI Classes ##
+#################
+
+class ChooseForm(Choose2):
+    """Choose Form (view) implementation, responsible for showing and handling the matching results
+
+    Attributes:
+        _entries (list): (sorted) list of match results to be shown in the table
+        _names (dict): suggested names for the match results: bin ea => name
+        _selected (list): list of selected row indices
+        _import_selected (cmd): GUI action handler responsible for importing the selected rows
+        _import_matched (cmd): GUI action handler responsible for importing all of the matches
+
+    """
+    def __init__(self, prepared_entries, suggested_names):
+        """Constructs the UI Form view, according to the matching entries
+
+        Args:
+            prepared_entries (list): list of UI rows, including the dara for the different columns
+            suggested_names (dict): suggested names for the renaming: bin ea => name
+        """
+        # Using tuples causes this to crash...
+        columns = [['Line', 4], ['File Name', 20], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \ Information', 35]]
+        Choose2.__init__(self, "%s Matching Results" % (library_name), columns, Choose2.CH_MULTI)
+        self.deflt = 0
+        self.icon = -1
+        self.selcount = 0
+        self.modal = False
+        self.items = []
+        self._entries  = prepared_entries
+        self._names    = suggested_names
+        self._selected = []
+        # build the table
+        for idx, entry in enumerate(prepared_entries):
+            self.items.append(["%04d" % (idx + 1), entry[0], entry[1], ("0x%08X" % (entry[2])) if entry[2] is not None else 'N/A', entry[3], entry[4]])
+        # register additional command handlers
+        self._import_selected = self.AddCommand(GUI_CMD_IMPORT_SELECTED)
+        self._import_matched  = self.AddCommand(GUI_CMD_IMPORT_MATCHED)
+
+    # Overriden base function
+    def OnClose(self):
+        pass
+
+    # Overriden base function
+    def OnGetLine(self, n):
+        return self.items[n]
+
+    # Overriden base function
+    def OnGetSize(self):
+        return len(self.items)
+
+    # Overriden base function
+    def show(self):
+        return self.Show(False) >= 0
+
+    # Overriden base function
+    def OnGetLineAttr(self, n):
+        return [self._entries[n][-1], 0]
+
+    # Overriden base function
+    def OnCommand(self, n, cmd_id):
+        imports = None
+        # import (only) the selected functions
+        if cmd_id == self._import_selected:
+            imports = filter(lambda x : self._entries[x][4] in GUI_MATCH_REASONS, self._selected)
+        # import all of the matched functions
+        elif cmd_id == self._import_matched:
+            imports = filter(lambda x : self._entries[x][4] in GUI_MATCH_REASONS, xrange(len(self.items)))
+        # check if there is something to be done
+        if imports is not None:
+            renameChosenFunctions(map(lambda x : self._entries[x][2], imports), self._names)
+        # always return true
+        return True
+
+    # Overriden base function
+    def OnSelectionChange(self,  sel_list):
+        self._selected = sel_list
+
+######################
+## Matching Classes ##
+######################  
 
 class MatchSequence(object) :
     """A class representing a (geographic) sequence of matched binary functions
@@ -1536,7 +1635,7 @@ def debugPrintState(error = False) :
                 logger.info("%03d: - %s", src_index, src_functions_ctx[src_index]._name)
             elif not src_functions_ctx[src_index].used() :
                 logger.info("%03d: _ - %s", src_index, src_functions_ctx[src_index]._name)
-            elif src_functions_ctx[src_index]._is_static :
+            elif src_functions_ctx[src_index].static() :
                 logger.info("%03d: , - %s", src_index, src_functions_ctx[src_index]._name)
             else :
                 logger.info("%03d: . [%s] - %s", src_index, candidate_string, src_functions_ctx[src_index]._name)
@@ -1562,7 +1661,7 @@ def debugPrintState(error = False) :
                 logger.info("%03d: + (0x%x - %s) - (%s)", bin_index, bin_ea, bin_ctx._name, str(match_file.index(bin_ctx)))
             elif not bin_ctx.used() :
                 logger.info("%03d: _ (0x%x - %s) [%s]", bin_index, bin_ea, bin_ctx._name, hints_options)
-            elif not bin_ctx._is_static :
+            elif not bin_ctx.static() :
                 logger.info("%03d: & (0x%x - %s)", bin_index, bin_ea, bin_ctx._name)
             else :
                 logger.info("%03d: . (0x%x - %s) [%s]", bin_index, bin_ea, bin_ctx._name, hints_options)
@@ -2117,6 +2216,26 @@ def prepareBinFunctions():
         if not outer_ref :
             bin_func_ctx.markStatic()
 
+def prepareGUIEntries():
+    """Prepares the entries list, according to the sorting logic we want in the GUI
+
+    Return Value:
+        list of source contexts, according to the wanted GUI presentation order
+    """
+    # Start with perfect files (sorted by name)
+    perfect_files = filter(lambda x : x.matched(), match_files)
+    perfect_files.sort(key = lambda x : x._name)
+
+    # Now sort the rest according to the number of unmatched "used" source functions
+    non_perfect_files = filter(lambda x : x.located() and not x.matched(), match_files)
+    non_perfect_files.sort(key = lambda x : len(filter(lambda c : c.used() and not c.matched(), src_functions_ctx[x._src_index_start : x._src_index_end + 1])))
+
+    # now extract the functions, according to their order
+    entries = []
+    for match_file in perfect_files + non_perfect_files:
+        entries += src_functions_ctx[match_file._src_index_start : match_file._src_index_end + 1]
+    return entries
+
 def generateSuggestedNames():
     """Generates the suggested names for the binary functions"""
     global bin_suggested_names
@@ -2134,6 +2253,7 @@ def generateSuggestedNames():
     matched_src_ctxs = filter(lambda x : x.matched(), src_functions_ctx)
     all_match_name = map(lambda x : x._name, matched_src_ctxs)
     duplicate_match_names = filter(lambda x : all_match_name.count(x) > 1, all_match_name)
+
     # 2. Now rename them if necessary
     for src_ctx in filter(lambda x : x._name in duplicate_match_names, matched_src_ctxs):
         src_ctx._name = rename_file(src_ctx._file._name) + '_' + src_ctx._name
@@ -2152,19 +2272,68 @@ def generateSuggestedNames():
             else:
                 bin_suggested_names[bin_ctx._ea] = library_name + '_' + ('%X' % (bin_ctx._ea))
 
-def renameChosenFunctions(bin_ctxs):
+    # 4. Sepcial case for swallows
+    for src_ctx in filter(lambda x : matching_reason[x._src_index] == REASON_SWALLOW, matched_src_ctxs) :
+        bin_suggested_names[src_ctx.match()._ea] = library_name + '_' + src_ctx._name
+
+def showResultsGUIWindow(match_entries):
+    """Creates and shows the GUI window containing the match result entries
+
+    Args:
+        match_entries (list): list of (src) function contexts, sorted by the presentation order
+    """
+    prepared_entries = []
+    # Prepare the entries
+    for entry in match_entries:
+        file_name = '.'.join(entry._file._name.split('.')[:-1])
+        src_name  = entry._name
+        if entry.matched():
+            bin_match = entry.match()
+            address   = bin_match._ea
+            bin_name  = bin_match._name
+            reason    = matching_reason[entry._src_index]
+            if reason == REASON_ANCHOR:
+                color = GUI_COLOR_DARK_GREEN
+            elif reason == REASON_AGENT or reason == REASON_FILE_HINT:
+                color = GUI_COLOR_GREEN
+            else:
+                color = GUI_COLOR_LIGHT_GREEN
+        else:
+            address = None
+            bin_name = 'N/A'
+            if entry._src_index in src_unused_functions :
+                reason = REASON_DISABLED
+                color = GUI_COLOR_GRAY
+            elif entry.used():
+                reason = 'N/A'
+                color = GUI_COLOR_RED
+            elif not entry.static():
+                reason = REASON_LIBRARY_UNUSED
+                color = GUI_COLOR_DARK_RED
+            else:
+                reason = REASON_STATIC_UNUSED
+                color = GUI_COLOR_DARK_RED
+        # Now insert the entry itself
+        prepared_entries.append((file_name, src_name, address, bin_name, reason, color))
+        
+    # show the window
+    view = ChooseForm(prepared_entries, bin_suggested_names)
+    view.show()
+
+def renameChosenFunctions(bin_eas, suggested_names):
     """Renames the chosed set ot binary functions
 
     Args:
-        bin_cts (list): list of binary contexts for the renamed (located) functions
+        bin_eas (list): list of binary eas to be renamed
+        suggested_names (dict): suggested names: bin ea => name
     """
-    for bin_ctx in bin_ctxs:
+    for bin_ea in bin_eas:
         # sanity check
-        if bin_ctx._ea not in bin_suggested_names:
-            logger.warning("Failed to rename function at 0x%x, has no name for it", bin_ctx._ea)
+        if bin_ea not in suggested_names:
+            logger.warning("Failed to rename function at 0x%x, has no name for it", bin_ea)
             continue
         # rename it
-        renameIDAFunction(bin_ctx._ea, bin_suggested_names[bin_ctx._ea])
+        renameIDAFunction(bin_ea, suggested_names[bin_ea])
 
 def startMatch(config_path, lib_name, used_logger):
     """Starts matching the wanted source library to the loaded binary
@@ -2209,6 +2378,5 @@ def startMatch(config_path, lib_name, used_logger):
     generateSuggestedNames()
 
     # Show the GUI window with the matches
-
-    # Stub:
-    # renameChosenFunctions(filter(lambda x : x._ea in bin_suggested_names, bin_functions_ctx.values()))
+    match_entries = prepareGUIEntries()
+    showResultsGUIWindow(match_entries)

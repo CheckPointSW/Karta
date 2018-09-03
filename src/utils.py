@@ -515,6 +515,14 @@ class FunctionContext(ComparableContext):
         """Marks our source function as a non-exported (static) function"""
         self._is_static = True
 
+    def static(self):
+        """Checks if this is a static function
+
+        Return value:
+            True iff this is a static function
+        """
+        return self._is_static
+
     def disable(self) :
         """Marks our source function as non-existant (probably ifdeffed out)"""
         self._exists = False
@@ -691,7 +699,7 @@ class FunctionContext(ComparableContext):
             return False
 
         # 2. A static function can not have an xref from outside the library (weak because of possible inlining)
-        if self._is_static and not bin_ctx._is_static :
+        if self.static() and not bin_ctx.static() :
             return False
 
         # If reached this line, the candidate is probably fine
@@ -770,7 +778,7 @@ class FunctionContext(ComparableContext):
         logger.debug("Externals score: %f", externals_score)
         score += externals_score
         # 11. Possible static deduction
-        if self._is_static :
+        if self.static() :
             for xref in bin_ctx._xrefs :
                 if self._file not in xref._files :
                     score -= STATIC_VIOLATION_PENALTY

@@ -1,4 +1,4 @@
-import unix_ar
+import os
 
 def getArchiveFiles(ar_path) :
     """Returns an orderred list of the files within the .ar archive
@@ -9,7 +9,30 @@ def getArchiveFiles(ar_path) :
     Return Value:
         Orderred list of file names
     """
-    ar = unix_ar.open(ar_path, 'r')
-    names = filter(lambda e : len(e) > 0, map(lambda e : e._name[:-1], ar.infolist()))
-    ar.close()
+    ar_fd = open(ar_path, 'r')
+    is_windows = ar_path.endswith(".lib")
+
+    # check the signature
+    if ar_fd.read(8) != b'!<arch>\n':
+        raise ValueError("Invalid archive signature")
+
+    # split the content to parts
+    ar_content = ar_fd.read()
+    names = []
+    for ar_part in ar_content.split('\x60\x0A')[:-1]:
+        # .ar file format (unix) seems simpler
+        if not is_windows:
+            # sanity check
+            if len(ar_part) < 58:
+                continue
+            # now read the metadata of the record
+            name = ar_part[-58 : ].split(os.path.sep)[0]
+        # .lib file format is more complex
+        else:
+            if ar_part.find(".obj") == -1:
+                continue
+            name = ar_part.split(".obj")[-2].split('\x00')[-1].split(os.path.sep)[-1] + ".obj"
+        # append the new record
+        names.append(name)
+    ar_fd.close()
     return names

@@ -32,8 +32,8 @@ def analyzeFile(full_file_path) :
     Args:
         full_file_path (str): full path to the specific *.o file
     """
-    os.system(IDA_PATH + " -A -B -Telf '%s'" % (full_file_path))
-    os.system(IDA_PATH + " -A -Telf -S'%s' '%s'" % (SCRIPT_PATH, full_file_path + ".idb"))
+    os.system(getIDAPath() + " -A -B -Telf '%s'" % (full_file_path))
+    os.system(getIDAPath() + " -A -Telf -S'%s' '%s'" % (SCRIPT_PATH, full_file_path + ".idb"))
 
 def resolveUnknowns() :
     """Resolves "unknown" references between the different compiled files"""
@@ -61,7 +61,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         bin_dir = bin_dirs[index]
         logger.info("Analyze each of the files in the archive - %s", compiled_ar)
         logger.addIndent()
-        archive_files = filter(lambda x : x.endswith(".o"), getArchiveFiles(compiled_ar))
+        archive_files = filter(lambda x : x.endswith(".o" if compiled_ar.endswith(".a") else ".obj"), getArchiveFiles(compiled_ar))
         # check if we need a progress bar
         if len(archive_files) >= PROGRESS_BAR_THRESHOLD :
             progress_bar = ProgressBar('Analyzed %d/%d files - %d%% Completed', len(archive_files), 20, True, time_format = "Elapsed %M:%S -")
@@ -75,7 +75,15 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
             # analyze the file
             analyzeFile(full_file_path)
             # load the JSON data from it
-            fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
+            try:
+                fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
+            except:
+                logger.error("Failed to create the .JSON file for file: %s" % (compiled_file))
+                logger.removeIndent()
+                logger.removeIndent()
+                logger.error("Encounterred an error, exitting")
+                exit(1)
+            # all was OK, can continue
             parseFileStats(full_file_path, json.load(fd, object_pairs_hook=collections.OrderedDict))
             fd.close()
             if progress_bar is not None :
@@ -143,7 +151,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
                 break
         common_path_len = len(os.path.sep.join(base_value[:index])) + 1
     else :
-        common_path_len = len(bin_dirs[0])
+        common_path_len = len(bin_dirs[0]) + 1
 
     for src_file_name in src_file_mappings :
         file_dict[src_file_name[common_path_len:]] = map(lambda c : c.serialize(), src_file_mappings[src_file_name])
@@ -165,7 +173,7 @@ def printUsage(args):
     Args:
         args (list): list of cmd line arguments
     """
-    print 'Usage: %s <library name> <library version> <bin dir> <.ar compiled archive>' % (args[0])
+    print 'Usage: %s <library name> <library version> <bin dir (with *.o or *.obj files)> <compiled archive: *.a or *.lib>' % (args[0])
     print 'Exitting'
     exit(1)
 
@@ -187,6 +195,9 @@ def main(args):
     # open the log
     prompter = Prompter()
     prompter.info('Starting the Script')
+
+    # requesting the path to IDA
+    setIDAPath()
 
     # analyze the open source library
     analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, prompter)

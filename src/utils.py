@@ -988,6 +988,22 @@ def getSourceFunctions() :
     """
     return src_functions_list, src_functions_ctx, src_file_mappings
 
+def setIDAPath():
+    """Updates the IDA path according to input from the user"""
+    global IDA_PATH
+
+    new_path = raw_input("[+] Please insert the command (path) need in order to execute IDA (%s): " % (IDA_PATH))
+    if len(new_path.strip()) != 0 :
+        IDA_PATH = new_path
+
+def getIDAPath():
+    """Returns the updated IDA path
+
+    Return Value:
+        The (updated) path to the IDA program
+    """
+    return IDA_PATH
+
 def parseFileStats(file_name, functions_config) :
     """Parses the file metadata from the given file
     

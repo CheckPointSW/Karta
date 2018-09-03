@@ -164,7 +164,7 @@ def analyzeFunction(func_ea, src_mode) :
         for candidate in call_candidates :
             ref_func = sark.Function(candidate)
             # check if known or unknown
-            if sark.Line(ref).disasm.startswith("extrn ") :
+            if sark.Line(candidate).disasm.startswith("extrn ") :
                 context.recordUnknown(ref_func.name)
             else :
                 context.recordCall(ref_func.name)

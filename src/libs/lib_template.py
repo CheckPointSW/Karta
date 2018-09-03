@@ -8,11 +8,11 @@ class Seeker(object):
         _all_strings (list): list of all of the string in the *.idb (to avoid re-generating this list)
 
     Static Attributes:
-        VERSION_UNKNOWN (str): the default value when we failed to fingerprint the version of a closed source library
+        VERSION_UNKNOWN (str): the default value when we failed to fingerprint the version of a library
         NAME (str): name of the open source library (without versioning info)
     """
 
-    VERSION_UNKNOWN = '(unknown)'
+    VERSION_UNKNOWN = 'unknown'
 
     def __init__(self, all_strings):
         """Inits the base seeker with useful data.

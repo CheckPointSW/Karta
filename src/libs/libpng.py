@@ -22,7 +22,7 @@ class LibpngSeeker(Seeker):
                     # false match
                     continue
                 # valid match
-                logger.debug("Located the copyright string of in address 0x%x", bin_str.ea)
+                logger.debug("Located the copyright string in address 0x%x", bin_str.ea)
                 match_counter += 1
                 # save the string for later
                 self._copyright_string = copyright_string
@@ -32,17 +32,18 @@ class LibpngSeeker(Seeker):
 
     # Overriden base function
     def identifyVersion(self, logger):
-        # extract the version from the copyright string
-        start_index = self._copyright_string.find(self.VERSION_STRING) + len(self.VERSION_STRING)
+        # extract the version from the saved string
+        work_str = self._copyright_string
+        start_index = work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING)
         legal_chars = string.digits + '.'
         end_index = start_index
         # scan until we stop
-        while self._copyright_string[end_index] in legal_chars:
+        while end_index < len(work_str) and work_str[end_index] in legal_chars:
             end_index += 1
-        if self._copyright_string[end_index] == '.':
+        if end_index < len(work_str) and work_str[end_index] == '.':
             end_index -= 1
         # return the result
-        return self._copyright_string[start_index : end_index]
+        return work_str[start_index : end_index]
 
 # Register our class
 LibpngSeeker.register(LibpngSeeker.NAME, LibpngSeeker)

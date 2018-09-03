@@ -4,5 +4,11 @@ from lib_factory    import *
 from libpng         import *
 from zlib           import *
 from openssl        import *
+from openssh        import *
+from gsoap          import *
+from libxml2        import *
+from libtiff        import *
+from mdnsresponder  import *
+from mactelnet      import *
 # Closed Source Libraries
 from treck          import *

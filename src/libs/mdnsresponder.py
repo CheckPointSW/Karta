@@ -1,17 +1,13 @@
 from lib_template import *
 import string
 
-class TreckSeeker(Seeker):
+class mDNSSeeker(Seeker):
     # Library Name
-    NAME = 'Treck'
-
-    # Overriden base function
-    def openSource(self):
-        return False
+    NAME = 'mDNSResponder'
 
     # Overriden base function
     def searchLib(self, logger):
-        key_string = 'tfRecvFromTo'
+        key_string = 'mDNSResponder'
 
         # Now search
         match_counter = 0
@@ -30,4 +26,4 @@ class TreckSeeker(Seeker):
         return self.VERSION_UNKNOWN
 
 # Register our class
-TreckSeeker.register(TreckSeeker.NAME, TreckSeeker)
+mDNSSeeker.register(mDNSSeeker.NAME, mDNSSeeker)

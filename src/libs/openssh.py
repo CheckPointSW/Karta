@@ -1,31 +1,25 @@
 from lib_template import *
 import string
 
-class ZlibSeeker(Seeker):
+class OpensshSeeker(Seeker):
     # Library Name
-    NAME = 'zlib'
+    NAME = 'OpenSSH'
     # version string marker
-    VERSION_STRING = " deflate "
+    VERSION_STRING = "OpenSSH_"
 
     # Overriden base function
     def searchLib(self, logger):
-        key_string = " Jean-loup Gailly "
-
         # Now search
         match_counter = 0
         for bin_str in self._all_strings:
             # we have a match
-            if key_string in str(bin_str):
-                copyright_string = str(bin_str)
-                # check for the inner version string
-                if self.VERSION_STRING not in copyright_string:
-                    # false match
-                    continue
+            if self.VERSION_STRING in str(bin_str):
+                version_string = str(bin_str)
                 # valid match
-                logger.debug("Located the copyright string in address 0x%x", bin_str.ea)
+                logger.debug("Located the version string of in address 0x%x", bin_str.ea)
                 match_counter += 1
                 # save the string for later
-                self._copyright_string = copyright_string
+                self._version_string = version_string
 
         # return the result
         return match_counter
@@ -33,7 +27,7 @@ class ZlibSeeker(Seeker):
     # Overriden base function
     def identifyVersion(self, logger):
         # extract the version from the saved string
-        work_str = self._copyright_string
+        work_str = self._version_string
         start_index = work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING)
         legal_chars = string.digits + '.'
         end_index = start_index
@@ -46,4 +40,4 @@ class ZlibSeeker(Seeker):
         return work_str[start_index : end_index]
 
 # Register our class
-ZlibSeeker.register(ZlibSeeker.NAME, ZlibSeeker)
+OpensshSeeker.register(OpensshSeeker.NAME, OpensshSeeker)

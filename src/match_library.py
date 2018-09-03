@@ -1393,7 +1393,7 @@ def matchFiles() :
     finished = False
     # while there is work to do
     while not finished :
-        logger.info("Started a matching round")
+        logger.debug("Started a matching round")
         finished = True
         # First, Scan all of the (located) files
         for match_file in match_files :

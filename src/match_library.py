@@ -63,7 +63,7 @@ ext_unused_functions    = set()     # Set of (src) names for unused external fun
 
 function_matches        = {}        # Dictionary of all (non-external) matches: src index => bin ea
 bin_matched_ea          = {}        # Reverse dictionary for all matches: bin ea => src index / external ctx
-matching_reason         = {}        # Dictionary of all (non-external) matching reasons: src index => reason
+matching_reasons        = {}        # Dictionary of all (non-external) matching reasons: src index => reason
 
 changed_functions       = {}        # Mappings for hints derived at the current matching round: src index => set of bin function ea
 once_seen_couples_src   = {}        # archive of all seen matching attempts. Mapping from src index => bin ctx
@@ -94,7 +94,6 @@ class ChooseForm(Choose2):
         _selected (list): list of selected row indices
         _import_selected (cmd): GUI action handler responsible for importing the selected rows
         _import_matched (cmd): GUI action handler responsible for importing all of the matches
-
     """
     def __init__(self, prepared_entries, suggested_names):
         """Constructs the UI Form view, according to the matching entries
@@ -159,6 +158,51 @@ class ChooseForm(Choose2):
     # Overriden base function
     def OnSelectionChange(self,  sel_list):
         self._selected = sel_list
+
+class ExternalsChooseForm(Choose2):
+    """Choose Form (view) implementation, responsible for showing and handling the external matching results
+
+    Attributes:
+        _entries (list): (sorted) list of match results to be shown in the table
+    """
+    def __init__(self, prepared_entries):
+        """Constructs the UI Form view, according to the external matching entries
+
+        Args:
+            prepared_entries (list): list of UI rows, including the dara for the different columns
+        """
+        # Using tuples causes this to crash...
+        columns = [['Line', 4], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \ Information', 35]]
+        Choose2.__init__(self, "%s Matched Externals (LibC)" % (library_name), columns, Choose2.CH_MULTI)
+        self.deflt = 0
+        self.icon = -1
+        self.selcount = 0
+        self.modal = False
+        self.items = []
+        self._entries  = prepared_entries
+        # build the table
+        for idx, entry in enumerate(prepared_entries):
+            self.items.append(["%04d" % (idx + 1), entry[0], ("0x%08X" % (entry[1])) if entry[1] is not None else 'N/A', entry[2], entry[3]])
+
+    # Overriden base function
+    def OnClose(self):
+        pass
+
+    # Overriden base function
+    def OnGetLine(self, n):
+        return self.items[n]
+
+    # Overriden base function
+    def OnGetSize(self):
+        return len(self.items)
+
+    # Overriden base function
+    def show(self):
+        return self.Show(False) >= 0
+
+    # Overriden base function
+    def OnGetLineAttr(self, n):
+        return [GUI_COLOR_LIGHT_GREEN, 0]
 
 ######################
 ## Matching Classes ##
@@ -964,7 +1008,7 @@ def updateHints(src_index, func_ea) :
         src_index (int): (source) index of the matched (source) function
         func_ea (int): ea of the (binary) matched function
     """
-    global changed_functions, bin_matched_ea, call_hints_records, src_functions_ctx, bin_functions_ctx
+    global changed_functions, bin_matched_ea, call_hints_records, src_functions_ctx, bin_functions_ctx, matching_reasons
 
     # record the match (also tells my followers tham I'm taken)
     src_functions_ctx[src_index].declareMatch(bin_functions_ctx[func_ea])
@@ -1014,6 +1058,7 @@ def updateHints(src_index, func_ea) :
             if matched_ea is not None and matched_ea not in bin_matched_ea:
                 bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                 src_ext._ea = matched_ea
+                matching_reasons[src_ext._name] = REASON_SINGLE_CALL
                 logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
 
 def declareMatch(src_index, func_ea, reason) :
@@ -1024,7 +1069,7 @@ def declareMatch(src_index, func_ea, reason) :
         func_ea (int): ea of the matched (binary) function (maybe an island)
         reason (enum): matching reason, taken from the string enum options
     """
-    global changed_functions, anchor_hints, bin_matched_ea, src_functions_ctx, matching_reason
+    global changed_functions, anchor_hints, bin_matched_ea, src_functions_ctx, matching_reasons
 
     function = sark.Function(func_ea)
     is_anchor = reason == REASON_ANCHOR
@@ -1051,7 +1096,7 @@ def declareMatch(src_index, func_ea, reason) :
     # register the match
     function_matches[src_index] = func_ea
     bin_matched_ea[func_ea]     = src_index
-    matching_reason[src_index]  = reason
+    matching_reasons[src_index] = reason
 
     # no need to keep track of the source function any more
     if src_index in changed_functions :
@@ -1348,7 +1393,7 @@ def matchAttempt(src_index, func_ea, file_match = None) :
 
 def matchFiles() :
     """Main loop responsible for the advancing the matching process"""
-    global match_files, changed_functions, match_round_losers, call_hints_records, ext_unused_functions, once_seen_couples_src, once_seen_couples_bin
+    global match_files, changed_functions, match_round_losers, call_hints_records, ext_unused_functions, once_seen_couples_src, once_seen_couples_bin, matching_reasons
 
     # Don't forget all of the hints from the anchors
     for src_index, func_ea in anchor_hints :
@@ -1548,7 +1593,8 @@ def matchFiles() :
                     if is_ext :
                         bin_matched_ea[bin_candidate] = src_candidate
                         src_candidate._ea = bin_candidate
-                        logger.info("Matched external through sequential call hints: %s, 0x%x", src_candidate._name, src_candidate._ea)
+                        matching_reasons[src_candidate._name] = REASON_CALL_ORDER
+                        logger.debug("Matched external through sequential call hints: %s, 0x%x", src_candidate._name, src_candidate._ea)
                         finished = False
                         if src_candidate._hints is not None :
                             updated_ext_hints = filter(lambda ea : ea not in bin_matched_ea, src_candidate._hints)
@@ -1559,6 +1605,7 @@ def matchFiles() :
                                 if matched_ea is not None and matched_ea not in bin_matched_ea:
                                     bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                                     src_ext._ea = matched_ea
+                                    matching_reasons[src_ext._name] = REASON_SINGLE_CALL
                                     logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
                     else :
                         # continue on only if the match is valid
@@ -1681,7 +1728,7 @@ def debugPrintState(error = False) :
 
 def initMatchVars():
     """Prepares the global variables used for the matching for a new script execution"""
-    global bin_functions_ctx, match_files, match_round_candidates, match_round_src_index, match_round_bin_ea, match_round_losers, src_unused_functions, ext_unused_functions, function_matches, bin_matched_ea, matching_reason, changed_functions, once_seen_couples_src, once_seen_couples_bin, call_hints_records, anchor_hints, str_file_hints, floating_bin_functions, floating_files, bin_suggested_names
+    global bin_functions_ctx, match_files, match_round_candidates, match_round_src_index, match_round_bin_ea, match_round_losers, src_unused_functions, ext_unused_functions, function_matches, bin_matched_ea, matching_reasons, changed_functions, once_seen_couples_src, once_seen_couples_bin, call_hints_records, anchor_hints, str_file_hints, floating_bin_functions, floating_files, bin_suggested_names
 
     # same as the init list on the top of the file
     bin_functions_ctx       = {}        # bin ea => bin function ctx
@@ -2220,7 +2267,7 @@ def prepareGUIEntries():
     """Prepares the entries list, according to the sorting logic we want in the GUI
 
     Return Value:
-        list of source contexts, according to the wanted GUI presentation order
+        (list of source contexts - according to the wanted GUI presentation order, list of similar external contexts)
     """
     # Start with perfect files (sorted by name)
     perfect_files = filter(lambda x : x.matched(), match_files)
@@ -2234,7 +2281,11 @@ def prepareGUIEntries():
     entries = []
     for match_file in perfect_files + non_perfect_files:
         entries += src_functions_ctx[match_file._src_index_start : match_file._src_index_end + 1]
-    return entries
+
+    # now the external functions
+    external_entries = filter(lambda x : x.matched(), map(lambda x : src_external_functions[x], src_external_functions))
+            
+    return entries, external_entries
 
 def generateSuggestedNames():
     """Generates the suggested names for the binary functions"""
@@ -2273,17 +2324,18 @@ def generateSuggestedNames():
                 bin_suggested_names[bin_ctx._ea] = library_name + '_' + ('%X' % (bin_ctx._ea))
 
     # 4. Sepcial case for swallows
-    for src_ctx in filter(lambda x : matching_reason[x._src_index] == REASON_SWALLOW, matched_src_ctxs) :
+    for src_ctx in filter(lambda x : matching_reasons[x._src_index] == REASON_SWALLOW, matched_src_ctxs) :
         bin_suggested_names[src_ctx.match()._ea] = library_name + '_' + src_ctx._name
 
-def showResultsGUIWindow(match_entries):
+def showResultsGUIWindow(match_entries, external_match_entries):
     """Creates and shows the GUI window containing the match result entries
 
     Args:
         match_entries (list): list of (src) function contexts, sorted by the presentation order
+        external_match_entries (list): list of (external) function contexts, sorted by the presentation order
     """
     prepared_entries = []
-    # Prepare the entries
+    # Prepare the (normal) entries
     for entry in match_entries:
         file_name = '.'.join(entry._file._name.split('.')[:-1])
         src_name  = entry._name
@@ -2291,7 +2343,7 @@ def showResultsGUIWindow(match_entries):
             bin_match = entry.match()
             address   = bin_match._ea
             bin_name  = bin_match._name
-            reason    = matching_reason[entry._src_index]
+            reason    = matching_reasons[entry._src_index]
             if reason == REASON_ANCHOR:
                 color = GUI_COLOR_DARK_GREEN
             elif reason == REASON_AGENT or reason == REASON_FILE_HINT:
@@ -2318,6 +2370,21 @@ def showResultsGUIWindow(match_entries):
         
     # show the window
     view = ChooseForm(prepared_entries, bin_suggested_names)
+    view.show()
+
+    # Now handle the external entries
+    prepared_entries = []
+    # Prepare the (normal) entries
+    for entry in external_match_entries:
+        src_name  = entry._name
+        address   = entry.match()
+        bin_name  = sark.Function(address).name
+        reason    = matching_reasons[entry._name]
+        # Now insert the entry itself
+        prepared_entries.append((src_name, address, bin_name, reason, color))
+        
+    # show the window
+    view = ExternalsChooseForm(prepared_entries)
     view.show()
 
 def renameChosenFunctions(bin_eas, suggested_names):
@@ -2378,5 +2445,5 @@ def startMatch(config_path, lib_name, used_logger):
     generateSuggestedNames()
 
     # Show the GUI window with the matches
-    match_entries = prepareGUIEntries()
-    showResultsGUIWindow(match_entries)
+    match_entries, external_match_entries = prepareGUIEntries()
+    showResultsGUIWindow(match_entries, external_match_entries)

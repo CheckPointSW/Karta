@@ -739,7 +739,7 @@ class FunctionContext(ComparableContext):
         # 4. Match stack frames
         frame_size_score = -1 * abs(self._frame - bin_ctx._frame) * FUNC_FRAME_SCORE
         # check for a probable match
-        if abs(frame_size_score) <= FRAME_SIZE_THRESHOLD * INSTR_COUNT_SCORE :
+        if abs(frame_size_score) <= FRAME_SIZE_THRESHOLD * FUNC_FRAME_SCORE :
             frame_size_score += ARTEFACT_MATCH_SCORE
         logger.debug("Frame size score: %f", frame_size_score)
         score += frame_size_score
@@ -769,10 +769,10 @@ class FunctionContext(ComparableContext):
             xref_hints_score = FUNC_HINT_SCORE * bin_ctx._xref_hints.count(self) * 1.0 / len(bin_ctx._xref_hints)
             logger.debug("Xref hints score: %f", xref_hints_score)
             score += xref_hints_score
-        # 9. Existance check (followers)
-        if len(self._followers) > 0 :
+        # 9. Existance check (followers) or non static binary function
+        if len(self._followers) > 0 or not bin_ctx.static() :
             score += EXISTANCE_BOOST_SCORE
-            logger.debug("We have (%d) followers - grant an existance bonus: %f", len(self._followers), EXISTANCE_BOOST_SCORE)
+            logger.debug("We have (%d) followers / are static (%s) - grant an existance bonus: %f", len(self._followers), str(bin_ctx.static()), EXISTANCE_BOOST_SCORE)
         # 10. Match external calls
         externals_score = ComparableContext.compareExternals(self, bin_ctx)
         logger.debug("Externals score: %f", externals_score)

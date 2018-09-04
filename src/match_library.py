@@ -19,8 +19,10 @@ REASON_FILE_SINGLETON   = "Last (referenced) function in file"
 REASON_CALL_ORDER       = "Call order in caller function"
 REASON_SWALLOW          = "Swallow - Identified IDA analysis problem"
 REASON_SCORE            = "Score-based Matching"
+REASON_TRAPPED_COUPLE   = "Locked and orderred neighbouring functions"
 GUI_MATCH_REASONS       = [REASON_ANCHOR, REASON_FILE_HINT, REASON_AGENT, REASON_NEIGHBOUR, REASON_SINGLE_CALL, 
-                           REASON_SINGLE_XREF, REASON_FILE_SINGLETON, REASON_CALL_ORDER, REASON_SWALLOW, REASON_SCORE]
+                           REASON_SINGLE_XREF, REASON_FILE_SINGLETON, REASON_CALL_ORDER, REASON_SWALLOW, REASON_SCORE, 
+                           REASON_TRAPPED_COUPLE]
 
 REASON_DISABLED         = "ifdeffed out / inlined"
 REASON_LIBRARY_UNUSED   = "Unused - No xrefs inside the open source"
@@ -57,6 +59,7 @@ match_round_candidates  = []        # valid match candidates (containing match r
 match_round_src_index   = {}        # src index => match record
 match_round_bin_ea      = {}        # bin ea => match record
 match_round_losers      = []        # losers (to be tracked for changes) list for the match round (containing match records)
+last_matching_step      = False     # Signals we should try the last matching step
 
 src_unused_functions    = set()     # Set of (src) indices for unusd functions (disabled functions)
 ext_unused_functions    = set()     # Set of (src) names for unused external functions (all callers were disabled)
@@ -526,6 +529,28 @@ class FileMatch(object) :
                     self._lower_leftovers -= len(removed_funcs)
                 else :
                     self._bin_limit_lower += len(removed_funcs)
+            # check if we finished all binaries, and purge out the remainig sources
+            if len(filter(lambda ctx : not ctx.matched(), self._bin_functions_ctx)) == 0 :
+                unused_funcs = filter(lambda x : x not in function_matches, range(self._src_index_start, self._src_index_end + 1))
+                if len(unused_funcs) > 0 :
+                    src_unused_functions.update(unused_funcs)
+                    for src_index in unused_funcs :
+                        src_functions_ctx[src_index].disable()
+                    self._remain_size = 0
+                    # adjust the limits of the floating file
+                    if len(floating_files) > 0 :
+                        floating_file = floating_files[0]
+                        floating_file._remain_size -= len(unused_funcs)
+                        expelled_funcs = floating_bin_functions[ : len(unused_funcs)] + floating_bin_functions[-len(unused_funcs) : ]
+                        floating_bin_functions = floating_bin_functions[len(unused_funcs) : -len(unused_funcs)]
+                        floating_file._lower_leftovers -= len(unused_funcs)
+                        floating_file._upper_leftovers -= len(unused_funcs)
+                        floating_file._bin_limit_lower += len(unused_funcs)
+                        floating_file._bin_limit_upper -= len(unused_funcs)
+                        # expell & disable the functions
+                        for expelled_ctx in expelled_funcs :
+                            for floating in floating_files :
+                                expelled_ctx.expel(floating)
         # simply cut the leftovers if this match expanded the borders
         else :
             if upper_part :
@@ -1130,7 +1155,7 @@ def roundMatchResults() :
     Return Value:
         True iff found at least 1 matching couple
     """
-    global match_round_candidates, match_round_src_index, match_round_bin_ea, match_round_losers
+    global match_round_candidates, match_round_src_index, match_round_bin_ea, match_round_losers, last_matching_step
 
     declared_match = False
     matched_src_index = set()
@@ -1154,12 +1179,58 @@ def roundMatchResults() :
         # 3. We have a match :)
         else :
             # actually match the couple
-            logger.info("Matching in a round match according to score: %f (%f)", match_record['score'] - match_record['boost'], match_record['score'])
+            logger.debug("Matching in a round match according to score: %f (%f)", match_record['score'] - match_record['boost'], match_record['score'])
             declareMatch(src_index, func_ea, match_record['reason'])
             declared_match = True
             # store them for a later filter
             matched_src_index.add(src_index)
             matched_bin_ea.add(func_ea)
+
+    # if this is the last matching step - check if we can find matches in the losers
+    if last_matching_step:
+        matching_src_candidates = []
+        matching_bin_candidates = []
+        matching_couples = {}
+        # We are only searching for used neighbours
+        for match_record in match_round_losers:
+            src_index = match_record['src_index']
+            func_ea   = match_record['func_ea']
+            src_candidate = src_functions_ctx[src_index]
+            bin_candidate = bin_functions_ctx[func_ea]
+            if match_record['boost'] > 0 and src_candidate.used() and bin_candidate.used():
+                # if they are not unique, they both will get disqualified
+                if src_candidate in matching_src_candidates or bin_candidate in matching_bin_candidates:
+                    if src_candidate in matching_src_candidates:
+                        matching_src_candidates.remove(src_candidate)
+                        matching_couples.pop(src_candidate)
+                    if bin_candidate in matching_bin_candidates:
+                        matching_bin_candidates.remove(bin_candidate)
+                else:
+                    matching_src_candidates.append(src_candidate)
+                    matching_bin_candidates.append(bin_candidate)
+                    matching_couples[src_candidate] = bin_candidate
+
+        # We want that the competitors for each couple, will also be in our list
+        for src_candidate in matching_couples:
+            bin_candidate = matching_couples[src_candidate]
+            # Check the followers hints
+            if len(filter(lambda x: x not in matching_bin_candidates, src_candidate._followers)) > 0 :
+                continue
+            # Check the xrefs hints
+            if len(filter(lambda x: x not in matching_src_candidates, bin_candidate._xref_hints)) > 0 :
+                continue
+            # Check the call hints (if have any)
+            if bin_candidate._call_hints is not None and len(filter(lambda x: x not in matching_src_candidates, bin_candidate._call_hints)) > 0 :
+                continue
+            # We found a match couple
+            logger.debug("Matching in a round match using the last matching step")
+            declareMatch(src_candidate._src_index, bin_candidate._ea, REASON_TRAPPED_COUPLE)
+            last_matching_step = False
+            declared_match = True
+            # store them for a later filter
+            matched_src_index.add(src_candidate._src_index)
+            matched_bin_ea.add(bin_candidate._ea)
+
 
     # filter the losers
     final_loser_list = []
@@ -1393,7 +1464,10 @@ def matchAttempt(src_index, func_ea, file_match = None) :
 
 def matchFiles() :
     """Main loop responsible for the advancing the matching process"""
-    global match_files, changed_functions, match_round_losers, call_hints_records, ext_unused_functions, once_seen_couples_src, once_seen_couples_bin, matching_reasons
+    global match_files, changed_functions, match_round_losers, call_hints_records, ext_unused_functions, once_seen_couples_src, once_seen_couples_bin, matching_reasons, last_matching_step
+
+    # signal that we haven't arrived yet the last matching step
+    last_matching_step = False
 
     # Don't forget all of the hints from the anchors
     for src_index, func_ea in anchor_hints :
@@ -1502,7 +1576,7 @@ def matchFiles() :
                 # check the round results now
                 finished = (not roundMatchResults()) and finished
 
-                # merge the results into the changed functions list
+                # merge the results into the seen couples
                 for src_index, func_ea in match_round_losers :
                     bin_ctx = bin_functions_ctx[func_ea]
                     if src_index not in once_seen_couples_src :
@@ -1623,7 +1697,10 @@ def matchFiles() :
                 if match_file.attemptMatchSwallows() :
                     finished = False
 
-        # We found some matches, pick the first one and continue again
+        # Attempt the last matching step - will be done in the round matching itself
+        if finished and not last_matching_step:
+            last_matching_step = True
+            finished = False
 
     # check if we actually finished
     success_finish = len(filter(lambda x : x.active(), match_files)) == 0
@@ -1798,21 +1875,20 @@ def loadAndPrepareSource(files_config):
         src_external_calls = []
         src_func_ctx._src_index = src_index
         for call in src_func_ctx._calls :
-            if call in src_functions_list :
-                # should make sure to prioritize the call from the same file (duplicates are a nasty edge case)
-                if src_functions_list.count(call) == 1 :
-                    call_src_ctx = src_functions_ctx[src_functions_list.index(call)]
-                else :
-                    candidates = filter(lambda x : src_functions_ctx[x[0]]._file == src_func_ctx._file, filter(lambda x : x[1] == call, enumerate(src_functions_list)))
-                    call_src_ctx = src_functions_ctx[candidates[0][0]]
-                src_internal_calls.append(call_src_ctx)
+            # should make sure to prioritize the call from the same file (duplicates are a nasty edge case)
+            if src_functions_list.count(call) == 1 :
+                call_src_ctx = src_functions_ctx[src_functions_list.index(call)]
             else :
-                if call in libc.skip_function_names or len(call) == 0:
-                    continue
-                if call not in src_external_functions :
-                    src_external_functions[call] = ExternalFunction(call)
-                src_external_functions[call].addXref(src_func_ctx)
-                src_external_calls.append(src_external_functions[call])
+                candidates = filter(lambda x : src_functions_ctx[x[0]]._file == src_func_ctx._file, filter(lambda x : x[1] == call, enumerate(src_functions_list)))
+                call_src_ctx = src_functions_ctx[candidates[0][0]]
+            src_internal_calls.append(call_src_ctx)
+        for call in src_func_ctx._unknowns:
+            if call in libc.skip_function_names or len(call) == 0:
+                continue
+            if call not in src_external_functions :
+                src_external_functions[call] = ExternalFunction(call)
+            src_external_functions[call].addXref(src_func_ctx)
+            src_external_calls.append(src_external_functions[call])
         src_func_ctx._calls = src_internal_calls
         src_func_ctx._externals = src_external_calls
         # the call order too

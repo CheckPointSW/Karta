@@ -47,12 +47,9 @@ def analyzeFunctionGraph(func_ea, src_mode) :
                         call_candidates.add(sark.Function(cref).startEA)
                 except Exception, e:
                     continue
-            # handle each ref (beware of unknowns)
+            # handle each ref
             for ref in call_candidates :
                 call = sark.Function(ref)
-                # Make sure it is not an unknown
-                if src_mode and sark.Line(ref).disasm.startswith("extrn ") :
-                    continue
                 # record the call
                 if block.start_ea not in block_to_ref :
                     block_to_ref[block.start_ea] = set()

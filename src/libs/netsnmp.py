@@ -7,7 +7,7 @@ class NetSNMPSeeker(Seeker):
 
     # Overriden base function
     def searchLib(self, logger):
-        key_string = "snmp_parse_var_op"
+        key_string = "NET-SNMP version: %s"
 
         # Now search
         match_counter = 0
@@ -17,7 +17,7 @@ class NetSNMPSeeker(Seeker):
             if key_string in str(bin_str):
                 logger.debug("Located the key string in address 0x%x", bin_str.ea)
                 match_counter += 1
-                if match_counter == 0:
+                if match_counter == 1:
                     key_index = idx
                 break
 

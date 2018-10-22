@@ -18,7 +18,7 @@ class Libxml2Seeker(Seeker):
             if key_string in str(bin_str):
                 logger.debug("Located the key string in address 0x%x", bin_str.ea)
                 match_counter += 1
-                if match_counter == 0:
+                if match_counter == 1:
                     key_index = idx
                 break
 

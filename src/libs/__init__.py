@@ -5,6 +5,7 @@ from libpng         import *
 from zlib           import *
 from openssl        import *
 from openssh        import *
+from netsnmp        import *
 from gsoap          import *
 from libxml2        import *
 from libtiff        import *

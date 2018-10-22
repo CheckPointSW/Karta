@@ -27,7 +27,7 @@ class Libxml2Seeker(Seeker):
         if key_index is not None and match_counter == 1:
             for bin_str in self._all_strings[max(key_index - 10000, 0) : min(key_index + 10000, len(self._all_strings))] :
                 cur_str = str(bin_str)
-                if cur_str.index('-') != -1 and cur_str.split('-')[1][:3] in extra_parts:
+                if cur_str.find('-') != -1 and cur_str.split('-')[1][:3] in extra_parts:
                     logger.debug("Located the version string in address 0x%x", bin_str.ea)
                     self._version_string = cur_str
                     break

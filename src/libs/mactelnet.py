@@ -6,11 +6,10 @@ class MACTelnetSeeker(Seeker):
     NAME = 'MAC-Telnet'
     # version string marker
     VERSION_STRING = "MAC-Telnet "
+    DEAMON_STRING  = "MAC-Telnet Daemon "
 
     # Overriden base function
     def searchLib(self, logger):
-        deamon_string = "MAC-Telnet Daemon "
-
         # Now search
         match_counter = 0
         for bin_str in self._all_strings:
@@ -18,7 +17,7 @@ class MACTelnetSeeker(Seeker):
             if self.VERSION_STRING in str(bin_str):
                 version_string = str(bin_str)
                 # check for the inner version string
-                if deamon_string in version_string:
+                if self.DEAMON_STRING not in version_string:
                     # false match
                     continue
                 # valid match
@@ -34,7 +33,7 @@ class MACTelnetSeeker(Seeker):
     def identifyVersion(self, logger):
         # extract the version from the saved string
         work_str = self._version_string
-        start_index = work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING)
+        start_index = work_str.find(self.DEAMON_STRING) + len(self.DEAMON_STRING)
         legal_chars = string.digits + '.'
         end_index = start_index
         # scan until we stop

@@ -7,7 +7,7 @@ from ida_api        import *
 ## Global Configs ##
 ####################
 
-PROGRAM_NAME = '.'.join((idc.GetInputFile().split(os.path.sep))[-1].split('.')[:-1])
+PROGRAM_NAME = idc.GetInputFile()
 LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (PROGRAM_NAME)
 
 ######################

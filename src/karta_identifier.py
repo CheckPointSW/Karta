@@ -36,7 +36,7 @@ def writeHeader(fd):
     """
     header_template = "%s Identifier - %s:"
     writeLine(fd, header_template % (LIBRARY_NAME, PROGRAM_NAME))
-    writeLine(fd, '=' * (len(header_template) + len(PROGRAM_NAME) - 2))
+    writeLine(fd, '=' * (len(header_template) + len(LIBRARY_NAME) + len(PROGRAM_NAME) - 4))
     writeLine(fd, '')
 
 def writeSuffix(fd):

@@ -9,12 +9,18 @@ class OpensshSeeker(Seeker):
 
     # Overriden base function
     def searchLib(self, logger):
+        self._version_string = None
         # Now search
         match_counter = 0
         for bin_str in self._all_strings:
             # we have a match
             if self.VERSION_STRING in str(bin_str):
                 version_string = str(bin_str)
+                # catch false / duplicates
+                if '*' in version_string or \
+                    (self._version_string is not None and version_string in self._version_string) or \
+                    (self._version_string is not None and self._version_string in version_string) :
+                    continue
                 # valid match
                 logger.debug("Located the version string of in address 0x%x", bin_str.ea)
                 match_counter += 1

@@ -108,7 +108,7 @@ def pluginMain():
     # store it for future use
     config_path = c._config_path
 
-    working_path = os.path.split(idc.GetInputFilePath())[0]
+    working_path = os.path.split(idc.GetIdbPath())[0]
 
     log_files  = []
     log_files += [(os.path.join(working_path, "%s_debug.log"   % (LIBRARY_NAME)), "w", logging.DEBUG)]

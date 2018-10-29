@@ -8,7 +8,7 @@ from ida_api        import *
 ####################
 
 PROGRAM_NAME = idc.GetInputFile()
-LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (idc.GetInputFilePath())
+LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (idc.GetIdbPath())
 
 ######################
 ## Global Variables ##

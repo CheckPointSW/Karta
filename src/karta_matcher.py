@@ -11,6 +11,20 @@ config_path         = None      # path to the configuration directory (including
 all_bin_strings     = None      # list of all of the binary strings in the *.idb
 logger              = None      # elementals logger instance
 
+class MessageBox(idaapi.Form):
+    """Wrapper class that represents a GUI MessageBox"""
+    def __init__(self, text):
+        """Basic Ctor for the class
+
+        Args:
+            text (str): Text to be shown by the message box
+        """
+        # dialog content
+        dialog_content = """%s
+                            %s
+                          """ % (LIBRARY_NAME, text)
+        idaapi.Form.__init__(self, dialog_content, {})
+
 class ConfigForm(idaapi.Form):
     """Wrapper class that represents the GUI configuration form for Karta's scripts
 
@@ -81,7 +95,6 @@ def matchLibraries():
         # continue to the next library
         logger.removeIndent()
 
-
 def pluginMain():
     """Main function for the Karta (matcher) plugin"""
     global logger, all_bin_strings, config_path
@@ -115,6 +128,10 @@ def pluginMain():
 
     # Finished successfully
     logger.info("Finished Successfully")
+
+    m = MessageBox("Saved the logs to directory: %s" % (working_path))
+    m.Compile()
+    m.Execute()
 
 # Start to analyze the file
 pluginMain()

@@ -3,3 +3,4 @@ src/*.vpw
 src/*.vpwhist
 src/*.vtg
 src/*.pyc
+/src/libs/*.pyc

@@ -7,16 +7,41 @@ from ida_api        import *
 ## Global Variables ##
 ######################
 
-workdir_path        = None      # path to the working directory (including the databases with the pre-compiled libraries)
+config_path         = None      # path to the configuration directory (including the *.json files with the pre-compiled libraries)
 all_bin_strings     = None      # list of all of the binary strings in the *.idb
 logger              = None      # elementals logger instance
 
+class ConfigForm(idaapi.Form):
+    """Wrapper class that represents the GUI configuration form for Karta's scripts
+
+    Attributes:
+        _config_path (str): path to the chosen configuration directory (that includes the *.json files)
+    """
+    def __init__(self):
+        """Basic Ctor for the Form class"""
+        # dialog content
+        dialog_content = """%s
+                            Please insert the path to configuration directory that holds the *.json files
+                            to match against the current binary.
+
+                            <#Select a *.json configs directory for %s exported libraries       #Configs Directory    :{_config_path}>
+                          """ % (LIBRARY_NAME, LIBRARY_NAME)
+        # argument parsing
+        args = {'_config_path'       : idaapi.Form.DirInput(swidth=65),
+                }
+        idaapi.Form.__init__(self, dialog_content, args)
+
 def matchLibrary(lib_name, lib_version):
-    """Checks if the library was already compiled, and matches it"""
+    """Checks if the library was already compiled, and matches it
+
+    Args:
+        lib_name (str): name of the open source library
+        lib_version (str): version string for the open source library that was found
+    """
 
     # Check for existance
     config_name = constructConfigPath(lib_name, lib_version)
-    config_path = os.path.join(workdir_path, CONFIG_DIR_PATH, config_name)
+    config_path = os.path.join(config_path, config_name)
     if not os.path.exists(config_path) :
         logger.error("Missing configuration file (%s) for \"%s\" Version: \"%s\"", config_name, lib_name, lib_version)
         return
@@ -56,21 +81,26 @@ def matchLibraries():
         # continue to the next library
         logger.removeIndent()
 
-def pluginMain(state_path):
-    """Main function for the Karta (matcher) plugin
 
-    Args:
-        state_path (str): path to the stored state files
-    """
-    global logger, all_bin_strings, workdir_path
+def pluginMain():
+    """Main function for the Karta (matcher) plugin"""
+    global logger, all_bin_strings, config_path
+
+    # Learn what is our directory
+    c = ConfigForm()
+    c.Compile()
+    if not c.Execute():
+        return
 
     # store it for future use
-    workdir_path = state_path
+    config_path = c._config_path
+
+    working_path = os.path.split(idc.GetInputFilePath())[0]
 
     log_files  = []
-    log_files += [(os.path.join(workdir_path, "debug.log"), "w", logging.DEBUG)]
-    log_files += [(os.path.join(workdir_path, "info.log"), "w", logging.INFO)]
-    log_files += [(os.path.join(workdir_path, "warning.log"), "w", logging.WARNING)]
+    log_files += [(os.path.join(working_path, "%s_debug.log"   % (LIBRARY_NAME)), "w", logging.DEBUG)]
+    log_files += [(os.path.join(working_path, "%s_info.log"    % (LIBRARY_NAME)), "w", logging.INFO)]
+    log_files += [(os.path.join(working_path, "%s_warning.log" % (LIBRARY_NAME)), "w", logging.WARNING)]
     logger = Logger(LIBRARY_NAME, log_files, use_stdout = False, min_log_level = logging.INFO)
     logger.linkHandler(IdaLogHandler())
     logger.info("Started the Script")
@@ -87,4 +117,4 @@ def pluginMain(state_path):
     logger.info("Finished Successfully")
 
 # Start to analyze the file
-pluginMain('/home/eyalitki/Documents/Tools/Karta/Karta')
+pluginMain()

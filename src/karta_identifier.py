@@ -8,7 +8,7 @@ from ida_api        import *
 ####################
 
 PROGRAM_NAME = idc.GetInputFile()
-LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (PROGRAM_NAME)
+LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (idc.GetInputFilePath())
 
 ######################
 ## Global Variables ##
@@ -17,6 +17,20 @@ LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (PROGRAM_NAME)
 workdir_path        = None      # path to the working directory (including the databases with the pre-compiled libraries)
 all_bin_strings     = None      # list of all of the binary strings in the *.idb
 logger              = None      # elementals logger instance
+
+class MessageBox(idaapi.Form):
+    """Wrapper class that represents a GUI MessageBox"""
+    def __init__(self, text):
+        """Basic Ctor for the class
+
+        Args:
+            text (str): Text to be shown by the message box
+        """
+        # dialog content
+        dialog_content = """%s
+                            %s
+                          """ % (LIBRARY_NAME, text)
+        idaapi.Form.__init__(self, dialog_content, {})
 
 def writeLine(fd, line):
     """Writes the result line to the file and the log simultaneously
@@ -55,7 +69,7 @@ def identifyLibraries():
     missing_libs = []
 
     # open the result file
-    result_file = os.path.join(workdir_path, LIB_IDENTIFIER_FILE)
+    result_file = LIB_IDENTIFIER_FILE
     fd = open(result_file, 'w')
 
     # Write the header
@@ -117,16 +131,13 @@ def identifyLibraries():
     logger.info('')
     logger.info("Wrote the results to file: %s", result_file)
 
-def pluginMain(state_path):
-    """Main function for the Karta (identifier) plugin
+    m = MessageBox("Results were saved to file: %s" % (result_file))
+    m.Compile()
+    m.Execute()
 
-    Args:
-        state_path (str): path to the stored state files
-    """
-    global logger, all_bin_strings, workdir_path
-
-    # store it for future use
-    workdir_path = state_path
+def pluginMain():
+    """Main function for the Karta (identifier) plugin"""
+    global logger, all_bin_strings
 
     logger = Logger(LIBRARY_NAME, [], use_stdout = False, min_log_level = logging.INFO)
     logger.linkHandler(IdaLogHandler())
@@ -144,4 +155,4 @@ def pluginMain(state_path):
     logger.info("Finished Successfully")
 
 # Start to analyze the file
-pluginMain('/home/eyalitki/Documents/Tools/Karta/Karta')
+pluginMain()

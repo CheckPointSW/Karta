@@ -1111,4 +1111,3 @@ def isAgent(context, unique_strings, unique_consts, logger) :
         case += 1
     # we found nothing if we reached this line
     return False, 0, None
-

@@ -45,8 +45,8 @@ def writeSuffix(fd):
     Args:
         fd (fd): fd for the results file
     """
-    writeLine(fd, "Final Note - Karta")
-    writeLine(fd, "------------------")
+    writeLine(fd, "Final Note - %s" % (LIBRARY_NAME))
+    writeLine(fd, "-------------%s" % ('-' * len(LIBRARY_NAME)))
     writeLine(fd, "If you encountered any bug, or wanted to add a new extension / feature, don't hesitate to contact us on GitHub.")
 
 def identifyLibraries():

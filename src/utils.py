@@ -1,4 +1,5 @@
 from score_config import *
+from ida_api      import *
 from elementals   import Logger
 import libc_config as    libc
 import logging
@@ -27,15 +28,17 @@ LIBRARY_FILE_SUFFIX = "_library_state.json"
 ## Global Variables ##
 ######################
 
-src_seen_consts         = []
-src_seen_strings        = []
-src_functions_list      = []
-src_functions_ctx       = []
-src_file_mappings       = collections.OrderedDict()
+src_seen_consts             = []
+src_seen_strings            = []
+src_functions_list          = []
+src_functions_ctx           = []
+src_file_mappings           = collections.OrderedDict()
 
-src_instr_count         = 0
-bin_instr_count         = 0
-num_instr_samples       = 0
+src_instr_count             = 0
+bin_instr_count             = 0
+num_instr_samples           = 0
+num_neighbours_matched      = 0
+num_neighbours_mismatched   = 0
 
 class CodeContext(object):
     """Abstract class that represents a code chunk's canonical representation
@@ -138,13 +141,11 @@ class ExternalFunction(CodeContext) :
     def removeXref(self, xref) :
         """Removes an xref from the function (the caller was probably found irrelevant for our search)
 
-        Assumptions:
-            xref is contained in our xrefs data structure
-
         Args:
             xref (CodeContext): code context that calls (xrefs) our function
         """
-        self._xrefs.remove(xref)
+        if xref in self._xrefs :
+            self._xrefs.remove(xref)
 
     def used(self) :
         """Checks if our external function is still used by active functions
@@ -160,6 +161,8 @@ class ExternalFunction(CodeContext) :
         Args:
             hints (collection): a collection of (bin) match hints, represented as eas
         """
+        # filter out hints from known ignored libc functions
+        hints = filter(lambda x : sark.Function(x).name not in libc.skip_function_names, hints)
         if self._hints is None :
             self._hints = set(hints)
         else :
@@ -277,7 +280,10 @@ class ComparableContext(CodeContext) :
         """
         score = 0
         # start with a bonus score in case the string is contained in the source function's name
-        score += STRING_NAME_SCORE * len(filter(lambda s : s in src_ctx._name, bin_ctx._strings))
+        try:
+            score += STRING_NAME_SCORE * len(filter(lambda s : s in src_ctx._name, bin_ctx._strings))
+        except UnicodeDecodeError, e:
+            pass
         # now actually match the strings (intersection and symmetric difference)
         for string in src_ctx._strings.intersection(bin_ctx._strings) :
             score += len(string) * STRING_MATCH_SCORE
@@ -417,17 +423,21 @@ class FunctionContext(ComparableContext):
         _xref_hints (list): (binary only) list potential matches derived by lists of xrefs from matched functions
         _followers (set): (source only) set of binary functions that use us as a potential match hint
         _file (FileMatch): (source only) actual File Match instance representing our source file
-        _exists (bool): (source only) validity flag marking our existance in the source (according to info from the binary match)
-        _file_hint (str): (source_only) source file name string if exists inside function, None otherwise
-        _is_static (bool): (source mode) True iff the function is not exported outside of it's local *.O file
+        _exists (bool): (source only) validity flag marking our existence in the source (according to info from the binary match)
+        _file_hint (str): (source only) source file name string if exists inside function, None otherwise
+        _is_static (bool): (source only) True iff the function is not exported outside of it's local *.O file
                            (bin mode) False iff the function is (code) referenced from outside the library
+        _collision_candidates (list) : (source only) list of src candidates with a possibility for merging (same name + linker optimizations)
+        _collision_map (dict): (binary only) a mapping of seen collision options: hint name ==> list of possible (seen) collision
+        _taken_collision (bool) : (binary only) True iff was merged as part of a collision
+        _merged_sources (list) : (binary only) list of merged source functions (in a collision case)
     """
 
     def __init__(self, name, ea) :
         super(FunctionContext, self).__init__(name, ea)
         # temporary field
         self._unknowns   = set()
-        # artefacts
+        # artifacts
         self._xrefs      = set()
         self._frame      = None
         self._instrs     = None
@@ -448,6 +458,11 @@ class FunctionContext(ComparableContext):
         self._file_hint  = None
         # Compilation clues
         self._is_static  = False
+        # Linker optimizations
+        self._collision_candidates = []
+        self._collision_map        = {}
+        self._taken_collision      = False
+        self._merged_sources       = []
 
     # Overriden base function
     def declareMatch(self, match):
@@ -462,6 +477,13 @@ class FunctionContext(ComparableContext):
         for hint in list(self._xref_hints) :
             self.removeHint(hint, clear = True)
         self._followers = set()
+        # If we chose a collision candidate, when we saw the possibility for a collision, it means it is indeed an active collision
+        if match._name in self._collision_map or (len(self._files) > 0 and match._file not in self._files) :
+            # merge the outer API (we are the same function)
+            self._calls = self._calls.union(match._calls)
+            self._xrefs = self._xrefs.union(match._xrefs)
+            self._merged_sources.append(match)
+            self._taken_collision = True
 
     # Overriden base function
     def isPartial(self) :
@@ -470,6 +492,11 @@ class FunctionContext(ComparableContext):
     # Overriden base function
     def valid(self):
         return self._exists
+
+    # Overriden base function
+    def active(self) :
+        # special case for collisions
+        return self.valid() and (self.mergePotential() or not self.matched())
 
     def recordUnknown(self, unknown) :
         """Records a function call to an unknown function (only happens in source contexts)
@@ -515,6 +542,16 @@ class FunctionContext(ComparableContext):
         """Marks our source function as a non-exported (static) function"""
         self._is_static = True
 
+    def markCollisionCandidates(self, candidates):
+        """Marks the potential collision (merge) candidates from other files
+
+        Args:
+            candidates (list): list of src context candidates
+        """
+        self._collision_candidates = [] + candidates
+        # no need to count me in
+        self._collision_candidates.remove(self)
+
     def static(self):
         """Checks if this is a static function
 
@@ -523,12 +560,36 @@ class FunctionContext(ComparableContext):
         """
         return self._is_static
 
+    def merged(self):
+        """(binary only) Checks if this is a merged (collision) function
+
+        Return value:
+            True iff this is a merged function
+        """
+        return self._taken_collision
+
+    def mergePotential(self):
+        """(binary only) Checks if this is a collision function with a potential to merge more src functions
+
+        Return value:
+            True iff this is a merged function with growth potential
+        """
+        return self.matched() and len(filter(lambda x : not x.matched(), self._match._collision_candidates)) > 0
+
     def disable(self) :
         """Marks our source function as non-existant (probably ifdeffed out)"""
+        # singleton lock
+        if not self._exists :
+            return
+        # can now safely continue
         self._exists = False
         # keep on recursively with our external functions
         for ext in self._externals :
             ext.removeXref(self)
+        # mark that I'm no longer a valid collision candidate
+        for collision_candidate in self._collision_candidates :
+            collision_candidate._collision_candidates.remove(self)
+        self._collision_candidates = []
 
     def used(self) :
         """Check if our function is used, i.e. has ingoing/outgoing reference to other functions
@@ -562,15 +623,45 @@ class FunctionContext(ComparableContext):
             is_call (bool): True iff call hints, otherwise xref hints
         """
         new_hints = filter(lambda x : x.isValidCandidate(self), hints)
+
+        # Saw a collision candidate, after was already matched to one of his friends
+        if self.matched() :
+            # Only candidate hints can reach this point, and they all should be matched
+            # Later on, the matching round will declare them as matched
+            self._call_hints = new_hints
+            if new_hints._name() not in self._collision_map :
+                self._collision_map[new_hints._name()] = set()
+            self._collision_map[new_hints._name()].update(new_hints)
+            return
+
+        # normal case
         if is_call :
             if self._call_hints is None :
                 self._call_hints = set(new_hints)
                 for hint in new_hints :
                     hint.addFollower(self)
             else :
-                for dropped in self._call_hints.difference(new_hints) :
+                # linker optimizations edge case
+                new_names = map(lambda x: x._name, new_hints)
+                cur_names = map(lambda x: x._name, self._call_hints)
+                for dropped in filter(lambda x: x._name not in new_names, self._call_hints):
                     dropped.removeFollower(self)
-                self._call_hints = self._call_hints.intersection(new_hints)
+                # check for a possibile collision option
+                context_intersection = self._call_hints.intersection(new_hints)
+                context_union        = self._call_hints.union(new_hints)
+                names_intersection   = set(cur_names).intersection(new_names)
+                remaining_names      = map(lambda x : x._name, context_intersection)
+                if len(names_intersection) > len(remaining_names) :
+                    collision_candidates = []
+                    for collision_name in set(names_intersection).difference(remaining_names) :
+                        if collision_name not in self._collision_map:
+                            self._collision_map[collision_name] = set()
+                        cur_collision_candidates = filter(lambda x : x._name == collision_name, context_union)
+                        self._collision_map[collision_name].update(cur_collision_candidates)
+                        collision_candidates += cur_collision_candidates
+                    self._call_hints = context_intersection.union(collision_candidates)
+                else :
+                    self._call_hints = self._call_hints.intersection(new_hints)
         else :
             self._xref_hints += new_hints
             for hint in new_hints :
@@ -696,7 +787,20 @@ class FunctionContext(ComparableContext):
 
         # 1. They must be in the same file
         if self._file not in bin_ctx._files :
-            return False
+            lost = True
+            # edge case for possibile collision candidates
+            # 1. Matched to one candidate, and checking to merge more src functions
+            if bin_ctx.merged() and bin_ctx.match() in self._collision_candidates :
+                lost = False
+            # 2. Didn't match yet, however one collision candidate is a valid candidate
+            else :
+                for collision in self._collision_candidates :
+                    if collision._file in bin_ctx._files :
+                        lost = False
+                        break
+            # even this edge case didn't save us
+            if lost :
+                return False
 
         # 2. A static function can not have an xref from outside the library (weak because of possible inlining)
         if self.static() and not bin_ctx.static() :
@@ -769,10 +873,10 @@ class FunctionContext(ComparableContext):
             xref_hints_score = FUNC_HINT_SCORE * bin_ctx._xref_hints.count(self) * 1.0 / len(bin_ctx._xref_hints)
             logger.debug("Xref hints score: %f", xref_hints_score)
             score += xref_hints_score
-        # 9. Existance check (followers) or non static binary function
+        # 9. Existence check (followers) or non static binary function
         if len(self._followers) > 0 or not bin_ctx.static() :
-            score += EXISTANCE_BOOST_SCORE
-            logger.debug("We have (%d) followers / are static (%s) - grant an existance bonus: %f", len(self._followers), str(bin_ctx.static()), EXISTANCE_BOOST_SCORE)
+            score += EXISTENCE_BOOST_SCORE
+            logger.debug("We have (%d) followers / are static (%s) - grant an existence bonus: %f", len(self._followers), str(bin_ctx.static()), EXISTENCE_BOOST_SCORE)
         # 10. Match external calls
         externals_score = ComparableContext.compareExternals(self, bin_ctx)
         logger.debug("Externals score: %f", externals_score)
@@ -882,6 +986,17 @@ def recordInstrRatio(src_instr, bin_instr) :
     bin_instr_count   += bin_instr
     num_instr_samples += 1
 
+def recordNeighbourMatch(is_neighbour) :
+    """Records a single neighbour matching statistics for scaling the score boost
+    
+    Args:
+        is_neighbour (bool): True iff matched neighbours
+    """
+    global num_neighbours_matched, num_neighbours_mismatched
+
+    num_neighbours_matched    += 1 if is_neighbour else 0
+    num_neighbours_mismatched += 0 if is_neighbour else 1
+
 def countSetBits(const) :
     """Counts the set ('1') bits in the given numeric constant
     
@@ -968,6 +1083,29 @@ def resetRatio():
     bin_instr_count         = 0
     num_instr_samples       = 0
 
+def resetScoring():
+    """Prepares the scoring variables for a new script execution"""
+    global num_neighbours_matched, num_neighbours_mismatched
+    # same as the init list on the top of the file
+    num_neighbours_matched    = 0
+    num_neighbours_mismatched = 0
+
+def getNeighbourScore() :
+    """Returns the current (scaled) score boost for neighbours
+    
+    Return Value:
+        Scaled neighbour score boost
+    """
+    num_matched = num_neighbours_matched + num_neighbours_mismatched
+    # we don't any input
+    if num_matched == 0:
+        # start safe
+        return 0
+    # start safely
+    safe_score = 1 if num_matched >= 10 else 0.5
+    # calculate the ratio
+    return LOCATION_BOOST_SCORE * (num_neighbours_matched * 1.0 / num_matched) * safe_score
+
 def initUtils():
     """Prepares the utils global variables for a new script execution"""
     global src_seen_consts, src_seen_strings, src_functions_list, src_functions_ctx, src_file_mappings
@@ -979,6 +1117,8 @@ def initUtils():
     src_file_mappings       = collections.OrderedDict()
     # don't forget the instruction ratio
     resetRatio()
+    # don't forget the neighbour scoring
+    resetScoring()
 
 def getSourceFunctions() :
     """Returns the data-structures of the analyzed source functions
@@ -992,7 +1132,7 @@ def setIDAPath():
     """Updates the IDA path according to input from the user"""
     global IDA_PATH
 
-    new_path = raw_input("[+] Please insert the command (path) need in order to execute IDA (%s): " % (IDA_PATH))
+    new_path = raw_input("[+] Please insert the command (path) needed in order to execute IDA (%s): " % (IDA_PATH))
     if len(new_path.strip()) != 0 :
         IDA_PATH = new_path
 

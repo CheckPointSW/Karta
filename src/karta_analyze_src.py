@@ -25,6 +25,7 @@ def locateFiles(bin_dir, file_list) :
     for root, dirs, files in os.walk(bin_dir) :
         for compiled_file in set(files).intersection(file_list) :
             yield os.path.abspath(os.path.join(root, compiled_file)), compiled_file
+            file_list.remove(compiled_file)
 
 def analyzeFile(full_file_path) :
     """Analyze a single file using IDA Python
@@ -81,7 +82,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
                 logger.error("Failed to create the .JSON file for file: %s" % (compiled_file))
                 logger.removeIndent()
                 logger.removeIndent()
-                logger.error("Encounterred an error, exitting")
+                logger.error("Encounterred an error, exiting")
                 exit(1)
             # all was OK, can continue
             parseFileStats(full_file_path, json.load(fd, object_pairs_hook=collections.OrderedDict))
@@ -174,7 +175,7 @@ def printUsage(args):
         args (list): list of cmd line arguments
     """
     print 'Usage: %s <library name> <library version> <bin dir (with *.o or *.obj files)> <compiled archive: *.a or *.lib>' % (args[0])
-    print 'Exitting'
+    print 'Exiting'
     exit(1)
 
 def main(args):

@@ -53,17 +53,17 @@ def matchLibrary(lib_name, lib_version):
         lib_version (str): version string for the open source library that was found
     """
 
-    # Check for existance
+    # Check for existence
     config_name = constructConfigPath(lib_name, lib_version)
-    config_path = os.path.join(config_path, config_name)
-    if not os.path.exists(config_path) :
+    cur_config_path = os.path.join(config_path, config_name)
+    if not os.path.exists(cur_config_path) :
         logger.error("Missing configuration file (%s) for \"%s\" Version: \"%s\"", config_name, lib_name, lib_version)
         return
 
     # Start the actual matching
     logger.addIndent()
     logger.info("Starting to match \"%s\" Version: \"%s\"", lib_name, lib_version)
-    startMatch(config_path, lib_name, logger)
+    startMatch(cur_config_path, lib_name, logger)
     logger.info("Finished the matching")
     logger.removeIndent()
 
@@ -106,7 +106,7 @@ def pluginMain():
         return
 
     # store it for future use
-    config_path = c._config_path
+    config_path = c._config_path.value
 
     working_path = os.path.split(idc.GetIdbPath())[0]
 

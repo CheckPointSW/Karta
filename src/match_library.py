@@ -18,11 +18,12 @@ REASON_SINGLE_XREF      = "Single caller (xref) option"
 REASON_FILE_SINGLETON   = "Last (referenced) function in file"
 REASON_CALL_ORDER       = "Call order in caller function"
 REASON_SWALLOW          = "Swallow - Identified IDA analysis problem"
+REASON_COLLISION        = "Merge - Linker optimization merged source functions"
 REASON_SCORE            = "Score-based Matching"
 REASON_TRAPPED_COUPLE   = "Locked and orderred neighbouring functions"
 GUI_MATCH_REASONS       = [REASON_ANCHOR, REASON_FILE_HINT, REASON_AGENT, REASON_NEIGHBOUR, REASON_SINGLE_CALL, 
-                           REASON_SINGLE_XREF, REASON_FILE_SINGLETON, REASON_CALL_ORDER, REASON_SWALLOW, REASON_SCORE, 
-                           REASON_TRAPPED_COUPLE]
+                           REASON_SINGLE_XREF, REASON_FILE_SINGLETON, REASON_CALL_ORDER, REASON_SWALLOW, REASON_COLLISION, 
+                           REASON_SCORE, REASON_TRAPPED_COUPLE]
 
 REASON_DISABLED         = "ifdeffed out / inlined"
 REASON_LIBRARY_UNUSED   = "Unused - No xrefs inside the open source"
@@ -206,6 +207,13 @@ class ExternalsChooseForm(Choose2):
     # Overriden base function
     def OnGetLineAttr(self, n):
         return [GUI_COLOR_LIGHT_GREEN, 0]
+
+######################
+## Custom Exception ##
+######################  
+
+class AssumptionException(Exception):
+    pass
 
 ######################
 ## Matching Classes ##
@@ -500,9 +508,17 @@ class FileMatch(object) :
         bin_ctxs = self._bin_functions_ctx if self._located else floating_bin_functions
         # locate the inner index
         bin_index = bin_ctxs.index(bin_ctx)
-        # if the file wasn't yet located there is a reason to no simply do: "lower_part = not upper_part"
-        upper_index = bin_ctxs.index(self._upper_match_ctx)
-        lower_index = bin_ctxs.index(self._lower_match_ctx)
+        # if the file wasn't yet located there is a reason not to simply do: "lower_part = not upper_part"
+        try:
+            upper_index = bin_ctxs.index(self._upper_match_ctx)
+        except ValueError, e:
+            logger.error("Sanity check failed in FileMatch.remove(): upper match (%s) not in bin_ctxs", self._upper_match_ctx._name)
+            debugPrintState(error = True)
+        try:
+            lower_index = bin_ctxs.index(self._lower_match_ctx)
+        except ValueError, e:
+            logger.error("Sanity check failed in FileMatch.remove(): lower match (%s) not in bin_ctxs", self._lower_match_ctx._name)
+            debugPrintState(error = True)
         upper_part = upper_index < bin_index
         lower_part = bin_index < lower_index
         # sanity check - more than the upper leftovers
@@ -749,7 +765,9 @@ class FileMatch(object) :
             # if used, just match it
             if singleton_ctx.isHinted() or (0 < self._bin_functions_ctx.index(singleton_ctx) and self._bin_functions_ctx.index(singleton_ctx) < len(self._bin_functions_ctx) - 1) :
                 singleton_index = filter(lambda x : x not in function_matches, xrange(self._src_index_start, self._src_index_end + 1))[0]
-                match_result = declareMatch(singleton_index, singleton_ctx._ea, REASON_FILE_SINGLETON) or match_result
+                # check for validity first
+                if src_functions_ctx[singleton_index].isValidCandidate(singleton_ctx) :
+                    match_result = declareMatch(singleton_index, singleton_ctx._ea, REASON_FILE_SINGLETON) or match_result
         # check for a (locked) bin singleton
         if len(filter(lambda ctx : ctx.active(), self._bin_functions_ctx)) == 1 :
             singleton_ctx = filter(lambda ctx : ctx.active(), self._bin_functions_ctx)[0]
@@ -767,7 +785,7 @@ class FileMatch(object) :
                         continue
                     cur_score = src_functions_ctx[src_index].compare(singleton_ctx, logger)
                     # don't forget to boost neighbours
-                    cur_score += LOCATION_BOOST_SCORE * [prev_match_index + 1, next_match_index - 1].count(src_index)
+                    cur_score += getNeighbourScore() * [prev_match_index + 1, next_match_index - 1].count(src_index)
                     if best_score is None or cur_score > best_score :
                         best_score = cur_score
                         best_src_index = src_index
@@ -1019,7 +1037,7 @@ class FileMatch(object) :
             # score it up and check for a match (no need to filter this option, it's a swallow)
             score = island_ctx.compare(src_candidate_ctx, logger)
             if src_index == src_index_start or src_index == src_index_end :
-                score += LOCATION_BOOST_SCORE
+                score += getNeighbourScore()
             if score >= MINIMAL_ISLAND_SCORE :
                 bin_functions_ctx[island_ctx._ea] = island_ctx
                 declareMatch(src_candidate_ctx._src_index, island_ctx._ea, REASON_SWALLOW)
@@ -1035,44 +1053,63 @@ def updateHints(src_index, func_ea) :
     """
     global changed_functions, bin_matched_ea, call_hints_records, src_functions_ctx, bin_functions_ctx, matching_reasons
 
+    src_ctx = src_functions_ctx[src_index]
+    bin_ctx = bin_functions_ctx[func_ea]
+
     # record the match (also tells my followers tham I'm taken)
-    src_functions_ctx[src_index].declareMatch(bin_functions_ctx[func_ea])
-    bin_functions_ctx[func_ea].declareMatch(src_functions_ctx[src_index])
+    src_ctx.declareMatch(bin_ctx)
+    bin_ctx.declareMatch(src_ctx)
+
+    # check for potential merged matches (collision)
+    if bin_ctx.merged() :
+        for collision_candidate in bin_ctx._collision_map[bin_ctx.match()._name] :
+            if not collision_candidate.matched() :
+                declareMatch(collision_candidate._src_index, func_ea, REASON_COLLISION)
 
     # record the instruction ratio sample
-    if not bin_functions_ctx[func_ea].isPartial() :
-        recordInstrRatio(src_functions_ctx[src_index]._instrs, bin_functions_ctx[func_ea]._instrs)
+    if not bin_ctx.isPartial() :
+        recordInstrRatio(src_functions_ctx[src_index]._instrs, bin_ctx._instrs)
+
+    # record the neighbour statistics
+    for src_neighbour in filter(lambda x : x < 0 or len(src_functions_list) <= x, (src_index - 1, src_index + 1)) :
+        # check if the neighbour was matched
+        if src_functions_ctx[src_neighbour].matched() :
+            lower = src_neighbour < src_index
+            recordNeighbourMatch(is_neighbour = (src_functions_ctx[src_neighbour].match()._bin_index + (1 if lower else -1)) == bin_ctx._bin_index)
 
     # function calls
-    bin_calls = filter(lambda x : x.active(), bin_functions_ctx[func_ea]._calls)
-    src_calls = filter(lambda x : x.active(), src_functions_ctx[src_index]._calls)
+    bin_calls = filter(lambda x : x.active(), bin_ctx._calls)
+    src_calls = filter(lambda x : x.active(), src_ctx._calls)
     if len(bin_calls) > 0 and len(src_calls) > 0 :
+        logger.debug("%d 0x%x", src_index, func_ea)
+        logger.debug("src calls: %s", ', '.join(map(lambda x : x._name, src_calls)))
+        logger.debug("bin calls: %s", ', '.join(map(lambda x : x._name, bin_calls)))
         # can only continue if this condition does NOT apply because it will cause duplicate "single call" matches
         if not (len(bin_calls) > 1 and len(src_calls) == 1) :
-            call_hints_records.append((src_calls, bin_calls, src_functions_ctx[src_index], bin_functions_ctx[func_ea], False))
-            for bin_ctx in bin_calls :
-                bin_ctx.addHints(filter(lambda x : x.isValidCandidate(bin_ctx), src_calls), True)
-        for src_ctx in src_calls :
-            if src_ctx._src_index not in changed_functions :
-                changed_functions[src_ctx._src_index] = set()
-            changed_functions[src_ctx._src_index].update(filter(lambda x : src_ctx.isValidCandidate(x), bin_calls))
+            call_hints_records.append((src_calls, bin_calls, src_ctx, bin_ctx, False))
+            for call_bin_ctx in bin_calls :
+                call_bin_ctx.addHints(src_calls, True)
+        for call_src_ctx in src_calls :
+            if call_src_ctx._src_index not in changed_functions :
+                changed_functions[call_src_ctx._src_index] = set()
+            changed_functions[call_src_ctx._src_index].update(filter(lambda x : call_src_ctx.isValidCandidate(x), bin_calls))
     # function xrefs
-    bin_xrefs = filter(lambda x : x.active(), bin_functions_ctx[func_ea]._xrefs)
-    src_xrefs = filter(lambda x : x.active(), src_functions_ctx[src_index]._xrefs)
+    bin_xrefs = filter(lambda x : x.active(), bin_ctx._xrefs)
+    src_xrefs = filter(lambda x : x.active(), src_ctx._xrefs)
     if len(bin_xrefs) > 0 and len(src_xrefs) > 0 :
         # can only continue if this condition does NOT apply because it will cause duplicate "single call" matches
         if not (len(bin_xrefs) > 1 and len(src_xrefs) == 1) :
-            for bin_ctx in bin_xrefs :
-                bin_ctx.addHints(filter(lambda x : x.isValidCandidate(bin_ctx), src_xrefs), False)
-        for src_ctx in src_xrefs :
-            if src_ctx._src_index not in changed_functions :
-                changed_functions[src_ctx._src_index] = set()
-            changed_functions[src_ctx._src_index].update(filter(lambda x : src_ctx.isValidCandidate(x), bin_xrefs))
+            for xref_bin_ctx in bin_xrefs :
+                xref_bin_ctx.addHints(src_xrefs, False)
+        for xref_src_ctx in src_xrefs :
+            if xref_src_ctx._src_index not in changed_functions :
+                changed_functions[xref_src_ctx._src_index] = set()
+            changed_functions[xref_src_ctx._src_index].update(filter(lambda x : xref_src_ctx.isValidCandidate(x), bin_xrefs))
     # external functions
-    bin_exts = filter(lambda ea : ea not in bin_matched_ea, bin_functions_ctx[func_ea]._externals)
-    src_exts = filter(lambda x : x.active(), src_functions_ctx[src_index]._externals)
+    bin_exts = filter(lambda ea : ea not in bin_matched_ea, bin_ctx._externals)
+    src_exts = filter(lambda x : x.active(), src_ctx._externals)
     if len(bin_exts) > 0 and len(src_exts) > 0 :
-        call_hints_records.append((src_exts, bin_exts, src_functions_ctx[src_index], bin_functions_ctx[func_ea], True))
+        call_hints_records.append((src_exts, bin_exts, src_ctx, bin_ctx, True))
         # can't continue because it will cause duplicate matches for the same binary
         if len(bin_exts) == 1 and len(src_exts) > 1 :
             return
@@ -1098,25 +1135,26 @@ def declareMatch(src_index, func_ea, reason) :
 
     function = sark.Function(func_ea)
     is_anchor = reason == REASON_ANCHOR
+
+    src_ctx = src_functions_ctx[src_index]
     # Sanitation logic that uses contexts (non available in anchor phase)
     if not is_anchor:
-        src_candidate = src_functions_ctx[src_index]
-        bin_candidate = bin_functions_ctx[func_ea]
+        bin_ctx = bin_functions_ctx[func_ea]
         # double check the match
-        if not bin_candidate.isPartial() and not src_candidate.isValidCandidate(bin_candidate) :
-            logger.error("Cancelled an invalid match: %s (%d) != 0x%x (%s)", src_candidate._name, src_candidate._src_index, bin_candidate._ea, function.name)
+        if not bin_ctx.isPartial() and not src_ctx.isValidCandidate(bin_ctx) :
+            logger.error("Cancelled an invalid match: %s (%d) != 0x%x (%s)", src_ctx._name, src_index, func_ea, function.name)
             debugPrintState(error = True)
         # no need to declare it twice for anchors
-        logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, function.name)
+        logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function.name)
         logger.debug("Matching reason is: %s", reason)
 
     # debug sanity checks
-    if function.name != src_functions_list[src_index] :
+    if function.name != src_ctx._name :
         # check if this is an unnamed IDA functions
-        if function.name.startswith("sub_") :
-            logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, function.name)
+        if function.name.startswith("sub_") or function.name.startswith("nullsub_") or function.name.startswith("j_") :
+            logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function.name)
         else :
-            logger.debug("Probably matched a False Positive: %s (%d) == 0x%x (%s)", src_functions_list[src_index], src_index, func_ea, function.name)
+            logger.warning("Probably matched a False Positive: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function.name)
 
     # register the match
     function_matches[src_index] = func_ea
@@ -1136,18 +1174,27 @@ def declareMatch(src_index, func_ea, reason) :
         anchor_hints.append((src_index, func_ea))
         return
 
-    # update the hints now, no need to wait
+    # update the hints now (must be done before we update the files - we need to count in all of the collision candidates)
     updateHints(src_index, func_ea)
 
     # update all of the relevant match files
-    file_list = list(bin_functions_ctx[func_ea]._files) if not bin_candidate.isPartial() else [src_functions_ctx[src_index]._file]
-    for match_file in file_list :
+    file_list = list(bin_ctx._files) if not bin_ctx.isPartial() else [src_ctx._file]
+    collision_file_list = set()
+    if len(file_list) > 1 and bin_ctx.merged() :
+        optional_files = set(file_list).intersection(map(lambda x : x._file, bin_ctx._merged_sources))
+        match_file = None if len(optional_files) > 0 else list(optional_files)[0]
+    elif len(file_list) > 0 and bin_ctx.merged() :
+        match_file = file_list[0]
+    else :
+        match_file = src_ctx._file
+    # update the files
+    for file_option in file_list :
         # winner file
-        if match_file._src_index_start <= src_index and src_index <= match_file._src_index_end :
-            match_file.match(src_index, bin_functions_ctx[func_ea])
+        if file_option == match_file :
+            match_file.match(src_index, bin_ctx)
         # loser file
         else :
-            match_file.remove(src_index, bin_functions_ctx[func_ea])
+            file_option.remove(src_index, bin_ctx)
 
 def roundMatchResults() :
     """Declares the winners of the match round, and prepares for the next round
@@ -1428,11 +1475,11 @@ def matchAttempt(src_index, func_ea, file_match = None) :
     neighbour_match = False
     # lower neighbour
     if file_match is not None and src_index in file_match._lower_neighbours and file_match._lower_neighbours[src_index][0] == func_ea :
-        score_boost += LOCATION_BOOST_SCORE
+        score_boost += getNeighbourScore()
         neighbour_match = file_match._lower_neighbours[src_index][1]
     # upper neighbour
     if file_match is not None and src_index in file_match._upper_neighbours and file_match._upper_neighbours[src_index][0] == func_ea :
-        score_boost += LOCATION_BOOST_SCORE
+        score_boost += getNeighbourScore()
         neighbour_match = file_match._upper_neighbours[src_index][1]
     # handle the functions on the file's edge:
     # 1. File's edge when |bin| == |src|
@@ -1444,10 +1491,10 @@ def matchAttempt(src_index, func_ea, file_match = None) :
                     file_match._lower_leftovers < file_match._remain_size - (len(file_match._locked_eas) + len(file_match._upper_locked_eas))) or \
             (src_index == file_match._src_index_end and \
                     file_match._upper_leftovers < file_match._remain_size - (len(file_match._locked_eas) + len(file_match._lower_locked_eas)))) :
-        score_boost += LOCATION_BOOST_SCORE
+        score_boost += getNeighbourScore()
     # triple the bonus if both apply
-    if score_boost >= 2 * LOCATION_BOOST_SCORE :
-        score_boost += LOCATION_BOOST_SCORE 
+    if score_boost >= 2 * getNeighbourScore() :
+        score_boost += getNeighbourScore() 
     logger.debug("%s (%d) vs %s (0x%x): %f (+%f = %f)" % (src_candidate._name, src_index, bin_candidate._name, bin_candidate._ea, score, score_boost, score + score_boost))
     # record the result (the final decision about it will be received later)
     recordRoundMatchAttempt(src_index, func_ea, score_boost, score + score_boost, REASON_NEIGHBOUR if score_boost > 0 else REASON_SCORE)
@@ -1511,196 +1558,205 @@ def matchFiles() :
     logger.info("Start the main matching process")
     finished = False
     # while there is work to do
-    while not finished :
-        logger.debug("Started a matching round")
-        finished = True
-        # First, Scan all of the (located) files
-        for match_file in match_files :
-            # tell the file to try and match itself
-            match_file.attemptMatches()
-
-        # Now, check out the changed functions first, and then the once seen functions
-        for scoped_functions in [changed_functions, once_seen_couples_src] :
-            for src_index in list(scoped_functions.keys()) :
-                # check if already matched (already popeed out of the dict)
-                if src_index in function_matches:
-                    continue
-                for bin_ctx in list(scoped_functions[src_index]) :
-                    # check if already matched
-                    if src_index not in scoped_functions :
-                        continue
-                    # check if relevant
-                    if not src_functions_ctx[src_index].isValidCandidate(bin_ctx) :
-                        scoped_functions[src_index].remove(bin_ctx)
-                        continue
-                    # check for a single call hint - this should be a sure match
-                    if bin_ctx._call_hints is not None and len(bin_ctx._call_hints) == 1 :
-                        declareMatch(list(bin_ctx._call_hints)[0]._src_index, bin_ctx._ea, REASON_SINGLE_CALL)
-                        finished = False
-                        continue
-                    # check for a single xref hint - this should be a sure match
-                    if len(set(bin_ctx._xref_hints)) == 1 :
-                        declareMatch(bin_ctx._xref_hints[0]._src_index, bin_ctx._ea, REASON_SINGLE_XREF)
-                        finished = False
-                        continue
-                    # simply compare them both
-                    matchAttempt(src_index, bin_ctx._ea)
-                    # add it to the once seen couples
-                    if src_index not in once_seen_couples_src :
-                        once_seen_couples_src[src_index] = set()
-                    once_seen_couples_src[src_index].add(bin_ctx)
-                    if bin_ctx._ea not in once_seen_couples_bin :
-                        once_seen_couples_bin[bin_ctx._ea] = set()
-                    once_seen_couples_bin[bin_ctx._ea].add(src_index)
-                
-                # if this is first loop, add all of the records from the matching seen couples
-                if scoped_functions == changed_functions :
-                    for match_record in match_round_candidates :
-                        # source candidates
-                        if match_record['src_index'] in once_seen_couples_src :
-                            for bin_ctx in list(once_seen_couples_src[match_record['src_index']]) :
-                                if src_functions_ctx[match_record['src_index']].isValidCandidate(bin_ctx) :
-                                    matchAttempt(match_record['src_index'], bin_ctx._ea)
-                                else :
-                                    once_seen_couples_src[match_record['src_index']].remove(bin_ctx)                            
-                        # binary candidates
-                        if match_record['func_ea'] in once_seen_couples_bin :
-                            for src_index in list(once_seen_couples_bin[match_record['func_ea']]) :
-                                if src_functions_ctx[src_index].isValidCandidate(bin_functions_ctx[match_record['func_ea']]) :
-                                    matchAttempt(src_index, match_record['func_ea'])
-                                else :
-                                    once_seen_couples_bin[match_record['func_ea']].remove(src_index)
-                    # now reset the dict of changed functions
-                    changed_functions = {}
-
-                # check the round results now
-                finished = (not roundMatchResults()) and finished
-
-                # merge the results into the seen couples
-                for src_index, func_ea in match_round_losers :
-                    bin_ctx = bin_functions_ctx[func_ea]
-                    if src_index not in once_seen_couples_src :
-                        once_seen_couples_src[src_index] = set()
-                    once_seen_couples_src[src_index].add(bin_ctx)
-                    if bin_ctx._ea not in once_seen_couples_bin :
-                        once_seen_couples_bin[bin_ctx._ea] = set()
-                    once_seen_couples_bin[bin_ctx._ea].add(src_index)
-                # reset the losers list
-                match_round_losers = []
-            
-            # if found a match, break the loop
-            if not finished :
-                break
-
-        # If nothing has changed, check the a hint call order and hpoe for a sequential tie braker
-        if finished :
-            # check for disabled externals
-            for ext_name in src_external_functions :
-                ext_ctx = src_external_functions[ext_name]
-                if not ext_ctx.used() :
-                    ext_unused_functions.add(ext_name)
-            new_call_hints_records = []
-            # now match them
-            for src_calls, bin_calls, src_parent, bin_parent, is_ext in call_hints_records :
-                # start with a filter
-                if is_ext :
-                    src_calls = filter(lambda x : src_external_functions[x._name].active() and src_external_functions[x._name].used(), src_calls)
-                    bin_calls = filter(lambda ea : ea not in bin_matched_ea, bin_calls)
-                else :
-                    src_calls = filter(lambda x : x.active() and x in src_parent._call_order, src_calls)
-                    bin_calls = filter(lambda x : x.active() and x in bin_parent._call_order, bin_calls)
-                if len(src_calls) > 0 and len(bin_calls) > 0 :
-                    new_call_hints_records.append((src_calls, bin_calls, src_parent, bin_parent, is_ext))
-                # now continue to the actual logic
-                order_bins = {}
-                order_srcs = {}
-                # build the bin order
-                for bin_ctx in bin_calls :
-                    if bin_ctx not in bin_parent._call_order :
-                        if not is_ext :
-                            logger.warning("Found a probable Island inside function: 0x%x (%s)", bin_ctx._ea, bin_ctx._name)
-                        continue
-                    for call_path in bin_parent._call_order[bin_ctx] :
-                        order_score = len(call_path.intersection(bin_calls))
-                        if order_score not in order_bins :
-                            order_bins[order_score] = set()
-                        order_bins[order_score].add(bin_ctx)
-                # build the src order
-                for src_ctx in src_calls :
-                    for call_path in src_parent._call_order[src_ctx] :
-                        order_score = len(call_path.intersection(src_calls))
-                        if order_score not in order_srcs :
-                            order_srcs[order_score] = set()
-                        order_srcs[order_score].add(src_ctx)
-                # check that both orders match
-                agreed_order_index = -1
-                order_intersection = set(order_bins.keys()).intersection(set(order_srcs.keys()))
-                if len(order_intersection) > 0 :
-                    for order in xrange(max(order_intersection) + 1) :
-                        if order not in order_srcs and order not in order_bins :
-                            continue
-                        if order not in order_srcs or order not in order_bins :
-                            break
-                        if len(order_bins[order]) != len(order_srcs[order]) :
-                            break
-                        agreed_order_index = order
-                # now match each "bucket"
-                order_list = list(order_bins.keys())
-                order_list.sort()
-                for order in order_list :
-                    # stop when above the consensus level
-                    if order > agreed_order_index :
-                        break
-                    bucket_srcs = order_srcs[order]
-                    bucket_bins = order_bins[order]
-                    # several candidates only work for normal functions
-                    if is_ext and len(bucket_srcs) != 1 :
-                        continue
-                    # only update the hints, we can't have a single sure match
-                    if len(bucket_srcs) != 1 :
-                        for bin_ctx in bucket_bins :
-                            bin_ctx.addHints(bucket_srcs, is_call = True)
-                        continue
-                    # match - had an exact sequential call order
-                    src_candidate = bucket_srcs.pop()
-                    bin_candidate = bucket_bins.pop()
-                    if is_ext :
-                        bin_matched_ea[bin_candidate] = src_candidate
-                        src_candidate._ea = bin_candidate
-                        matching_reasons[src_candidate._name] = REASON_CALL_ORDER
-                        logger.debug("Matched external through sequential call hints: %s, 0x%x", src_candidate._name, src_candidate._ea)
-                        finished = False
-                        if src_candidate._hints is not None :
-                            updated_ext_hints = filter(lambda ea : ea not in bin_matched_ea, src_candidate._hints)
-                            for src_ext in src_calls :
-                                src_ext.addHints(updated_ext_hints)
-                                # Check for matches
-                                matched_ea = src_ext.match()
-                                if matched_ea is not None and matched_ea not in bin_matched_ea:
-                                    bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
-                                    src_ext._ea = matched_ea
-                                    matching_reasons[src_ext._name] = REASON_SINGLE_CALL
-                                    logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
-                    else :
-                        # continue on only if the match is valid
-                        if src_candidate.isValidCandidate(bin_candidate) :
-                            declareMatch(src_candidate._src_index, bin_candidate._ea, REASON_CALL_ORDER)
-                            finished = False
-            # update the data-structure
-            call_hints_records = new_call_hints_records
-
-        # If nothing has changed, check for a function swallowing
-        if finished :
-            # find candidates at edges of gaps
+    try :
+        while not finished :
+            logger.debug("Started a matching round")
+            finished = True
+            # First, Scan all of the (located) files
             for match_file in match_files :
-                # tell the file to try and search for swallows inside itself
-                if match_file.attemptMatchSwallows() :
-                    finished = False
+                # tell the file to try and match itself
+                match_file.attemptMatches()
 
-        # Attempt the last matching step - will be done in the round matching itself
-        if finished and not last_matching_step:
-            last_matching_step = True
-            finished = False
+            # Now, check out the changed functions first, and then the once seen functions
+            for scoped_functions in [changed_functions, once_seen_couples_src] :
+                for src_index in list(scoped_functions.keys()) :
+                    # check if already matched (already popeed out of the dict)
+                    if src_index in function_matches:
+                        continue
+                    for bin_ctx in list(scoped_functions[src_index]) :
+                        # check if already matched
+                        if src_index not in scoped_functions :
+                            continue
+                        # check if relevant
+                        if not src_functions_ctx[src_index].isValidCandidate(bin_ctx) :
+                            scoped_functions[src_index].remove(bin_ctx)
+                            continue
+                        # check for a single call hint - this should be a sure match
+                        if bin_ctx._call_hints is not None and len(bin_ctx._call_hints) == 1  :
+                            declareMatch(list(bin_ctx._call_hints)[0]._src_index, bin_ctx._ea, REASON_SINGLE_CALL)
+                            finished = False
+                            continue
+                        # check for a single call hint (collision case) - this should be a sure match
+                        if bin_ctx._call_hints is not None and len(bin_ctx._collision_map) > 0 and len(set(map(lambda x : x._name, bin_ctx._call_hints))) == 1 :
+                            # the rest will be taken care by updateHints
+                            declareMatch(list(bin_ctx._call_hints)[0]._src_index, bin_ctx._ea, REASON_SINGLE_CALL)
+                            finished = False
+                            continue                   
+                        # check for a single xref hint - this should be a sure match
+                        if len(set(bin_ctx._xref_hints)) == 1 :
+                            declareMatch(bin_ctx._xref_hints[0]._src_index, bin_ctx._ea, REASON_SINGLE_XREF)
+                            finished = False
+                            continue
+                        # simply compare them both
+                        matchAttempt(src_index, bin_ctx._ea)
+                        # add it to the once seen couples
+                        if src_index not in once_seen_couples_src :
+                            once_seen_couples_src[src_index] = set()
+                        once_seen_couples_src[src_index].add(bin_ctx)
+                        if bin_ctx._ea not in once_seen_couples_bin :
+                            once_seen_couples_bin[bin_ctx._ea] = set()
+                        once_seen_couples_bin[bin_ctx._ea].add(src_index)
+                    
+                    # if this is first loop, add all of the records from the matching seen couples
+                    if scoped_functions == changed_functions :
+                        for match_record in match_round_candidates :
+                            # source candidates
+                            if match_record['src_index'] in once_seen_couples_src :
+                                for bin_ctx in list(once_seen_couples_src[match_record['src_index']]) :
+                                    if src_functions_ctx[match_record['src_index']].isValidCandidate(bin_ctx) :
+                                        matchAttempt(match_record['src_index'], bin_ctx._ea)
+                                    else :
+                                        once_seen_couples_src[match_record['src_index']].remove(bin_ctx)                            
+                            # binary candidates
+                            if match_record['func_ea'] in once_seen_couples_bin :
+                                for src_index in list(once_seen_couples_bin[match_record['func_ea']]) :
+                                    if src_functions_ctx[src_index].isValidCandidate(bin_functions_ctx[match_record['func_ea']]) :
+                                        matchAttempt(src_index, match_record['func_ea'])
+                                    else :
+                                        once_seen_couples_bin[match_record['func_ea']].remove(src_index)
+                        # now reset the dict of changed functions
+                        changed_functions = {}
+
+                    # check the round results now
+                    finished = (not roundMatchResults()) and finished
+
+                    # merge the results into the seen couples
+                    for src_index, func_ea in match_round_losers :
+                        bin_ctx = bin_functions_ctx[func_ea]
+                        if src_index not in once_seen_couples_src :
+                            once_seen_couples_src[src_index] = set()
+                        once_seen_couples_src[src_index].add(bin_ctx)
+                        if bin_ctx._ea not in once_seen_couples_bin :
+                            once_seen_couples_bin[bin_ctx._ea] = set()
+                        once_seen_couples_bin[bin_ctx._ea].add(src_index)
+                    # reset the losers list
+                    match_round_losers = []
+                
+                # if found a match, break the loop
+                if not finished :
+                    break
+
+            # If nothing has changed, check the a hint call order and hpoe for a sequential tie braker
+            if finished :
+                # check for disabled externals
+                for ext_name in src_external_functions :
+                    ext_ctx = src_external_functions[ext_name]
+                    if not ext_ctx.used() :
+                        ext_unused_functions.add(ext_name)
+                new_call_hints_records = []
+                # now match them
+                for src_calls, bin_calls, src_parent, bin_parent, is_ext in call_hints_records :
+                    # start with a filter
+                    if is_ext :
+                        src_calls = filter(lambda x : src_external_functions[x._name].active() and src_external_functions[x._name].used(), src_calls)
+                        bin_calls = filter(lambda ea : ea not in bin_matched_ea, bin_calls)
+                    else :
+                        src_calls = filter(lambda x : x.active() and x in src_parent._call_order, src_calls)
+                        bin_calls = filter(lambda x : x.active() and x in bin_parent._call_order, bin_calls)
+                    if len(src_calls) > 0 and len(bin_calls) > 0 :
+                        new_call_hints_records.append((src_calls, bin_calls, src_parent, bin_parent, is_ext))
+                    # now continue to the actual logic
+                    order_bins = {}
+                    order_srcs = {}
+                    # build the bin order
+                    for bin_ctx in bin_calls :
+                        if bin_ctx not in bin_parent._call_order :
+                            if not is_ext :
+                                logger.warning("Found a probable Island inside function: 0x%x (%s)", bin_ctx._ea, bin_ctx._name)
+                            continue
+                        for call_path in bin_parent._call_order[bin_ctx] :
+                            order_score = len(call_path.intersection(bin_calls))
+                            if order_score not in order_bins :
+                                order_bins[order_score] = set()
+                            order_bins[order_score].add(bin_ctx)
+                    # build the src order
+                    for src_ctx in src_calls :
+                        for call_path in src_parent._call_order[src_ctx] :
+                            order_score = len(call_path.intersection(src_calls))
+                            if order_score not in order_srcs :
+                                order_srcs[order_score] = set()
+                            order_srcs[order_score].add(src_ctx)
+                    # check that both orders match
+                    agreed_order_index = -1
+                    order_intersection = set(order_bins.keys()).intersection(set(order_srcs.keys()))
+                    if len(order_intersection) > 0 :
+                        for order in xrange(max(order_intersection) + 1) :
+                            if order not in order_srcs and order not in order_bins :
+                                continue
+                            if order not in order_srcs or order not in order_bins :
+                                break
+                            if len(order_bins[order]) != len(order_srcs[order]) :
+                                break
+                            agreed_order_index = order
+                    # now match each "bucket"
+                    order_list = list(order_bins.keys())
+                    order_list.sort()
+                    for order in order_list :
+                        # stop when above the consensus level
+                        if order > agreed_order_index :
+                            break
+                        bucket_srcs = order_srcs[order]
+                        bucket_bins = order_bins[order]
+                        # several candidates only work for normal functions
+                        if is_ext and len(bucket_srcs) != 1 :
+                            continue
+                        # only update the hints, we can't have a single sure match
+                        if len(bucket_srcs) != 1 :
+                            for bin_ctx in bucket_bins :
+                                bin_ctx.addHints(bucket_srcs, is_call = True)
+                            continue
+                        # match - had an exact sequential call order
+                        src_candidate = bucket_srcs.pop()
+                        bin_candidate = bucket_bins.pop()
+                        if is_ext :
+                            bin_matched_ea[bin_candidate] = src_candidate
+                            src_candidate._ea = bin_candidate
+                            matching_reasons[src_candidate._name] = REASON_CALL_ORDER
+                            logger.debug("Matched external through sequential call hints: %s, 0x%x", src_candidate._name, src_candidate._ea)
+                            finished = False
+                            if src_candidate._hints is not None :
+                                updated_ext_hints = filter(lambda ea : ea not in bin_matched_ea, src_candidate._hints)
+                                for src_ext in src_calls :
+                                    src_ext.addHints(updated_ext_hints)
+                                    # Check for matches
+                                    matched_ea = src_ext.match()
+                                    if matched_ea is not None and matched_ea not in bin_matched_ea:
+                                        bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
+                                        src_ext._ea = matched_ea
+                                        matching_reasons[src_ext._name] = REASON_SINGLE_CALL
+                                        logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
+                        else :
+                            # continue on only if the match is valid
+                            if src_candidate.isValidCandidate(bin_candidate) :
+                                declareMatch(src_candidate._src_index, bin_candidate._ea, REASON_CALL_ORDER)
+                                finished = False
+                # update the data-structure
+                call_hints_records = new_call_hints_records
+
+            # If nothing has changed, check for a function swallowing
+            if finished :
+                # find candidates at edges of gaps
+                for match_file in match_files :
+                    # tell the file to try and search for swallows inside itself
+                    if match_file.attemptMatchSwallows() :
+                        finished = False
+
+            # Attempt the last matching step - will be done in the round matching itself
+            if finished and not last_matching_step:
+                last_matching_step = True
+                finished = False
+    except AssumptionException :
+        return
 
     # check if we actually finished
     success_finish = len(filter(lambda x : x.active(), match_files)) == 0
@@ -1720,9 +1776,9 @@ def debugPrintState(error = False) :
     """
     # How many functions we've matched?
     num_src_functions  = len(src_functions_list) - len(src_unused_functions)
-    num_used_functions = num_src_functions - len(filter(lambda x : x.active() and (not x.used()), src_functions_ctx))
+    num_act_functions  = num_src_functions - len(filter(lambda x : x.active() and (not x.used()), src_functions_ctx))
     num_ext_functions  = len(src_external_functions) - len(ext_unused_functions)
-    logger.info("Matched Functions: %d/%d(/%d) (%d/%d)" % (len(function_matches), num_src_functions, num_used_functions, len(filter(lambda x : x.matched(), src_external_functions.values())), num_ext_functions))
+    logger.info("Matched Functions: %d/%d(/%d) (%d/%d)" % (len(function_matches), num_src_functions, num_act_functions, len(filter(lambda x : x.matched(), src_external_functions.values())), num_ext_functions))
     num_files = 0
     num_ref_files = 0
     located_files = 0
@@ -1801,7 +1857,8 @@ def debugPrintState(error = False) :
             logger.info(". %s", ext_ctx._name)
     # exit on error
     if error :
-        criticalError()
+        logger.error("Internal assumption was broken - probably matched a false positive - exitting")
+        raise AssumptionException()
 
 def initMatchVars():
     """Prepares the global variables used for the matching for a new script execution"""
@@ -1837,7 +1894,7 @@ def initMatchVars():
     bin_suggested_names     = {}        # Suggested Names for the matched and unmatched binary functions: ea => name
 
 def criticalError():
-    logger.error("Exitting the script")
+    logger.error("Exiting the script")
     """Encounterred a critical error, and must stop the script"""
     exit(1)
 
@@ -1861,6 +1918,9 @@ def loadAndPrepareSource(files_config):
 
     # get the variables from the utils file
     src_functions_list, src_functions_ctx, src_file_mappings = getSourceFunctions()
+
+    # prepare a possible collision mapping
+    collision_map = {}
 
     # Convert all function calls to contexts instead of names
     logger.info("Converting all function references to use the built contexts (instead of string names)")
@@ -1889,7 +1949,7 @@ def loadAndPrepareSource(files_config):
                 src_external_functions[call] = ExternalFunction(call)
             src_external_functions[call].addXref(src_func_ctx)
             src_external_calls.append(src_external_functions[call])
-        src_func_ctx._calls = src_internal_calls
+        src_func_ctx._calls = set(src_internal_calls)
         src_func_ctx._externals = src_external_calls
         # the call order too
         new_order = {}
@@ -1916,11 +1976,21 @@ def loadAndPrepareSource(files_config):
                         continue
                 new_order[key].append(inner_calls)
         src_func_ctx._call_order = new_order
+        # update the collision mapping
+        if src_func_ctx._name not in collision_map:
+            collision_map[src_func_ctx._name] = []
+        collision_map[src_func_ctx._name].append(src_func_ctx)
 
     # Build up an xref map too
     for src_func_ctx in src_functions_ctx :
         for call in src_func_ctx._calls :
             call._xrefs.add(src_func_ctx)
+
+    # Tell the possible collision candidates about one another
+    for func_name in collision_map:
+        collision_options = collision_map[func_name]
+        for src_func_ctx in collision_options:
+            src_func_ctx.markCollisionCandidates(collision_options)
 
 def loadAndMatchAnchors(anchors_config):
     """Loads the list of anchor functions, and try to match them with the binary
@@ -2114,8 +2184,8 @@ def loadAndMatchAnchors(anchors_config):
                 locked_gap = upper_match_index - lower_match_index + 1
                 lower_border_index = lower_match_index - (overall_num_functions - locked_gap)
                 upper_border_index = upper_match_index + (overall_num_functions - locked_gap)
-                lower_border_ea = all_bin_functions[lower_match_index - (overall_num_functions - locked_gap)]
-                upper_border_ea = all_bin_functions[upper_match_index + (overall_num_functions - locked_gap)]
+                lower_border_ea = all_bin_functions[max(lower_match_index - (overall_num_functions - locked_gap), 0)]
+                upper_border_ea = all_bin_functions[min(upper_match_index + (overall_num_functions - locked_gap), len(all_bin_functions) - 1)]
         else :
             logger.warning("Anchor function - %s: Found several matches (%d), will check it again later", src_functions_list[src_anchor_index], len(candidates))
             multiple_option_candidates.append((src_anchor_index, candidates))
@@ -2254,8 +2324,8 @@ def locateFileBoundaries():
     # Set up the scoped binary functions
     overall_num_functions = len(src_functions_list)
     num_locked_functions = max(bin_anchor_list) - min(bin_anchor_list) + 1
-    bin_start_index = file_min_bound[0] - (overall_num_functions - num_locked_functions)
-    bin_end_index   = file_max_bound[-1] + (overall_num_functions - num_locked_functions)
+    bin_start_index = max(file_min_bound[0] - (overall_num_functions - num_locked_functions), 0)
+    bin_end_index   = min(file_max_bound[-1] + (overall_num_functions - num_locked_functions), len(all_bin_functions) - 1)
     logger.info("Analyzing all of the binary functions in the chosen scope")
     # prepare all of the functions
     for bin_index, func_ea in enumerate(all_bin_functions[bin_start_index : bin_end_index + 1]) :
@@ -2303,7 +2373,7 @@ def prepareBinFunctions():
                 bin_internal_calls.append(bin_functions_ctx[call_ea])
             else :
                 bin_external_calls.append(call_ea)
-        bin_func_ctx._calls = bin_internal_calls
+        bin_func_ctx._calls = set(bin_internal_calls)
         bin_func_ctx._externals = bin_external_calls
         bin_external_functions.update(bin_external_calls)
         # the call order too

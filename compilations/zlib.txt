@@ -2,5 +2,5 @@
 2. Added flags to avoid inlining: -O0 -fno-inline-functions -fno-builtin
 3. Compiled to 32 bits: -m32
 
-Overall the relevant Makefile flags were:
-CFLAGS = -O0 -m32 -fno-inline-functions -fno-builtin -DUSE_MMAP
+Overall the added Makefile flags were:
+CFLAGS ==> -O0 -m32 -fno-inline-functions -fno-builtin

@@ -12,22 +12,20 @@ import os
 
 IDA_PATH = '/opt/ida-7.2/ida'
 SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
-windows_config = False
-matching_mode  = False
 
 ##########################
 ## Basic Configurations ##
 ##########################
 
 LIBRARY_NAME        = "Karta" 
-LIBRARY_NAME_PREFIX = LIBRARY_NAME + "_" 
-CONFIG_DIR_PATH     = "configs"
 STATE_FILE_SUFFIX   = "_file_state.json"
-LIBRARY_FILE_SUFFIX = "_library_state.json"
 
 ######################
 ## Global Variables ##
 ######################
+
+windows_config = False
+matching_mode  = False
 
 src_seen_consts             = []
 src_seen_strings            = []

@@ -1,5 +1,6 @@
 from ida_utils  import *
 from idaapi     import Choose2
+import libc_config as  libc
 
 import os
 import sys
@@ -425,8 +426,12 @@ class FileMatch(object) :
         if self._located :
             bin_index = self._bin_functions_ctx.index(bin_ctx)
             for seq_index, cur_seq in enumerate(self._match_sequences) :
-                if self._bin_functions_ctx.index(cur_seq._bin_lower_ctx) <= bin_index and bin_index <= self._bin_functions_ctx.index(cur_seq._bin_upper_ctx) :
-                    return seq_index
+                try:
+                    if self._bin_functions_ctx.index(cur_seq._bin_lower_ctx) <= bin_index and bin_index <= self._bin_functions_ctx.index(cur_seq._bin_upper_ctx) :
+                        return seq_index
+                except ValueError, e:
+                    # A False positive broke our invariants
+                    return None
         return None
 
     def cleanupMatches(self, new_sequence = None) :
@@ -773,28 +778,33 @@ class FileMatch(object) :
             singleton_ctx = filter(lambda ctx : ctx.active(), self._bin_functions_ctx)[0]
             # indeed locked
             if 0 < self._bin_functions_ctx.index(singleton_ctx) and self._bin_functions_ctx.index(singleton_ctx) < len(self._bin_functions_ctx) - 1 :
-                singleton_index = filter(lambda x : x not in function_matches, range(self._src_index_start, self._src_index_end + 1))[0]
-                # try to match it to all remaining source options, and pick the best one
-                best_score = None
-                best_src_index = None
-                prev_match_index = bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) - 1]._ea]
-                for src_index in filter(lambda x : x not in function_matches, range(self._src_index_start, self._src_index_end + 1)) :
-                    next_match_index = bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) + 1]._ea]
-                    # filter it, before giving it a matching score
-                    if not src_functions_ctx[src_index].isValidCandidate(singleton_ctx) :
-                        continue
-                    cur_score = src_functions_ctx[src_index].compare(singleton_ctx, logger)
-                    # don't forget to boost neighbours
-                    cur_score += getNeighbourScore() * [prev_match_index + 1, next_match_index - 1].count(src_index)
-                    if best_score is None or cur_score > best_score :
-                        best_score = cur_score
-                        best_src_index = src_index
-                    elif best_score is not None and cur_score == best_score :
-                        best_src_index = None # we have a tie
-                    prev_match_index = next_match_index
-                # check if we made it
-                if best_src_index is not None :
-                    match_result = declareMatch(best_src_index, singleton_ctx._ea, REASON_FILE_SINGLETON) or match_result
+                singleton_index_options = filter(lambda x : x not in function_matches, range(self._src_index_start, self._src_index_end + 1))
+                if len(singleton_index_options) > 0 :
+                    singleton_index = filter(lambda x : x not in function_matches, range(self._src_index_start, self._src_index_end + 1))[0]
+                    # try to match it to all remaining source options, and pick the best one
+                    best_score = None
+                    best_src_index = None
+                    prev_match_index = bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) - 1]._ea]
+                    for src_index in filter(lambda x : x not in function_matches, range(self._src_index_start, self._src_index_end + 1)) :
+                        next_match_index = bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) + 1]._ea]
+                        # filter it, before giving it a matching score
+                        if not src_functions_ctx[src_index].isValidCandidate(singleton_ctx) :
+                            continue
+                        cur_score = src_functions_ctx[src_index].compare(singleton_ctx, logger)
+                        # don't forget to boost neighbours
+                        cur_score += getNeighbourScore() * [prev_match_index + 1, next_match_index - 1].count(src_index)
+                        if best_score is None or cur_score > best_score :
+                            best_score = cur_score    
+                            best_src_index = src_index
+                        elif best_score is not None and cur_score == best_score :
+                            best_src_index = None # we have a tie
+                        prev_match_index = next_match_index
+                    # check if we made it
+                    if best_src_index is not None :
+                        match_result = declareMatch(best_src_index, singleton_ctx._ea, REASON_FILE_SINGLETON) or match_result
+        # scan the neighbours for matches, only if it is considered safe
+        if not areNeighboursSafe():
+            return match_result
         # scan the sequences in search for a potential match
         if len(self._match_sequences) > 1 :
             for sequence in self._match_sequences :
@@ -833,7 +843,11 @@ class FileMatch(object) :
         Return Value:
             True iff matched a function
         """
-        matched_bin_index = self._bin_functions_ctx.index(sequence._bin_lower_ctx)
+        try:
+            matched_bin_index = self._bin_functions_ctx.index(sequence._bin_lower_ctx)
+        except ValueError, e:
+            logger.error("Sanity check failed in FileMatch.attemptMatchStart(): lower ctx (%s) not in bin_ctxs", sequence._bin_lower_ctx._name)
+            debugPrintState(error = True)
         # can't extend the binary downard
         if matched_bin_index == 0 :
             return False    
@@ -855,7 +869,11 @@ class FileMatch(object) :
         Return Value:
             True iff matched a function
         """
-        matched_bin_index = self._bin_functions_ctx.index(sequence._bin_upper_ctx)
+        try:
+            matched_bin_index = self._bin_functions_ctx.index(sequence._bin_upper_ctx)
+        except ValueError, e:
+            logger.error("Sanity check failed in FileMatch.attemptMatchEnd(): lower ctx (%s) not in bin_ctxs", sequence._bin_upper_ctx._name)
+            debugPrintState(error = True)
         # can't extend the binary upward
         if matched_bin_index == len(self._bin_functions_ctx) - 1 :
             return False
@@ -1061,8 +1079,8 @@ def updateHints(src_index, func_ea) :
     bin_ctx.declareMatch(src_ctx)
 
     # check for potential merged matches (collision)
-    if bin_ctx.merged() :
-        for collision_candidate in bin_ctx._collision_map[bin_ctx.match()._name] :
+    if not bin_ctx.isPartial() and bin_ctx.merged() :
+        for collision_candidate in bin_ctx._collision_map[bin_ctx.match()._hash] :
             if not collision_candidate.matched() :
                 declareMatch(collision_candidate._src_index, func_ea, REASON_COLLISION)
 
@@ -1071,7 +1089,7 @@ def updateHints(src_index, func_ea) :
         recordInstrRatio(src_functions_ctx[src_index]._instrs, bin_ctx._instrs)
 
     # record the neighbour statistics
-    for src_neighbour in filter(lambda x : x < 0 or len(src_functions_list) <= x, (src_index - 1, src_index + 1)) :
+    for src_neighbour in filter(lambda x : 0 <= x and x < len(src_functions_list), (src_index - 1, src_index + 1)) :
         # check if the neighbour was matched
         if src_functions_ctx[src_neighbour].matched() :
             lower = src_neighbour < src_index
@@ -1081,9 +1099,6 @@ def updateHints(src_index, func_ea) :
     bin_calls = filter(lambda x : x.active(), bin_ctx._calls)
     src_calls = filter(lambda x : x.active(), src_ctx._calls)
     if len(bin_calls) > 0 and len(src_calls) > 0 :
-        logger.debug("%d 0x%x", src_index, func_ea)
-        logger.debug("src calls: %s", ', '.join(map(lambda x : x._name, src_calls)))
-        logger.debug("bin calls: %s", ', '.join(map(lambda x : x._name, bin_calls)))
         # can only continue if this condition does NOT apply because it will cause duplicate "single call" matches
         if not (len(bin_calls) > 1 and len(src_calls) == 1) :
             call_hints_records.append((src_calls, bin_calls, src_ctx, bin_ctx, False))
@@ -1114,14 +1129,14 @@ def updateHints(src_index, func_ea) :
         if len(bin_exts) == 1 and len(src_exts) > 1 :
             return
         for src_ext in src_exts :
-            src_ext.addHints(bin_exts)
+            src_ext.addHints(filter(lambda x : funcNameEA(x) not in libc.skip_function_names, bin_exts))
             # Check for matches
             matched_ea = src_ext.match()
             if matched_ea is not None and matched_ea not in bin_matched_ea:
                 bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                 src_ext._ea = matched_ea
                 matching_reasons[src_ext._name] = REASON_SINGLE_CALL
-                logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
+                logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, funcNameEA(matched_ea))
 
 def declareMatch(src_index, func_ea, reason) :
     """Officially declare a match of a source function to code that starts with the given binary ea
@@ -1133,7 +1148,7 @@ def declareMatch(src_index, func_ea, reason) :
     """
     global changed_functions, anchor_hints, bin_matched_ea, src_functions_ctx, matching_reasons
 
-    function = sark.Function(func_ea)
+    function_name = funcNameEA(func_ea)
     is_anchor = reason == REASON_ANCHOR
 
     src_ctx = src_functions_ctx[src_index]
@@ -1142,19 +1157,19 @@ def declareMatch(src_index, func_ea, reason) :
         bin_ctx = bin_functions_ctx[func_ea]
         # double check the match
         if not bin_ctx.isPartial() and not src_ctx.isValidCandidate(bin_ctx) :
-            logger.error("Cancelled an invalid match: %s (%d) != 0x%x (%s)", src_ctx._name, src_index, func_ea, function.name)
+            logger.error("Cancelled an invalid match: %s (%d) != 0x%x (%s)", src_ctx._name, src_index, func_ea, function_name)
             debugPrintState(error = True)
         # no need to declare it twice for anchors
-        logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function.name)
+        logger.info("Declared a match: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function_name)
         logger.debug("Matching reason is: %s", reason)
 
     # debug sanity checks
-    if function.name != src_ctx._name :
+    if function_name != src_ctx._name :
         # check if this is an unnamed IDA functions
-        if function.name.startswith("sub_") or function.name.startswith("nullsub_") or function.name.startswith("j_") :
-            logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function.name)
+        if function_name.startswith("sub_") or function_name.startswith("nullsub_") or function_name.startswith("j_") :
+            logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function_name)
         else :
-            logger.warning("Probably matched a False Positive: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function.name)
+            logger.warning("Probably matched a False Positive: %s (%d) == 0x%x (%s)", src_ctx._name, src_index, func_ea, function_name)
 
     # register the match
     function_matches[src_index] = func_ea
@@ -1178,12 +1193,13 @@ def declareMatch(src_index, func_ea, reason) :
     updateHints(src_index, func_ea)
 
     # update all of the relevant match files
+    bin_merged = not bin_ctx.isPartial() and bin_ctx.merged()
     file_list = list(bin_ctx._files) if not bin_ctx.isPartial() else [src_ctx._file]
     collision_file_list = set()
-    if len(file_list) > 1 and bin_ctx.merged() :
+    if len(file_list) > 1 and bin_merged :
         optional_files = set(file_list).intersection(map(lambda x : x._file, bin_ctx._merged_sources))
-        match_file = None if len(optional_files) > 0 else list(optional_files)[0]
-    elif len(file_list) > 0 and bin_ctx.merged() :
+        match_file = None if len(optional_files) == 0 else list(optional_files)[0]
+    elif len(file_list) > 0 and bin_merged :
         match_file = file_list[0]
     else :
         match_file = src_ctx._file
@@ -1587,7 +1603,7 @@ def matchFiles() :
                             finished = False
                             continue
                         # check for a single call hint (collision case) - this should be a sure match
-                        if bin_ctx._call_hints is not None and len(bin_ctx._collision_map) > 0 and len(set(map(lambda x : x._name, bin_ctx._call_hints))) == 1 :
+                        if bin_ctx._call_hints is not None and len(bin_ctx._collision_map) > 0 and len(set(map(lambda x : x._hash, bin_ctx._call_hints))) == 1 :
                             # the rest will be taken care by updateHints
                             declareMatch(list(bin_ctx._call_hints)[0]._src_index, bin_ctx._ea, REASON_SINGLE_CALL)
                             finished = False
@@ -1646,7 +1662,7 @@ def matchFiles() :
                 if not finished :
                     break
 
-            # If nothing has changed, check the a hint call order and hpoe for a sequential tie braker
+            # If nothing has changed, check the a hint call order and hope for a sequential tie braker
             if finished :
                 # check for disabled externals
                 for ext_name in src_external_functions :
@@ -1727,14 +1743,14 @@ def matchFiles() :
                             if src_candidate._hints is not None :
                                 updated_ext_hints = filter(lambda ea : ea not in bin_matched_ea, src_candidate._hints)
                                 for src_ext in src_calls :
-                                    src_ext.addHints(updated_ext_hints)
+                                    src_ext.addHints(filter(lambda x : funcNameEA(x) not in libc.skip_function_names, updated_ext_hints))
                                     # Check for matches
                                     matched_ea = src_ext.match()
                                     if matched_ea is not None and matched_ea not in bin_matched_ea:
                                         bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                                         src_ext._ea = matched_ea
                                         matching_reasons[src_ext._name] = REASON_SINGLE_CALL
-                                        logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, sark.Function(matched_ea).name)
+                                        logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, funcNameEA(matched_ea))
                         else :
                             # continue on only if the match is valid
                             if src_candidate.isValidCandidate(bin_candidate) :
@@ -1850,7 +1866,7 @@ def debugPrintState(error = False) :
     for external_func in src_external_functions :
         ext_ctx = src_external_functions[external_func]
         if ext_ctx.matched() : 
-            logger.info("+ %s - 0x%x (%s)", ext_ctx._name, ext_ctx._ea, sark.Function(ext_ctx._ea).name)
+            logger.info("+ %s - 0x%x (%s)", ext_ctx._name, ext_ctx._ea, funcNameEA(ext_ctx._ea))
         elif external_func in ext_unused_functions :
             logger.info("- %s", ext_ctx._name)            
         else :
@@ -1942,7 +1958,7 @@ def loadAndPrepareSource(files_config):
                 candidates = filter(lambda x : src_functions_ctx[x[0]]._file == src_func_ctx._file, filter(lambda x : x[1] == call, enumerate(src_functions_list)))
                 call_src_ctx = src_functions_ctx[candidates[0][0]]
             src_internal_calls.append(call_src_ctx)
-        for call in src_func_ctx._unknowns:
+        for call in src_func_ctx._unknown_funcs:
             if call in libc.skip_function_names or len(call) == 0:
                 continue
             if call not in src_external_functions :
@@ -1977,9 +1993,9 @@ def loadAndPrepareSource(files_config):
                 new_order[key].append(inner_calls)
         src_func_ctx._call_order = new_order
         # update the collision mapping
-        if src_func_ctx._name not in collision_map:
-            collision_map[src_func_ctx._name] = []
-        collision_map[src_func_ctx._name].append(src_func_ctx)
+        if src_func_ctx._hash not in collision_map:
+            collision_map[src_func_ctx._hash] = []
+        collision_map[src_func_ctx._hash].append(src_func_ctx)
 
     # Build up an xref map too
     for src_func_ctx in src_functions_ctx :
@@ -1987,8 +2003,8 @@ def loadAndPrepareSource(files_config):
             call._xrefs.add(src_func_ctx)
 
     # Tell the possible collision candidates about one another
-    for func_name in collision_map:
-        collision_options = collision_map[func_name]
+    for func_hash in collision_map:
+        collision_options = collision_map[func_hash]
         for src_func_ctx in collision_options:
             src_func_ctx.markCollisionCandidates(collision_options)
 
@@ -2148,7 +2164,7 @@ def loadAndMatchAnchors(anchors_config):
             src_anchor_list.remove(src_anchor_index)
         elif len(candidates) == 1 :
             caller_func = sark.Function(candidates.pop())
-            logger.info("Anchor function - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, caller_func.name)
+            logger.info("Anchor function - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, funcName(caller_func))
             matched_anchors_ea[src_anchor_index] = caller_func.startEA
             anchor_eas.append(caller_func.startEA)
             declareMatch(src_anchor_index, caller_func.startEA, REASON_ANCHOR)
@@ -2198,7 +2214,7 @@ def loadAndMatchAnchors(anchors_config):
             # matched
             if len(filterred_candidates) == 1 :
                 caller_func = sark.Function(filterred_candidates.pop())
-                logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, caller_func.name)
+                logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, funcName(caller_func))
                 matched_anchors_ea[src_anchor_index] = caller_func.startEA
                 anchor_eas.append(caller_func.startEA)
                 declareMatch(src_anchor_index, caller_func.startEA, REASON_ANCHOR)
@@ -2439,7 +2455,7 @@ def generateSuggestedNames():
 
     # We have several goals:
     # 0. Clean naming convention - includes the library's name
-    # 1. Avoid collisions - same name in different filse
+    # 1. Avoid collisions - same content (hash) in different files
     # 2. Best effort #1 - use file name if known, and function name isn't
     # 3. Best effort #2 - use lib name if a locked function
 
@@ -2520,12 +2536,15 @@ def showResultsGUIWindow(match_entries, external_match_entries):
 
     # Now handle the external entries
     prepared_entries = []
-    # Prepare the (normal) entries
+    # Prepare the (external) entries
     for entry in external_match_entries:
         src_name  = entry._name
         address   = entry.match()
-        bin_name  = sark.Function(address).name
-        reason    = matching_reasons[entry._name]
+        bin_name  = funcNameEA(address)
+        try:
+            reason = matching_reasons[entry._name]
+        except KeyError:
+            reason = REASON_SINGLE_CALL
         # Now insert the entry itself
         prepared_entries.append((src_name, address, bin_name, reason, color))
         

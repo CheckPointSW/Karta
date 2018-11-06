@@ -30,6 +30,7 @@ class ConfigForm(idaapi.Form):
 
     Attributes:
         _config_path (str): path to the chosen configuration directory (that includes the *.json files)
+        _is_windows (bool): True iff the user specified this as a windows binary (False by default)
     """
     def __init__(self):
         """Basic Ctor for the Form class"""
@@ -39,9 +40,11 @@ class ConfigForm(idaapi.Form):
                             to match against the current binary.
 
                             <#Select a *.json configs directory for %s exported libraries       #Configs Directory    :{_config_path}>
+                            <#Enable this option for binaries compiled for Windows              #Is Windows binary    :{_is_windows}>{_check_group}>
                           """ % (LIBRARY_NAME, LIBRARY_NAME)
         # argument parsing
         args = {'_config_path'       : idaapi.Form.DirInput(swidth=65),
+                '_check_group'       : idaapi.Form.ChkGroupControl(("_is_windows",)),
                 }
         idaapi.Form.__init__(self, dialog_content, args)
 
@@ -107,16 +110,21 @@ def pluginMain():
 
     # store it for future use
     config_path = c._config_path.value
+    if c._is_windows.checked :
+        setWindowsMode()
 
     working_path = os.path.split(idc.GetIdbPath())[0]
 
     log_files  = []
-    log_files += [(os.path.join(working_path, "%s_debug.log"   % (LIBRARY_NAME)), "w", logging.DEBUG)]
+    #log_files += [(os.path.join(working_path, "%s_debug.log"   % (LIBRARY_NAME)), "w", logging.DEBUG)]
     log_files += [(os.path.join(working_path, "%s_info.log"    % (LIBRARY_NAME)), "w", logging.INFO)]
     log_files += [(os.path.join(working_path, "%s_warning.log" % (LIBRARY_NAME)), "w", logging.WARNING)]
     logger = Logger(LIBRARY_NAME, log_files, use_stdout = False, min_log_level = logging.INFO)
     logger.linkHandler(IdaLogHandler())
     logger.info("Started the Script")
+
+    # Active the matching mode
+    setMatchingMode()
 
     # Init the strings list (Only once, because it's heavy to calculate)
     logger.info("Building a list of all of the strings in the binary")

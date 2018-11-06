@@ -1,3 +1,5 @@
+Linux:
+======
 1. Executed the default configure script
 2. Added flags to avoid inlining: -O0 -fno-inline-functions -fno-builtin
 3. Compiled to 64 bits: no change needed
@@ -5,3 +7,12 @@
 Overall the added Makefile flags were:
 CFLAGS ==> -O0 -fno-inline-functions -fno-builtin
 CXXFLAGS ==> -O0 -fno-inline-functions -fno-builtin
+
+Windows:
+========
+1. Added flags to avoid inlining: /Ob0
+2. Added flags to compile with symbols: /Zi
+3. Added flags to disable asserts (probably won't be in commercial products): /DNDEBUG
+
+Overall the added nmake.opt flags were:
+OPTFLAGS ==> /DNDEBUG /Ob0 /Zi

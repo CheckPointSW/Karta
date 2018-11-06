@@ -9,7 +9,7 @@ def getArchiveFiles(ar_path) :
     Return Value:
         Orderred list of file names
     """
-    ar_fd = open(ar_path, 'r')
+    ar_fd = open(ar_path, 'rb')
     is_windows = ar_path.endswith(".lib")
 
     # check the signature
@@ -32,7 +32,9 @@ def getArchiveFiles(ar_path) :
             if ar_part.find(".obj") == -1:
                 continue
             name = ar_part.split(".obj")[-2].split('\x00')[-1].split(os.path.sep)[-1] + ".obj"
+            name = name.strip()
         # append the new record
-        names.append(name)
+        if name not in names :
+            names.append(name)
     ar_fd.close()
     return names

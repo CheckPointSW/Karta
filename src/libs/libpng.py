@@ -5,7 +5,7 @@ class LibpngSeeker(Seeker):
     # Library Name
     NAME = 'libpng'
     # version string marker
-    VERSION_STRING = " libpng version "
+    VERSION_STRING = "libpng version "
 
     # Overriden base function
     def searchLib(self, logger):

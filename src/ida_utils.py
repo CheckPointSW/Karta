@@ -1,5 +1,49 @@
 from utils   import *
 from ida_api import *
+from hashlib import md5
+
+def funcNameInner(raw_func_name):
+    """Returns the name of the function (including windows name fixes)
+    
+    Args:
+        raw_func_name (str): raw string func name
+
+    Return Value:
+        The actual (wanted) name of the wanted function
+    """
+    base_name = raw_func_name
+    # check for the libc edge case
+    if isWindows() and (not isMatching()) and base_name.startswith("__imp_"):
+        base_name = base_name[len("__imp_") : ]
+    if isWindows() and (not isMatching()) and base_name.startswith("_") :
+        return base_name[1:]
+    else:
+        return base_name
+
+def funcName(sark_func):
+    """Returns the name of the function that is represented by this sark object (including windows name fixes)
+    
+    Args:
+        sark_func (function): sark function instance
+
+    Return Value:
+        The actual (wanted) name of the wanted function
+    """
+    return funcNameInner(sark_func.name)
+
+def funcNameEA(func_ea):
+    """Returns the name of the function that was defined in the given address (including windows name fixes)
+    
+    Args:
+        func_ea (int): effective address of the wanted function
+
+    Return Value:
+        The actual (wanted) name of the wanted function
+    """
+    try:
+        return funcName(sark.Function(func_ea))
+    except:
+        return funcNameInner(sark.Line(func_ea).name)
 
 def analyzeFunctionGraph(func_ea, src_mode) :
     """Analyzes the flow graph of a given function, generating a call-order mapping
@@ -32,7 +76,7 @@ def analyzeFunctionGraph(func_ea, src_mode) :
             # Data Refs (strings, fptrs)
             for ref in line.drefs_from :
                 # Check for a string (finds un-analyzed strings too)
-                str_const = idc.GetString(ref, -1, -1)
+                str_const = idaGetString(ref)
                 if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                     continue
                 # Check for an fptr
@@ -55,7 +99,7 @@ def analyzeFunctionGraph(func_ea, src_mode) :
                     block_to_ref[block.start_ea] = set()
                 block_to_ref[block.start_ea].add(instr_pos)
                 ref_to_block[instr_pos] = block
-                ref_to_call[instr_pos] = call.name if src_mode else call.startEA
+                ref_to_call[instr_pos] = funcName(call) if src_mode else call.startEA
 
     # 2nd scan, start from each reference, and propagate till the end - O(kN), E(N) time, O(N) storage
     sorted_refs = ref_to_block.keys()
@@ -120,11 +164,12 @@ def analyzeFunction(func_ea, src_mode) :
         FunctionContext object representing the analyzed function
     """
     func = sark.Function(func_ea)
-    context = FunctionContext(func.name, func_ea)
+    context = FunctionContext(funcName(func), func_ea)
     
     func_start = func.startEA
     instr_count = 0
     call_candidates = set()
+    code_hash = md5()
     for line in func.lines :
         instr_count += 1
         # Numeric Constants
@@ -135,7 +180,7 @@ def analyzeFunction(func_ea, src_mode) :
         # Data Refs (strings, fptrs)
         for ref in data_refs :
             # Check for a string (finds un-analyzed strings too)
-            str_const = idc.GetString(ref, -1, -1)
+            str_const = idaGetString(ref)
             if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                 context.recordString(str_const)
                 continue
@@ -143,7 +188,11 @@ def analyzeFunction(func_ea, src_mode) :
             try :
                 call_candidates.add(sark.Function(ref).startEA)
             except Exception, e:
-                continue
+                if src_mode:
+                    call_candidates.add(ref)
+                    continue
+            except Exception, e:
+                pass
         # Code Refs (calls and unknowns)
         for cref in line.crefs_from :
             try :
@@ -155,16 +204,52 @@ def analyzeFunction(func_ea, src_mode) :
         if not src_mode :
             map(lambda x : context.recordCall(x), call_candidates)
             call_candidates = set()
+        # hash the instruction (only in source mode)
+        else:
+            # two cases:
+            # 1. No linker fixups, hash the binary - easy case
+            # 2. Linker fixups, hash the text (includes the symbol name that the linker will use too)
+            has_fixups = False
+            # data variables
+            for dref in line.drefs_from:
+                if sark.Line(dref).name in idaGetExported() :
+                    has_fixups = True
+                    break
+            # external code functions
+            if not has_fixups:
+                for cref in line.crefs_from:
+                    if sark.Line(cref).name in idaGetExported() :
+                        has_fixups = True
+                        break
+            # case #2
+            if has_fixups :
+                code_hash.update(line.disasm)
+            # case #1
+            else:
+                code_hash.update(line.bytes)
 
     # check all the call candidates together
     if src_mode :
         for candidate in call_candidates :
-            ref_func = sark.Function(candidate)
+            ref_func = None
+            try:
+                ref_func = funcName(sark.Function(candidate))
+                risky = False
+            except :
+                pass
+            if ref_func is None:
+                try:
+                    ref_func = funcNameEA(candidate)
+                    risky = True
+                except :
+                    continue
             # check if known or unknown
             if sark.Line(candidate).disasm.startswith("extrn ") :
-                context.recordUnknown(ref_func.name)
-            else :
-                context.recordCall(ref_func.name)
+                context.recordUnknown(ref_func, is_fptr = risky)
+            elif not risky :
+                context.recordCall(ref_func)
+        # set the function's hash
+        context.setHash(code_hash.hexdigest())
 
     context.setFrame(func.frame_size)
     context.setInstrCount(instr_count)
@@ -234,7 +319,7 @@ def analyzeIslandFunction(blocks) :
     island_start = blocks[0].start_ea
     func = sark.Function(island_start)
     func_start = func.startEA
-    context = IslandContext(func.name, island_start)
+    context = IslandContext(funcName(func), island_start)
     for block in blocks :
         for line in sark.CodeBlock(block.start_ea).lines :
             # Numeric Constants
@@ -246,7 +331,7 @@ def analyzeIslandFunction(blocks) :
             # Data Refs (strings, fptrs)
             for ref in data_refs :
                 # Check for a string (finds un-analyzed strings too)
-                str_const = idc.GetString(ref, -1, -1)
+                str_const = idaGetString(ref)
                 if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                     context.recordString(str_const)
                     continue

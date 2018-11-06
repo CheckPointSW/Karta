@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from ar_parser  import getArchiveFiles
 from utils      import *
 from elementals import Prompter, ProgressBar
@@ -27,23 +29,29 @@ def locateFiles(bin_dir, file_list) :
             yield os.path.abspath(os.path.join(root, compiled_file)), compiled_file
             file_list.remove(compiled_file)
 
-def analyzeFile(full_file_path) :
+def analyzeFile(full_file_path, is_windows) :
     """Analyze a single file using IDA Python
     
     Args:
-        full_file_path (str): full path to the specific *.o file
+        full_file_path (str): full path to the specific (*.obj / *.o) file
+        is_windows (bool): True iff a windows compilation (*.obj or *.o)
     """
-    os.system(getIDAPath() + " -A -B -Telf '%s'" % (full_file_path))
-    os.system(getIDAPath() + " -A -Telf -S'%s' '%s'" % (SCRIPT_PATH, full_file_path + ".idb"))
+    type = "elf" if not is_windows else "coff"
+    suffix = ".i64" if getIDAPath().endswith("64") else ".idb"
+    os.system("%s -A -B -T%s %s" % (getIDAPath(), type, full_file_path))
+    os.system("%s -A -T%s -S%s %s" % (getIDAPath(), type, SCRIPT_PATH, full_file_path + suffix))
 
 def resolveUnknowns() :
     """Resolves "unknown" references between the different compiled files"""
     global src_functions_ctx
 
     for src_func_index, src_func_ctx in enumerate(src_functions_ctx) :
-        for resolved_call in src_func_ctx._unknowns.intersection(src_functions_list) :
+        for resolved_call in src_func_ctx._unknown_funcs.intersection(src_functions_list) :
             src_func_ctx.recordCall(resolved_call)
-            src_func_ctx._unknowns.remove(resolved_call)
+            src_func_ctx._unknown_funcs.remove(resolved_call)
+        for resolved_call in src_func_ctx._unknown_fptrs.intersection(src_functions_list) :
+            src_func_ctx.recordCall(resolved_call)
+        src_func_ctx._unknown_fptrs.clear()
 
 def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     """Analyze of the open source library, file-by-file and merge the results
@@ -57,12 +65,20 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     logger.info("Starting to analyze the library")
     logger.addIndent()
 
+    # ida has severe bugs, make sure to warn the user in advance
+    if ' ' in SCRIPT_PATH:
+        logger.error("IDA does not support spaces (' ') in the script's path. Please move %s's directory accordingly (I feel your pain, it is stupid)" % (LIBRARY_NAME))
+        logger.removeIndent()
+        return
+
     # Prepare & load the stats from each file
     for index, compiled_ar in enumerate(compiled_ars) :
+        # check if this is a windows archive
+        is_windows = isWindows()
         bin_dir = bin_dirs[index]
-        logger.info("Analyze each of the files in the archive - %s", compiled_ar)
+        logger.info("Analyzing each of the files in the archive - %s", compiled_ar)
         logger.addIndent()
-        archive_files = filter(lambda x : x.endswith(".o" if compiled_ar.endswith(".a") else ".obj"), getArchiveFiles(compiled_ar))
+        archive_files = list(locateFiles(bin_dir, filter(lambda x : x.endswith(".o" if not is_windows else ".obj"), getArchiveFiles(compiled_ar))))
         # check if we need a progress bar
         if len(archive_files) >= PROGRESS_BAR_THRESHOLD :
             progress_bar = ProgressBar('Analyzed %d/%d files - %d%% Completed', len(archive_files), 20, True, time_format = "Elapsed %M:%S -")
@@ -70,11 +86,17 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         else :
             progress_bar = None
         # start the work itself
-        for full_file_path, compiled_file in locateFiles(bin_dir, archive_files) :
+        for full_file_path, compiled_file in archive_files :
+            # ida has severe bugs, make sure to warn the user in advance
+            if ' ' in full_file_path:
+                logger.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain, it is stupid)")
+                logger.removeIndent()
+                return
+            logger.debug("%s - %s", full_file_path, compiled_file)
             if progress_bar is None :
                 logger.info("%s - %s", compiled_file, full_file_path)
             # analyze the file
-            analyzeFile(full_file_path)
+            analyzeFile(full_file_path, is_windows)
             # load the JSON data from it
             try:
                 fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
@@ -194,11 +216,16 @@ def main(args):
         archive_paths.append(args[i + 1])
 
     # open the log
-    prompter = Prompter()
+    prompter = Prompter(min_log_level = logging.INFO)
     prompter.info('Starting the Script')
 
     # requesting the path to IDA
     setIDAPath()
+
+    # check if these are windows binaries or not
+    for archive in archive_paths:
+        if archive.split('.')[-1].lower() == 'lib':
+            setWindowsMode()
 
     # analyze the open source library
     analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, prompter)

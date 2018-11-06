@@ -8,8 +8,11 @@ def analyzeFile() :
     logger.linkHandler(IdaLogHandler())
     logger.info("Started the Script")
     contexts = []
+    # check for windows binary
+    if idc.GetInputFile().endswith(".obj"):
+        setWindowsMode()
     # build the list of exported (non-static) functions
-    exported = map(lambda x : x[-1], idautils.Entries())
+    exported = idaGetExported()
     for segment_idx in xrange(len(list(Segments()))) :
         if ".text" not in sark.Segment(index = segment_idx).name:
             continue

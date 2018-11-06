@@ -10,7 +10,7 @@ import os
 ## Basic Global Configurations ##
 #################################
 
-IDA_PATH = '/opt/ida-7.1/ida'
+IDA_PATH = '/opt/ida-7.2/ida'
 SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
 windows_config = False
 matching_mode  = False

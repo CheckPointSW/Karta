@@ -1,5 +1,5 @@
-import ida_api as ida
-from lib_factory import registerLibrary
+from config.utils   import *
+from lib_factory    import registerLibrary
 
 class Seeker(object):
     """Abstract class that represents a basic library seeker

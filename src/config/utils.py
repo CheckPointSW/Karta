@@ -1,6 +1,6 @@
-from score_config import *
-from elementals   import Logger
-import libc_config as    libc
+from score_config           import *
+from elementals             import Logger
+import libc_config          as     libc
 import logging
 import json
 import collections
@@ -10,7 +10,7 @@ import os
 ## Basic Global Configurations ##
 #################################
 
-IDA_PATH = '/opt/ida-7.2/ida'
+DISASSEMBLER_PATH = '/opt/ida-7.2/ida'
 SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
 
 ##########################
@@ -20,12 +20,47 @@ SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
 LIBRARY_NAME        = "Karta" 
 STATE_FILE_SUFFIX   = "_file_state.json"
 
+####################
+## GUI Parameters ##
+####################
+
+REASON_ANCHOR           = "Anchor - Complex unique string / const"
+REASON_FILE_HINT        = "Hint - Includes filename string"
+REASON_AGENT            = "Agent - File-unique string / const"
+REASON_NEIGHBOUR        = "Neighbour matching"
+REASON_SINGLE_CALL      = "Single called (xref) option"
+REASON_SINGLE_XREF      = "Single caller (xref) option"
+REASON_FILE_SINGLETON   = "Last (referenced) function in file"
+REASON_CALL_ORDER       = "Call order in caller function"
+REASON_SWALLOW          = "Swallow - Identified IDA analysis problem"
+REASON_COLLISION        = "Merge - Linker optimization merged source functions"
+REASON_SCORE            = "Score-based Matching"
+REASON_TRAPPED_COUPLE   = "Locked and orderred neighbouring functions"
+
+GUI_MATCH_REASONS       = [REASON_ANCHOR, REASON_FILE_HINT, REASON_AGENT, REASON_NEIGHBOUR, REASON_SINGLE_CALL, 
+                           REASON_SINGLE_XREF, REASON_FILE_SINGLETON, REASON_CALL_ORDER, REASON_SWALLOW, REASON_COLLISION, 
+                           REASON_SCORE, REASON_TRAPPED_COUPLE]
+
+GUI_CMD_IMPORT_SELECTED = "Import Selected"
+GUI_CMD_IMPORT_MATCHED  = "Import ALL Matches"
+
+GUI_COLOR_DARK_GREEN    = 0x136B09
+GUI_COLOR_GREEN         = 0x0E8728
+GUI_COLOR_LIGHT_GREEN   = 0x39BA16
+GUI_COLOR_GRAY          = 0x75726B
+GUI_COLOR_DARK_RED      = 0x0B1DE2
+GUI_COLOR_RED           = 0x0000FF
+
 ######################
 ## Global Variables ##
 ######################
 
-windows_config = False
-matching_mode  = False
+windows_config              = False                         # Configuration flag - are we handling a binary that was compiled to windows?
+matching_mode               = False                         # Configuration flag - are we running the matching script now?
+
+global_logger               = None                          # Global logger instance (from elementals)
+disas_layer                 = None                          # Disassembler API layer (according to the program we use for our disassembling)
+matched_library_name        = None                          # Name of the matched open source library
 
 src_seen_consts             = []
 src_seen_strings            = []
@@ -1000,6 +1035,11 @@ def constructConfigPath(library_name, library_version):
     Return value:
         file name for the JSON config file
     """
+    global matched_library_name
+
+    # niec hook to save this for future use
+    matched_library_name = library_name
+
     return library_name + "_" + library_version + ("_windows" if isWindows() else "") + ".json"
 
 def recordInstrRatio(src_instr, bin_instr) :
@@ -1143,9 +1183,15 @@ def areNeighboursSafe():
     """
     return LOCATION_BOOST_SCORE * LOCATION_BOOST_THRESHOLD <= getNeighbourScore()
 
-def initUtils():
-    """Prepares the utils global variables for a new script execution"""
-    global src_seen_consts, src_seen_strings, src_functions_list, src_functions_ctx, src_file_mappings
+def initUtils(logger, disas, invoked_before = False):
+    """Prepares the utils global variables for a new script execution
+
+    Args:
+        logger (logger): logger instance
+        disas (disassembler): disassembler handler instance
+        invoked_before (bool): True iff was invoked before, and is part of a repetitive invokation (False by default)
+    """
+    global global_logger, disas_layer, src_seen_consts, src_seen_strings, src_functions_list, src_functions_ctx, src_file_mappings
     # same as the init list on the top of the file
     src_seen_consts         = []
     src_seen_strings        = []
@@ -1156,6 +1202,22 @@ def initUtils():
     resetRatio()
     # don't forget the neighbour scoring
     resetScoring()
+    # don't do this initialization after the first invokation
+    if not invoked_before:
+        # init the logger
+        global_logger = logger
+        # get our disassembler handlerr
+        disas_layer = disas
+        # register the log handler
+        global_logger.linkHandler(disas_layer.logHandler())
+
+def getDisas():
+    """Returns the global disassembler layer instance
+    
+    Return Value:
+        Disassembler layer instance
+    """
+    return disas_layer
 
 def getSourceFunctions() :
     """Returns the data-structures of the analyzed source functions
@@ -1193,21 +1255,29 @@ def isMatching():
     """
     return matching_mode
 
-def setIDAPath():
-    """Updates the IDA path according to input from the user"""
-    global IDA_PATH
+def setDisassemblerPath():
+    """Updates the disassembler path according to input from the user"""
+    global DISASSEMBLER_PATH
 
-    new_path = raw_input("[+] Please insert the command (path) needed in order to execute IDA (%s): " % (IDA_PATH))
+    new_path = raw_input("[+] Please insert the command (path) needed in order to execute your disassembler (IDA for instance) (%s): " % (DISASSEMBLER_PATH))
     if len(new_path.strip()) != 0 :
-        IDA_PATH = new_path
+        DISASSEMBLER_PATH = new_path
 
-def getIDAPath():
-    """Returns the updated IDA path
+def getDisasPath():
+    """Returns the updated path to the disassembler
 
     Return Value:
-        The (updated) path to the IDA program
+        The (updated) path to the disassembler program
     """
-    return IDA_PATH
+    return DISASSEMBLER_PATH
+
+def libraryName():
+    """Returns the name of the currently matched open source library
+
+    Return Value:
+        String name of the matched library
+    """
+    return matched_library_name
 
 def parseFileStats(file_name, functions_config) :
     """Parses the file metadata from the given file

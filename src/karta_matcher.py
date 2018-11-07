@@ -1,52 +1,14 @@
-from utils          import *
-from match_library  import startMatch
-from libs           import lib_factory
-from ida_api        import *
+from config.utils           import *
+from disassembler.factory   import createDisassemblerHandler
+from match_library          import startMatch
+from libs                   import lib_factory
 
 ######################
 ## Global Variables ##
 ######################
 
 config_path         = None      # path to the configuration directory (including the *.json files with the pre-compiled libraries)
-all_bin_strings     = None      # list of all of the binary strings in the *.idb
 logger              = None      # elementals logger instance
-
-class MessageBox(idaapi.Form):
-    """Wrapper class that represents a GUI MessageBox"""
-    def __init__(self, text):
-        """Basic Ctor for the class
-
-        Args:
-            text (str): Text to be shown by the message box
-        """
-        # dialog content
-        dialog_content = """%s
-                            %s
-                          """ % (LIBRARY_NAME, text)
-        idaapi.Form.__init__(self, dialog_content, {})
-
-class ConfigForm(idaapi.Form):
-    """Wrapper class that represents the GUI configuration form for Karta's scripts
-
-    Attributes:
-        _config_path (str): path to the chosen configuration directory (that includes the *.json files)
-        _is_windows (bool): True iff the user specified this as a windows binary (False by default)
-    """
-    def __init__(self):
-        """Basic Ctor for the Form class"""
-        # dialog content
-        dialog_content = """%s
-                            Please insert the path to configuration directory that holds the *.json files
-                            to match against the current binary.
-
-                            <#Select a *.json configs directory for %s exported libraries       #Configs Directory    :{_config_path}>
-                            <#Enable this option for binaries compiled for Windows              #Is Windows binary    :{_is_windows}>{_check_group}>
-                          """ % (LIBRARY_NAME, LIBRARY_NAME)
-        # argument parsing
-        args = {'_config_path'       : idaapi.Form.DirInput(swidth=65),
-                '_check_group'       : idaapi.Form.ChkGroupControl(("_is_windows",)),
-                }
-        idaapi.Form.__init__(self, dialog_content, args)
 
 def matchLibrary(lib_name, lib_version):
     """Checks if the library was already compiled, and matches it
@@ -66,7 +28,7 @@ def matchLibrary(lib_name, lib_version):
     # Start the actual matching
     logger.addIndent()
     logger.info("Starting to match \"%s\" Version: \"%s\"", lib_name, lib_version)
-    startMatch(cur_config_path, lib_name, logger)
+    startMatch(cur_config_path, logger)
     logger.info("Finished the matching")
     logger.removeIndent()
 
@@ -75,7 +37,7 @@ def matchLibraries():
     libraries_factory = lib_factory.getLibFactory()
     for lib_name in libraries_factory :
         # create the instance
-        lib_instance = libraries_factory[lib_name](all_bin_strings)
+        lib_instance = libraries_factory[lib_name](disas.strings())
         # stopped when the first closed source shows up
         if not lib_instance.openSource() :
             break
@@ -100,27 +62,29 @@ def matchLibraries():
 
 def pluginMain():
     """Main function for the Karta (matcher) plugin"""
-    global logger, all_bin_strings, config_path
+    global disas, logger, config_path
 
-    # Learn what is our directory
-    c = ConfigForm()
-    c.Compile()
-    if not c.Execute():
+    # init our disassembler handler
+    disas = createDisassemblerHandler(None)
+
+    # Get the configuration values from the user
+    config_values = disas.configForm()
+    if config_values is None:
         return
 
-    # store it for future use
-    config_path = c._config_path.value
-    if c._is_windows.checked :
+    # store them / use them now for initialization
+    config_path = config_values["config_path"]
+    if config_values["is_windows"] :
         setWindowsMode()
 
-    working_path = os.path.split(idc.GetIdbPath())[0]
+    working_path = os.path.split(disas.databaseFile())[0]
 
     log_files  = []
     #log_files += [(os.path.join(working_path, "%s_debug.log"   % (LIBRARY_NAME)), "w", logging.DEBUG)]
     log_files += [(os.path.join(working_path, "%s_info.log"    % (LIBRARY_NAME)), "w", logging.INFO)]
     log_files += [(os.path.join(working_path, "%s_warning.log" % (LIBRARY_NAME)), "w", logging.WARNING)]
     logger = Logger(LIBRARY_NAME, log_files, use_stdout = False, min_log_level = logging.INFO)
-    logger.linkHandler(IdaLogHandler())
+    initUtils(logger, disas)
     logger.info("Started the Script")
 
     # Active the matching mode
@@ -128,7 +92,7 @@ def pluginMain():
 
     # Init the strings list (Only once, because it's heavy to calculate)
     logger.info("Building a list of all of the strings in the binary")
-    all_bin_strings = idaStringList()
+    all_bin_strings = disas.strings()
 
     # Start matching the libraries
     logger.info("Going to locate and match the open source libraries")
@@ -137,9 +101,8 @@ def pluginMain():
     # Finished successfully
     logger.info("Finished Successfully")
 
-    m = MessageBox("Saved the logs to directory: %s" % (working_path))
-    m.Compile()
-    m.Execute()
+    # Notify the user about the logs
+    disas.messageBox("Saved the logs to directory: %s" % (working_path))
 
 # Start to analyze the file
 pluginMain()

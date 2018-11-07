@@ -1,6 +1,4 @@
-from ida_utils  import *
-from idaapi     import Choose2
-import libc_config as  libc
+from config.utils  import *
 
 import os
 import sys
@@ -10,35 +8,9 @@ import time
 ## Global Configs ##
 ####################
 
-REASON_ANCHOR           = "Anchor - Complex unique string / const"
-REASON_FILE_HINT        = "Hint - Includes filename string"
-REASON_AGENT            = "Agent - File-unique string / const"
-REASON_NEIGHBOUR        = "Neighbour matching"
-REASON_SINGLE_CALL      = "Single called (xref) option"
-REASON_SINGLE_XREF      = "Single caller (xref) option"
-REASON_FILE_SINGLETON   = "Last (referenced) function in file"
-REASON_CALL_ORDER       = "Call order in caller function"
-REASON_SWALLOW          = "Swallow - Identified IDA analysis problem"
-REASON_COLLISION        = "Merge - Linker optimization merged source functions"
-REASON_SCORE            = "Score-based Matching"
-REASON_TRAPPED_COUPLE   = "Locked and orderred neighbouring functions"
-GUI_MATCH_REASONS       = [REASON_ANCHOR, REASON_FILE_HINT, REASON_AGENT, REASON_NEIGHBOUR, REASON_SINGLE_CALL, 
-                           REASON_SINGLE_XREF, REASON_FILE_SINGLETON, REASON_CALL_ORDER, REASON_SWALLOW, REASON_COLLISION, 
-                           REASON_SCORE, REASON_TRAPPED_COUPLE]
-
 REASON_DISABLED         = "ifdeffed out / inlined"
 REASON_LIBRARY_UNUSED   = "Unused - No xrefs inside the open source"
 REASON_STATIC_UNUSED    = "Unused - Static function without internal xrefs"
-
-GUI_CMD_IMPORT_SELECTED = "Import Selected"
-GUI_CMD_IMPORT_MATCHED  = "Import ALL Matches"
-
-GUI_COLOR_DARK_GREEN    = 0x136B09
-GUI_COLOR_GREEN         = 0x0E8728
-GUI_COLOR_LIGHT_GREEN   = 0x39BA16
-GUI_COLOR_GRAY          = 0x75726B
-GUI_COLOR_DARK_RED      = 0x0B1DE2
-GUI_COLOR_RED           = 0x0000FF
 
 ######################
 ## Global Variables ##
@@ -84,130 +56,7 @@ floating_files          = []        # list of currently floating files
 bin_suggested_names     = {}        # Suggested Names for the matched and unmatched binary functions: ea => name
 
 logger                  = None      # Global logger instance
-library_name            = None      # name of the matched open source library
-
-#################
-## GUI Classes ##
-#################
-
-class ChooseForm(Choose2):
-    """Choose Form (view) implementation, responsible for showing and handling the matching results
-
-    Attributes:
-        _entries (list): (sorted) list of match results to be shown in the table
-        _names (dict): suggested names for the match results: bin ea => name
-        _selected (list): list of selected row indices
-        _import_selected (cmd): GUI action handler responsible for importing the selected rows
-        _import_matched (cmd): GUI action handler responsible for importing all of the matches
-    """
-    def __init__(self, prepared_entries, suggested_names):
-        """Constructs the UI Form view, according to the matching entries
-
-        Args:
-            prepared_entries (list): list of UI rows, including the dara for the different columns
-            suggested_names (dict): suggested names for the renaming: bin ea => name
-        """
-        # Using tuples causes this to crash...
-        columns = [['Line', 4], ['File Name', 20], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \ Information', 35]]
-        Choose2.__init__(self, "%s Matching Results" % (library_name), columns, Choose2.CH_MULTI)
-        self.deflt = 0
-        self.icon = -1
-        self.selcount = 0
-        self.modal = False
-        self.items = []
-        self._entries  = prepared_entries
-        self._names    = suggested_names
-        self._selected = []
-        # build the table
-        for idx, entry in enumerate(prepared_entries):
-            self.items.append(["%04d" % (idx + 1), entry[0], entry[1], ("0x%08X" % (entry[2])) if entry[2] is not None else 'N/A', entry[3], entry[4]])
-        # register additional command handlers
-        self._import_selected = self.AddCommand(GUI_CMD_IMPORT_SELECTED)
-        self._import_matched  = self.AddCommand(GUI_CMD_IMPORT_MATCHED)
-
-    # Overriden base function
-    def OnClose(self):
-        pass
-
-    # Overriden base function
-    def OnGetLine(self, n):
-        return self.items[n]
-
-    # Overriden base function
-    def OnGetSize(self):
-        return len(self.items)
-
-    # Overriden base function
-    def show(self):
-        return self.Show(False) >= 0
-
-    # Overriden base function
-    def OnGetLineAttr(self, n):
-        return [self._entries[n][-1], 0]
-
-    # Overriden base function
-    def OnCommand(self, n, cmd_id):
-        imports = None
-        # import (only) the selected functions
-        if cmd_id == self._import_selected:
-            imports = filter(lambda x : self._entries[x][4] in GUI_MATCH_REASONS, self._selected)
-        # import all of the matched functions
-        elif cmd_id == self._import_matched:
-            imports = filter(lambda x : self._entries[x][4] in GUI_MATCH_REASONS, xrange(len(self.items)))
-        # check if there is something to be done
-        if imports is not None:
-            renameChosenFunctions(map(lambda x : self._entries[x][2], imports), self._names)
-        # always return true
-        return True
-
-    # Overriden base function
-    def OnSelectionChange(self,  sel_list):
-        self._selected = sel_list
-
-class ExternalsChooseForm(Choose2):
-    """Choose Form (view) implementation, responsible for showing and handling the external matching results
-
-    Attributes:
-        _entries (list): (sorted) list of match results to be shown in the table
-    """
-    def __init__(self, prepared_entries):
-        """Constructs the UI Form view, according to the external matching entries
-
-        Args:
-            prepared_entries (list): list of UI rows, including the dara for the different columns
-        """
-        # Using tuples causes this to crash...
-        columns = [['Line', 4], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \ Information', 35]]
-        Choose2.__init__(self, "%s Matched Externals (LibC)" % (library_name), columns, Choose2.CH_MULTI)
-        self.deflt = 0
-        self.icon = -1
-        self.selcount = 0
-        self.modal = False
-        self.items = []
-        self._entries  = prepared_entries
-        # build the table
-        for idx, entry in enumerate(prepared_entries):
-            self.items.append(["%04d" % (idx + 1), entry[0], ("0x%08X" % (entry[1])) if entry[1] is not None else 'N/A', entry[2], entry[3]])
-
-    # Overriden base function
-    def OnClose(self):
-        pass
-
-    # Overriden base function
-    def OnGetLine(self, n):
-        return self.items[n]
-
-    # Overriden base function
-    def OnGetSize(self):
-        return len(self.items)
-
-    # Overriden base function
-    def show(self):
-        return self.Show(False) >= 0
-
-    # Overriden base function
-    def OnGetLineAttr(self, n):
-        return [GUI_COLOR_LIGHT_GREEN, 0]
+disas                   = None      # Global disassembler handler
 
 ######################
 ## Custom Exception ##
@@ -1035,12 +884,12 @@ class FileMatch(object) :
             # make sure (sanity check) that bin_parent is not inside our gap
             if lower_bound <= bin_parent._ea and bin_parent._ea <= upper_bound :
                 continue
-            island_blocks = searchIslands(bin_parent._ea, lower_bound, upper_bound)
+            island_blocks = disas.searchIslands(bin_parent._ea, lower_bound, upper_bound)
             # Failed to find a match
             if island_blocks is None :
                 return False
             # We have a list of linked external blocks, that are linked to the parent function, and were found in our gap => Jackpot
-            island_ctx = analyzeIslandFunction(island_blocks)
+            island_ctx = disas.analyzeIslandFunction(island_blocks)
             # Fix it's externals
             bin_internal_calls = []
             bin_external_calls = []
@@ -1129,14 +978,14 @@ def updateHints(src_index, func_ea) :
         if len(bin_exts) == 1 and len(src_exts) > 1 :
             return
         for src_ext in src_exts :
-            src_ext.addHints(filter(lambda x : funcNameEA(x) not in libc.skip_function_names, bin_exts))
+            src_ext.addHints(filter(lambda x : disas.funcNameEA(x) not in libc.skip_function_names, bin_exts))
             # Check for matches
             matched_ea = src_ext.match()
             if matched_ea is not None and matched_ea not in bin_matched_ea:
                 bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                 src_ext._ea = matched_ea
                 matching_reasons[src_ext._name] = REASON_SINGLE_CALL
-                logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, funcNameEA(matched_ea))
+                logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, disas.funcNameEA(matched_ea))
 
 def declareMatch(src_index, func_ea, reason) :
     """Officially declare a match of a source function to code that starts with the given binary ea
@@ -1148,7 +997,7 @@ def declareMatch(src_index, func_ea, reason) :
     """
     global changed_functions, anchor_hints, bin_matched_ea, src_functions_ctx, matching_reasons
 
-    function_name = funcNameEA(func_ea)
+    function_name = disas.funcNameEA(func_ea)
     is_anchor = reason == REASON_ANCHOR
 
     src_ctx = src_functions_ctx[src_index]
@@ -1743,14 +1592,14 @@ def matchFiles() :
                             if src_candidate._hints is not None :
                                 updated_ext_hints = filter(lambda ea : ea not in bin_matched_ea, src_candidate._hints)
                                 for src_ext in src_calls :
-                                    src_ext.addHints(filter(lambda x : funcNameEA(x) not in libc.skip_function_names, updated_ext_hints))
+                                    src_ext.addHints(filter(lambda x : disas.funcNameEA(x) not in libc.skip_function_names, updated_ext_hints))
                                     # Check for matches
                                     matched_ea = src_ext.match()
                                     if matched_ea is not None and matched_ea not in bin_matched_ea:
                                         bin_matched_ea[matched_ea] = src_external_functions[src_ext._name]
                                         src_ext._ea = matched_ea
                                         matching_reasons[src_ext._name] = REASON_SINGLE_CALL
-                                        logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, funcNameEA(matched_ea))
+                                        logger.info("Matched external function: %s == 0x%x (%s)", src_ext._name, matched_ea, disas.funcNameEA(matched_ea))
                         else :
                             # continue on only if the match is valid
                             if src_candidate.isValidCandidate(bin_candidate) :
@@ -1866,7 +1715,7 @@ def debugPrintState(error = False) :
     for external_func in src_external_functions :
         ext_ctx = src_external_functions[external_func]
         if ext_ctx.matched() : 
-            logger.info("+ %s - 0x%x (%s)", ext_ctx._name, ext_ctx._ea, funcNameEA(ext_ctx._ea))
+            logger.info("+ %s - 0x%x (%s)", ext_ctx._name, ext_ctx._ea, disas.funcNameEA(ext_ctx._ea))
         elif external_func in ext_unused_functions :
             logger.info("- %s", ext_ctx._name)            
         else :
@@ -2022,14 +1871,14 @@ def loadAndMatchAnchors(anchors_config):
     # Locate the anchor functions
     logger.info("Searching for the Anchor functions in the binary")
     logger.addIndent()
-    all_bin_functions = list(idautils.Functions())
+    all_bin_functions = disas.functions()
     # range narrowing variables
     lower_match_ea = None
     upper_match_ea = None
     lower_match_index = None
     upper_match_index = None
     lower_border_ea = 0
-    upper_border_ea = idc.BADADDR
+    upper_border_ea = 2 ** 64 - 1
     lower_border_index = None
     upper_border_index = None
     function_range = None
@@ -2063,7 +1912,7 @@ def loadAndMatchAnchors(anchors_config):
     anchor_bin_strs = {}
     # Scanning the entire string list and checking against each anchor string - O(kN) - efficient in memory
     if len(all_string_clues) > 0 :
-        for bin_str_ctx in idaStringList() :
+        for bin_str_ctx in disas.strings() :
             bin_str = str(bin_str_ctx)
             if bin_str in all_string_clues :
                 if bin_str not in anchor_bin_strs :
@@ -2082,12 +1931,13 @@ def loadAndMatchAnchors(anchors_config):
                 # found the string clue in the binary
                 if clue in anchor_bin_strs :
                     for bin_str in anchor_bin_strs[clue] :
-                        for ref in idautils.DataRefsTo(bin_str.ea) :
-                            caller_func = idaapi.get_func(ref)
+                        for ref in disas.drefsTo(bin_str.ea) :
+                            caller_func = disas.funcAt(ref)
                             if caller_func is None :
                                 continue
-                            if lower_border_ea <= caller_func.start_ea and caller_func.start_ea <= upper_border_ea :
-                                current_set.add(caller_func.start_ea)
+                            callar_func_start = disas.funcStart(caller_func)
+                            if lower_border_ea <= callar_func_start and callar_func_start <= upper_border_ea :
+                                current_set.add(callar_func_start)
             # consts
             else :
                 # measure some times (for the first one only)
@@ -2097,15 +1947,12 @@ def loadAndMatchAnchors(anchors_config):
                 current_set = set()
                 # search for it in the binary (non efficient)
                 if lower_match_index is None or not efficient_const_search :
-                    search_pos = lower_border_ea if not first_const_anchor else 0
-                    while first_const_anchor or search_pos < upper_border_ea :
-                        match_ea, garbage = idc.FindImmediate(search_pos, idc.SEARCH_DOWN, clue)
-                        search_pos = match_ea + 1
-                        # Filter out mismatches
-                        if match_ea == idc.BADADDR :
-                            break
+                    search_start = lower_border_ea if not first_const_anchor else 0
+                    search_end   = upper_border_ea if not first_const_anchor else (2 ** 64 - 1)
+                    # start our search
+                    for match_ea in disas.findImmediate(search_start, search_end, clue):
                         # Filter out matches that are not inside functions
-                        caller_func = idaapi.get_func(match_ea)
+                        caller_func = disas.funcAt(match_ea)
                         if caller_func is not None :
                             current_set.add(caller_func.start_ea)
                     # measure the end time too
@@ -2125,7 +1972,7 @@ def loadAndMatchAnchors(anchors_config):
                         # build the fast mapping, and then continue as before
                         function_range = []
                         for function_ea in all_bin_functions[lower_border_index : upper_border_index] :
-                            function_range.append((function_ea, locateAnchorConsts(function_ea, all_const_clues)))  
+                            function_range.append((function_ea, disas.locateAnchorConsts(function_ea, all_const_clues)))  
                     # Now actually search for the wanted const value in the result sets
                     for function_ea, const_set in function_range :
                         if clue in const_set :
@@ -2163,32 +2010,33 @@ def loadAndMatchAnchors(anchors_config):
             logger.warning("Anchor function - %s: Failed to find a match", src_functions_list[src_anchor_index])
             src_anchor_list.remove(src_anchor_index)
         elif len(candidates) == 1 :
-            caller_func = sark.Function(candidates.pop())
-            logger.info("Anchor function - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, funcName(caller_func))
-            matched_anchors_ea[src_anchor_index] = caller_func.startEA
-            anchor_eas.append(caller_func.startEA)
-            declareMatch(src_anchor_index, caller_func.startEA, REASON_ANCHOR)
+            caller_func = disas.funcAt(candidates.pop())
+            caller_func_start = disas.funcStart(caller_func)
+            logger.info("Anchor function - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func_start, disas.funcName(caller_func))
+            matched_anchors_ea[src_anchor_index] = caller_func_start
+            anchor_eas.append(caller_func_start)
+            declareMatch(src_anchor_index, caller_func_start, REASON_ANCHOR)
             # use the match to improve our search range
             # first anchor
             if len(matched_anchors_ea.keys()) == 1 :
-                lower_match_ea = caller_func.startEA
+                lower_match_ea = caller_func_start
                 upper_match_ea = lower_match_ea
-                lower_match_index = all_bin_functions.index(caller_func.startEA)
+                lower_match_index = all_bin_functions.index(caller_func_start)
                 upper_match_index = lower_match_index
                 change = True
             else :
                 # try to improve the lower border
-                if caller_func.startEA < lower_match_ea :
-                    lower_match_ea = caller_func.startEA
-                    new_lower_index = all_bin_functions.index(caller_func.startEA)
+                if caller_func_start < lower_match_ea :
+                    lower_match_ea = caller_func_start
+                    new_lower_index = all_bin_functions.index(caller_func_start)
                     if function_range is not None :
                         function_range = function_range[new_lower_index - lower_match_index : ]
                     lower_match_index = new_lower_index
                     change = True
                 # try to improve the lower border
-                elif upper_match_ea < caller_func.startEA :
-                    upper_match_ea = caller_func.startEA
-                    new_upper_index = all_bin_functions.index(caller_func.startEA)
+                elif upper_match_ea < caller_func_start :
+                    upper_match_ea = caller_func_start
+                    new_upper_index = all_bin_functions.index(caller_func_start)
                     if function_range is not None :
                         function_range = function_range[ : new_upper_index - upper_match_index]
                     upper_match_index = new_upper_index
@@ -2213,11 +2061,12 @@ def loadAndMatchAnchors(anchors_config):
             filterred_candidates = filter(lambda x : lower_match_ea <= x and x <= upper_match_ea, candidates)
             # matched
             if len(filterred_candidates) == 1 :
-                caller_func = sark.Function(filterred_candidates.pop())
-                logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func.startEA, funcName(caller_func))
-                matched_anchors_ea[src_anchor_index] = caller_func.startEA
-                anchor_eas.append(caller_func.startEA)
-                declareMatch(src_anchor_index, caller_func.startEA, REASON_ANCHOR)
+                caller_func = disas.funcAt(filterred_candidates.pop())
+                caller_func_start = disas.funcStart(caller_func)
+                logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)", src_functions_list[src_anchor_index], caller_func_start, disas.funcName(caller_func))
+                matched_anchors_ea[src_anchor_index] = caller_func_start
+                anchor_eas.append(caller_func_start)
+                declareMatch(src_anchor_index, caller_func_start, REASON_ANCHOR)
             # still not found
             else :
                 src_anchor_list.remove(src_anchor_index)
@@ -2272,7 +2121,7 @@ def locateFileBoundaries():
 
     # construct the list of minimal bound and maximal bound for each file
     # this could be tricky since not all of our files are going to have anchor functions - including the first and the last file
-    all_bin_functions = list(idautils.Functions())
+    all_bin_functions = disas.functions()
     file_min_bound = []
     file_max_bound = []
     file_lower_gap = []
@@ -2345,7 +2194,7 @@ def locateFileBoundaries():
     logger.info("Analyzing all of the binary functions in the chosen scope")
     # prepare all of the functions
     for bin_index, func_ea in enumerate(all_bin_functions[bin_start_index : bin_end_index + 1]) :
-        bin_functions_ctx[func_ea] = analyzeFunction(func_ea, False)
+        bin_functions_ctx[func_ea] = disas.analyzeFunction(func_ea, False)
         bin_functions_ctx[func_ea]._bin_index = bin_start_index + bin_index
         bin_functions_ctx[func_ea].rankConsts()
 
@@ -2418,8 +2267,8 @@ def prepareBinFunctions():
     # Now check for outer xrefs
     for bin_func_ctx in bin_functions_ctx.values() :
         outer_ref = False
-        for ref in filter(lambda x : idaapi.get_func(x) is not None, sark.Line(bin_func_ctx._ea).crefs_to) :
-            if sark.Function(ref).startEA not in bin_functions_ctx :
+        for ref in filter(lambda x : disas.funcAt(x) is not None, disas.crefsTo(bin_func_ctx._ea)) :
+            if disas.funcStart(disas.funcAt(ref)) not in bin_functions_ctx :
                 outer_ref = True
                 break
         if not outer_ref :
@@ -2477,13 +2326,13 @@ def generateSuggestedNames():
         for bin_ctx in match_file._bin_functions_ctx :
             # 1. Matched
             if bin_ctx.matched():
-                bin_suggested_names[bin_ctx._ea] = library_name + '_' + bin_ctx.match()._name
+                bin_suggested_names[bin_ctx._ea] = libraryName() + '_' + bin_ctx.match()._name
             # 2. Single file
             elif len(bin_ctx._files) == 1 :
-                bin_suggested_names[bin_ctx._ea] = library_name + '_' + file_name + '_' + ('%X' % (bin_ctx._ea))
+                bin_suggested_names[bin_ctx._ea] = libraryName() + '_' + file_name + '_' + ('%X' % (bin_ctx._ea))
             # 3. Library related
             else:
-                bin_suggested_names[bin_ctx._ea] = library_name + '_' + ('%X' % (bin_ctx._ea))
+                bin_suggested_names[bin_ctx._ea] = libraryName() + '_' + ('%X' % (bin_ctx._ea))
 
     # 4. Sepcial case for swallows
     for src_ctx in filter(lambda x : matching_reasons[x._src_index] == REASON_SWALLOW, matched_src_ctxs) :
@@ -2531,8 +2380,7 @@ def showResultsGUIWindow(match_entries, external_match_entries):
         prepared_entries.append((file_name, src_name, address, bin_name, reason, color))
         
     # show the window
-    view = ChooseForm(prepared_entries, bin_suggested_names)
-    view.show()
+    disas.showMatchesForm(prepared_entries, bin_suggested_names, renameChosenFunctions)
 
     # Now handle the external entries
     prepared_entries = []
@@ -2540,7 +2388,7 @@ def showResultsGUIWindow(match_entries, external_match_entries):
     for entry in external_match_entries:
         src_name  = entry._name
         address   = entry.match()
-        bin_name  = funcNameEA(address)
+        bin_name  = disas.funcNameEA(address)
         try:
             reason = matching_reasons[entry._name]
         except KeyError:
@@ -2549,8 +2397,7 @@ def showResultsGUIWindow(match_entries, external_match_entries):
         prepared_entries.append((src_name, address, bin_name, reason, color))
         
     # show the window
-    view = ExternalsChooseForm(prepared_entries)
-    view.show()
+    disas.showExternalsForm(prepared_entries)
 
 def renameChosenFunctions(bin_eas, suggested_names):
     """Renames the chosed set ot binary functions
@@ -2565,23 +2412,22 @@ def renameChosenFunctions(bin_eas, suggested_names):
             logger.warning("Failed to rename function at 0x%x, has no name for it", bin_ea)
             continue
         # rename it
-        renameIDAFunction(bin_ea, suggested_names[bin_ea])
+        disas.renameFunction(bin_ea, suggested_names[bin_ea])
 
-def startMatch(config_path, lib_name, used_logger):
+def startMatch(config_path, used_logger):
     """Starts matching the wanted source library to the loaded binary
 
     Args:
         config_path (str): path to the config file of the source library
-        lib_name (str): name of the matched open source library
         used_logger (logger): logger instance to be used (init for us already)
     """
-    global logger, library_name
+    global logger, disas
 
     logger = used_logger
-    library_name = lib_name
+    disas = getDisas()
 
     # always init the utils before we start
-    initUtils()
+    initUtils(logger, disas, invoked_before = True)
 
     # Init our variables too
     initMatchVars()

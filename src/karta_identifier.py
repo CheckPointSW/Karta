@@ -1,36 +1,21 @@
-from utils          import *
-from match_library  import startMatch
-from libs           import lib_factory
-from ida_api        import *
+from config.utils           import *
+from disassembler.factory   import createDisassemblerHandler
+from match_library          import startMatch
+from libs                   import lib_factory
 
 ####################
 ## Global Configs ##
 ####################
 
-PROGRAM_NAME = idc.GetInputFile()
-LIB_IDENTIFIER_FILE = "%s_libraries.txt" % (idc.GetIdbPath())
+LIB_IDENTIFIER_FORMAT = "%s_libraries.txt"
 
 ######################
 ## Global Variables ##
 ######################
 
 workdir_path        = None      # path to the working directory (including the databases with the pre-compiled libraries)
-all_bin_strings     = None      # list of all of the binary strings in the *.idb
 logger              = None      # elementals logger instance
-
-class MessageBox(idaapi.Form):
-    """Wrapper class that represents a GUI MessageBox"""
-    def __init__(self, text):
-        """Basic Ctor for the class
-
-        Args:
-            text (str): Text to be shown by the message box
-        """
-        # dialog content
-        dialog_content = """%s
-                            %s
-                          """ % (LIBRARY_NAME, text)
-        idaapi.Form.__init__(self, dialog_content, {})
+disas               = None      # disassembler lyaer handler
 
 def writeLine(fd, line):
     """Writes the result line to the file and the log simultaneously
@@ -49,8 +34,9 @@ def writeHeader(fd):
         fd (fd): fd for the results file
     """
     header_template = "%s Identifier - %s:"
-    writeLine(fd, header_template % (LIBRARY_NAME, PROGRAM_NAME))
-    writeLine(fd, '=' * (len(header_template) + len(LIBRARY_NAME) + len(PROGRAM_NAME) - 4))
+    program_name = disas.inputFile()
+    writeLine(fd, header_template % (LIBRARY_NAME, program_name))
+    writeLine(fd, '=' * (len(header_template) + len(LIBRARY_NAME) + len(program_name) - 4))
     writeLine(fd, '')
 
 def writeSuffix(fd):
@@ -69,7 +55,7 @@ def identifyLibraries():
     missing_libs = []
 
     # open the result file
-    result_file = LIB_IDENTIFIER_FILE
+    result_file = LIB_IDENTIFIER_FORMAT % (disas.databaseFile())
     fd = open(result_file, 'w')
 
     # Write the header
@@ -84,7 +70,7 @@ def identifyLibraries():
     started_closed_sources = False
     for lib_name in libraries_factory:
         # create the instance
-        lib_instance = libraries_factory[lib_name](all_bin_strings)
+        lib_instance = libraries_factory[lib_name](disas.strings())
         # check if we started the closed sources
         if not lib_instance.openSource() and not started_closed_sources:
             started_closed_sources = True
@@ -130,22 +116,21 @@ def identifyLibraries():
     # notify the user about the result file too
     logger.info('')
     logger.info("Wrote the results to file: %s", result_file)
-
-    m = MessageBox("Results were saved to file: %s" % (result_file))
-    m.Compile()
-    m.Execute()
+    # And now with GUI
+    disas.messageBox("Results were saved to file: %s" % (result_file))
 
 def pluginMain():
     """Main function for the Karta (identifier) plugin"""
-    global logger, all_bin_strings
+    global logger, disas
 
     logger = Logger(LIBRARY_NAME, [], use_stdout = False, min_log_level = logging.INFO)
-    logger.linkHandler(IdaLogHandler())
+    initUtils(logger, createDisassemblerHandler(logger))
+    disas = getDisas()
     logger.info("Started the Script")
 
     # Init the strings list (Only once, because it's heavy to calculate)
     logger.info("Building a list of all of the strings in the binary")
-    all_bin_strings = idaStringList()
+    all_bin_strings = disas.strings()
 
     # Start identifying the libraries
     logger.info("Going to identify the open (and closed) source libraries")

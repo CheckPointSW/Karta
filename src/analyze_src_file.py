@@ -1,33 +1,34 @@
-from ida_utils  import *
-from elementals import Logger
+from config.utils           import *
+from disassembler.factory   import createDisassemblerHandler
+from elementals             import Logger
 
 def analyzeFile() :
     """Analyzes all of the (source) functions for a single compiled file"""
-    # create a logger
-    logger = Logger(LIBRARY_NAME, use_stdout = False, min_log_level = logging.INFO)
-    logger.linkHandler(IdaLogHandler())
+    disas = getDisas()
     logger.info("Started the Script")
     contexts = []
     # check for windows binary
-    if idc.GetInputFile().endswith(".obj"):
+    if disas.inputFile().endswith(".obj"):
         setWindowsMode()
     # build the list of exported (non-static) functions
-    exported = idaGetExported()
-    for segment_idx in xrange(len(list(Segments()))) :
-        if ".text" not in sark.Segment(index = segment_idx).name:
+    exported = disas.exports()
+    for segment_idx in xrange(disas.numSegments()) :
+        if ".text" not in disas.segmentName(segment_idx):
             continue
-        for function in sark.Segment(index = segment_idx).functions :
-            src_ctx = analyzeFunction(function.ea, True)
+        for function_ea in disas.segmentFunctions(segment_idx) :
+            src_ctx = disas.analyzeFunction(function_ea, True)
             # check if static or not
             if src_ctx._name not in exported :
                 src_ctx.markStatic()
             contexts.append(src_ctx)
-    functionsToFile(idc.GetInputFile(), contexts)
+    functionsToFile(disas.inputFile(), contexts)
     logger.info("Finished Successfully")
 
+# create a logger
+logger = Logger(LIBRARY_NAME, use_stdout = False)
 # Always init the utils before we start
-initUtils()
+initUtils(logger, createDisassemblerHandler(logger))
 # Start to analyze the file
 analyzeFile()
-# Exit IDA
-Exit(0)
+# Exit the disassembler
+getDisas().exit()

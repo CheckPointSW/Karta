@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
-from ar_parser  import getArchiveFiles
-from utils      import *
-from elementals import Prompter, ProgressBar
+from ar_parser             import getArchiveFiles
+from config.utils          import *
+from elementals            import Prompter, ProgressBar
+from disassembler.factory  import identifyDisassemblerHandler
 
 import os
 import sys
@@ -12,6 +13,12 @@ import sys
 ####################
 
 PROGRESS_BAR_THRESHOLD = 25
+
+######################
+## Global Variables ##
+######################
+
+disas_cmd = None # Global disassembler command-line handler
 
 def locateFiles(bin_dir, file_list) :
     """Locates the inner path of the compiled *.o files
@@ -36,10 +43,8 @@ def analyzeFile(full_file_path, is_windows) :
         full_file_path (str): full path to the specific (*.obj / *.o) file
         is_windows (bool): True iff a windows compilation (*.obj or *.o)
     """
-    type = "elf" if not is_windows else "coff"
-    suffix = ".i64" if getIDAPath().endswith("64") else ".idb"
-    os.system("%s -A -B -T%s %s" % (getIDAPath(), type, full_file_path))
-    os.system("%s -A -T%s -S%s %s" % (getIDAPath(), type, SCRIPT_PATH, full_file_path + suffix))
+    database_path = disas_cmd.createDatabase(full_file_path, is_windows)
+    disas_cmd.executeScript(database_path, SCRIPT_PATH)
 
 def resolveUnknowns() :
     """Resolves "unknown" references between the different compiled files"""
@@ -66,8 +71,8 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     logger.addIndent()
 
     # ida has severe bugs, make sure to warn the user in advance
-    if ' ' in SCRIPT_PATH:
-        logger.error("IDA does not support spaces (' ') in the script's path. Please move %s's directory accordingly (I feel your pain, it is stupid)" % (LIBRARY_NAME))
+    if disas_cmd.name() == "IDA" and ' ' in SCRIPT_PATH:
+        logger.error("IDA does not support spaces (' ') in the script's path. Please move %s's directory accordingly (I feel your pain)" % (LIBRARY_NAME))
         logger.removeIndent()
         return
 
@@ -88,8 +93,8 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         # start the work itself
         for full_file_path, compiled_file in archive_files :
             # ida has severe bugs, make sure to warn the user in advance
-            if ' ' in full_file_path:
-                logger.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain, it is stupid)")
+            if disas_cmd.name() == "IDA" and ' ' in full_file_path:
+                logger.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain)")
                 logger.removeIndent()
                 return
             logger.debug("%s - %s", full_file_path, compiled_file)
@@ -201,6 +206,8 @@ def printUsage(args):
     exit(1)
 
 def main(args):
+    global disas_cmd
+
     # Check the arguments
     if len(args) < 1 + 4 or (len(args) - 3) % 2 != 0:
         print 'Wrong amount of arguments, got %d, expected %d' % (len(args) - 1, 4)
@@ -219,8 +226,9 @@ def main(args):
     prompter = Prompter(min_log_level = logging.INFO)
     prompter.info('Starting the Script')
 
-    # requesting the path to IDA
-    setIDAPath()
+    # requesting the path to the chosen disassembler
+    setDisassemblerPath()
+    disas_cmd = identifyDisassemblerHandler(getDisasPath(), prompter)
 
     # check if these are windows binaries or not
     for archive in archive_paths:

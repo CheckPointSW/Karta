@@ -8,6 +8,8 @@ class FileMatcher(FileMatch) :
     Attributes:
         _unique_strings (list): List of unique string artifacts that were found in the source file
         _unique_consts (list): List of unique numeric const artifacts that were found in the source file
+        _lower_neighbours (dict): Mapping of source indices to potential lower neighbour matches: src index => (bin ea, can expand more (True / False))
+        _upper_neighbours (dict): Mapping of source indices to potential upper neighbour matches: src index => (bin ea, bool)
     """
 
     def __init__(self, name, src_index_start, src_index_end, fuzzy_bin_functions_ctx, bin_limit_lower, bin_limit_upper, src_scope, engine) :
@@ -27,6 +29,9 @@ class FileMatcher(FileMatch) :
         # list of unique artifacts
         self._unique_strings    = set()
         self._unique_consts     = set()
+        # neighbour matching
+        self._lower_neighbours  = {}
+        self._upper_neighbours  = {}
         # set up the logic needed for the agents
         all_strings = set()
         all_consts  = set()
@@ -74,9 +79,9 @@ class FileMatcher(FileMatch) :
                     # try to match it to all remaining source options, and pick the best one
                     best_score = None
                     best_src_index = None
-                    prev_match_index = bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) - 1].ea]
+                    prev_match_index = self._engine._bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) - 1].ea]
                     for src_index in filter(lambda x : x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1)) :
-                        next_match_index = bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) + 1].ea]
+                        next_match_index = self._engine._bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) + 1].ea]
                         # filter it, before giving it a matching score
                         if not self._engine.src_functions_ctx[src_index].isValidCandidate(singleton_ctx) :
                             continue
@@ -134,14 +139,14 @@ class FileMatcher(FileMatch) :
             True iff matched a function
         """
         try:
-            matched_bin_index = self._bin_functions_ctx.index(sequence._bin_lower_ctx)
+            matched_bin_index = self._bin_functions_ctx.index(sequence.bin_lower_ctx)
         except ValueError, e:
-            self._engine.logger.error("Sanity check failed in FileMatch.attemptMatchStart(): lower ctx (%s) not in bin_ctxs", sequence._bin_lower_ctx.name)
+            self._engine.logger.error("Sanity check failed in FileMatch.attemptMatchStart(): lower ctx (%s) not in bin_ctxs", sequence.bin_lower_ctx.name)
             self._engine.debugPrintState(error = True)
         # can't extend the binary downard
         if matched_bin_index == 0 :
             return False    
-        matched_src_index = sequence._bin_lower_ctx.match.index
+        matched_src_index = sequence.bin_lower_ctx.match.index
         # can't extend the source downard
         if matched_src_index == self._src_index_start :
             return False
@@ -160,15 +165,15 @@ class FileMatcher(FileMatch) :
             True iff matched a function
         """
         try:
-            matched_bin_index = self._bin_functions_ctx.index(sequence._bin_upper_ctx)
+            matched_bin_index = self._bin_functions_ctx.index(sequence.bin_upper_ctx)
         except ValueError, e:
-            self._engine.logger.error("Sanity check failed in FileMatch.attemptMatchEnd(): lower ctx (%s) not in bin_ctxs", sequence._bin_upper_ctx.name)
+            self._engine.logger.error("Sanity check failed in FileMatch.attemptMatchEnd(): lower ctx (%s) not in bin_ctxs", sequence.bin_upper_ctx.name)
             self._engine.debugPrintState(error = True)
         # can't extend the binary upward
         if matched_bin_index == len(self._bin_functions_ctx) - 1 :
             return False
         # can't extend the source upward
-        matched_src_index = sequence._bin_upper_ctx.match.index
+        matched_src_index = sequence.bin_upper_ctx.match.index
         if matched_src_index == self._src_index_end :
             return False
         self._upper_neighbours[matched_src_index + 1] = (self._bin_functions_ctx[matched_bin_index + 1].ea, True)
@@ -193,7 +198,7 @@ class FileMatcher(FileMatch) :
         for src_index in xrange(self._src_index_start, self._src_index_end + 1) :
             src_ctx = self._engine.src_functions_ctx[src_index]
             # skip matched / unhinted functions
-            if not src_ctx.active() or not src_ctx.hasFileHint() :
+            if not src_ctx.active() or src_ctx.file_hint is None :
                 return
             # find the hinted binary candidates
             for bin_ctx in (self._bin_functions_ctx if self.located else self._engine.floatingBinFunctions()) :
@@ -331,6 +336,7 @@ class FileMatcher(FileMatch) :
                 return False
             # We have a list of linked external blocks, that are linked to the parent function, and were found in our gap => Jackpot
             island_ctx = self._engine.disas.analyzeIslandFunction(island_blocks)
+            island_ctx.preprocess()
             # Fix it's externals
             bin_internal_calls = []
             bin_external_calls = []

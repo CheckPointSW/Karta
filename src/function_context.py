@@ -233,7 +233,7 @@ class IslandContext(BinaryCodeContext, ComparableContext) :
         xrefs (set): set of (library) function xrefs (containing ComparableContext instances)
     """
     def __init__(self, name, ea) :
-        BinaryCodeContext.__init__(self, name, ea, None)
+        BinaryCodeContext.__init__(self, ea, name, None)
         ComparableContext.__init__(self)
         self.xrefs = set()
 
@@ -248,6 +248,15 @@ class IslandContext(BinaryCodeContext, ComparableContext) :
     # Overriden base function
     def preprocess(self):
         self.rankConsts()
+
+    # Overriden base function
+    def rankConsts(self) :
+        for num_const in self.consts :
+            self._const_ranks[num_const] = rankConst(num_const, None)
+
+    # Overriden base function
+    def declareMatch(self, match):
+        self.match = match
 
     def compare(self, src_ctx, logger) :
         """Compares our island to a potential source match

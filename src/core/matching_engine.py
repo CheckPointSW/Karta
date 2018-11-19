@@ -1,6 +1,7 @@
 from config.utils    import *
 from core.file_layer import AssumptionException
 import config.anchor as anchor
+import time
 
 class MatchEngine(object):
     """A class that handles the book-keeping for the matching process

@@ -444,9 +444,9 @@ class FileMatch(object) :
             link_files.add(self._bin_functions_ctx[bin_index])
             if bin_ctx.ea in self._locked_eas :
                 self._locked_eas.remove(bin_ctx.ea)
-            if bin_ctx.ea in self._upper_locked_eas :
+            elif bin_ctx.ea in self._upper_locked_eas :
                 self._upper_locked_eas.remove(bin_ctx.ea)
-            if bin_ctx.ea in self._lower_locked_eas :
+            elif bin_ctx.ea in self._lower_locked_eas :
                 self._lower_locked_eas.remove(bin_ctx.ea)
         # we have one less function to handle
         self._remain_size -= 1
@@ -474,12 +474,12 @@ class FileMatch(object) :
                 purge_size = bin_index - self._engine.floatingBinFunctions().index(floating_representative._upper_match_ctx)
                 floating_representative._upper_match_ctx = bin_ctx
                 floating_representative._upper_leftovers -= purge_size
-                self._remain_size -= purge_size
+                floating_representative._remain_size -= purge_size
             elif lower_part :
                 purge_size = self._engine.floatingBinFunctions().index(floating_representative._lower_match_ctx) - bin_index
                 floating_representative._lower_match_ctx = bin_ctx
                 floating_representative._lower_leftovers -= purge_size
-                self._remain_size -= purge_size
+                floating_representative._remain_size -= purge_size
 
             # update the bounds of the floating file, in case we need to purge out unused leftover functions
             if floating_representative._lower_leftovers > floating_representative._remain_size :
@@ -487,7 +487,13 @@ class FileMatch(object) :
             if floating_representative._upper_leftovers > floating_representative._remain_size :
                 self._engine.shrinkFloatingBinFunctions(0, floating_representative._upper_leftovers - floating_representative._remain_size)
 
-        # should now find a suitable sequence for it
+        # Sanity check
+        try:
+            bin_index = self._bin_functions_ctx.index(bin_ctx)
+        except ValueError, e:
+            self._engine.logger.error("Sanity check failed in FileMatch (%s) match() when matching %s: matched binary (%s) not in bin_ctxs after update", self.name, src_ctx.name, bin_ctx.name)
+            raise AssumptionException()
+        # now it's safe to preform the cleanup
         self.cleanupMatches(MatchSequence(bin_ctx))
 
         # Now link all of the files (atomically)

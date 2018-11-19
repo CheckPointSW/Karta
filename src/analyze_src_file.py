@@ -1,6 +1,6 @@
 from config.utils           import *
 from disassembler.factory   import createDisassemblerHandler
-from function_context       import SourceContext, BinaryContext
+from function_context       import SourceContext, BinaryContext, IslandContext
 from elementals             import Logger
 
 def analyzeFile() :
@@ -30,7 +30,7 @@ logger = Logger(LIBRARY_NAME, use_stdout = False)
 # Always init the utils before we start
 initUtils(logger, createDisassemblerHandler(logger))
 # Register our contexts
-registerContexts(SourceContext, BinaryContext)
+registerContexts(SourceContext, BinaryContext, IslandContext)
 # Start to analyze the file
 analyzeFile()
 # Exit the disassembler

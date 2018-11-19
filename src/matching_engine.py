@@ -2,7 +2,7 @@ from core.matching_engine   import MatchEngine
 from core.file_layer        import AssumptionException
 from config.utils           import *
 from file_layer             import FileMatcher
-from function_context       import ExternalFunction, SourceContext, BinaryContext
+from function_context       import ExternalFunction, SourceContext, BinaryContext, IslandContext
 import sys
 
 class KartaMatcher(MatchEngine):
@@ -56,7 +56,7 @@ class KartaMatcher(MatchEngine):
         # preparing for the GUI
         self._bin_suggested_names     = {}
         # register our contexts
-        registerContexts(SourceContext, BinaryContext)
+        registerContexts(SourceContext, BinaryContext, IslandContext)
 
     # Overriden base function
     def criticalError(self):
@@ -400,7 +400,7 @@ class KartaMatcher(MatchEngine):
         # record the neighbour statistics
         for src_neighbour in filter(lambda x : 0 <= x and x < len(self._src_functions_list), (src_index - 1, src_index + 1)) :
             # check if the neighbour was matched
-            if self.src_functions_ctx[src_neighbour].matched() :
+            if self.src_functions_ctx[src_neighbour].matched() and not bin_ctx.isPartial() :
                 lower = src_neighbour < src_index
                 recordNeighbourMatch(is_neighbour = (self.src_functions_ctx[src_neighbour].match.index + (1 if lower else -1)) == bin_ctx.index)
 
@@ -528,8 +528,8 @@ class KartaMatcher(MatchEngine):
                 self._last_matching_step = False
                 declared_match = True
                 # store them for a later filter
-                self._matched_src_index.add(src_candidate.index)
-                self._matched_bin_ea.add(bin_candidate.ea)
+                matched_src_index.add(src_candidate.index)
+                matched_bin_ea.add(bin_candidate.ea)
 
 
         # filter the losers
@@ -540,7 +540,7 @@ class KartaMatcher(MatchEngine):
             # check for validity
             if not self.src_functions_ctx[loser_record['src_index']].isValidCandidate(self.bin_functions_ctx[loser_record['func_ea']]) :
                 continue
-            final_loser_list.append((loser_record['src_index'], loser_record['func_ea']))
+            final_loser_list.append(loser_record)
         self._match_round_losers = final_loser_list
 
         # empty the rest of the data structures
@@ -737,7 +737,7 @@ class KartaMatcher(MatchEngine):
         # 2. Lower edge when previous (adjacent) file was completed
         # 3. Upper edge when next (adjacent) file was completed
         if file_match is not None and neighbour_match and src_index in [file_match._src_index_start, file_match._src_index_end] and \
-                (len(file_match.bin_functions_ctx) == (file_match._src_index_end - file_match._src_index_start + 1) or \
+                (len(file_match._bin_functions_ctx) == (file_match._src_index_end - file_match._src_index_start + 1) or \
                 (src_index == file_match._src_index_start and \
                         file_match._lower_leftovers < file_match._remain_size - (len(file_match._locked_eas) + len(file_match._upper_locked_eas))) or \
                 (src_index == file_match._src_index_end and \
@@ -783,7 +783,9 @@ class KartaMatcher(MatchEngine):
             return
 
         # merge the results into the changed functions list
-        for src_index, func_ea in self._match_round_losers :
+        for loser_record in self._match_round_losers :
+            src_index = loser_record['src_index']
+            func_ea   = loser_record['func_ea']
             if src_index not in self._changed_functions :
                 self._changed_functions[src_index] = set()
             self._changed_functions[src_index].add(self.bin_functions_ctx[func_ea])
@@ -803,7 +805,9 @@ class KartaMatcher(MatchEngine):
             return
 
         # merge the results into the changed functions list
-        for src_index, func_ea in self._match_round_losers :
+        for loser_record in self._match_round_losers :
+            src_index = loser_record['src_index']
+            func_ea   = loser_record['func_ea']
             if src_index not in self._changed_functions :
                 self._changed_functions[src_index] = set()
             self._changed_functions[src_index].add(self.bin_functions_ctx[func_ea])
@@ -889,7 +893,9 @@ class KartaMatcher(MatchEngine):
                         finished = (not self.roundMatchResults()) and finished
 
                         # merge the results into the seen couples
-                        for src_index, func_ea in self._match_round_losers :
+                        for loser_record in self._match_round_losers :
+                            src_index = loser_record['src_index']
+                            func_ea   = loser_record['func_ea']
                             bin_ctx = self.bin_functions_ctx[func_ea]
                             if src_index not in self._once_seen_couples_src :
                                 self._once_seen_couples_src[src_index] = set()

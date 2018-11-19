@@ -315,7 +315,7 @@ class AnalyzerIDA(object):
         # return the results  
         return island_blocks
 
-    def analyzeIslandFunction(blocks) :
+    def analyzeIslandFunction(self, blocks) :
         """Analyze a given island function, and creates a canonical representation for it
         
         Args:
@@ -327,7 +327,7 @@ class AnalyzerIDA(object):
         island_start = blocks[0].start_ea
         func = sark.Function(island_start)
         func_start = func.startEA
-        context = IslandContext(self.funcNameInner(func.name), island_start)
+        context = islandContext()(self.funcNameInner(func.name), island_start)
         for block in blocks :
             for line in sark.CodeBlock(block.start_ea).lines :
                 # Numeric Constants
@@ -335,7 +335,6 @@ class AnalyzerIDA(object):
                 for oper in filter(lambda x : x.type.is_imm, line.insn.operands) :
                     if oper.imm not in data_refs :
                         context.recordConst(oper.imm)
-                        context.const_ranks[oper.imm] = rankConst(oper.imm, None)
                 # Data Refs (strings, fptrs)
                 for ref in data_refs :
                     # Check for a string (finds un-analyzed strings too)
@@ -349,7 +348,7 @@ class AnalyzerIDA(object):
                         context.recordCall(self.disas.funcStart(called_func))
                 # Code Refs (calls)
                 for cref in line.crefs_from :
-                    called_func = self.disas.funcAt(ref)
+                    called_func = self.disas.funcAt(cref)
                     if called_func is None:
                         continue
                     called_func_start = self.disas.funcStart(called_func)

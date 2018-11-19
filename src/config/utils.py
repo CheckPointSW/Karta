@@ -64,6 +64,7 @@ matched_library_name        = None                          # Name of the matche
 
 src_func_class              = None                          # Source function context layer
 bin_func_class              = None                          # Binary function context layer
+island_func_class           = None                          # Island function context layer
 
 src_seen_consts             = []
 src_seen_strings            = []
@@ -227,7 +228,10 @@ def getNeighbourScore() :
     # start safely
     safe_score = 1 if num_matched >= 10 else 0.5
     # calculate the ratio
-    return LOCATION_BOOST_SCORE * (num_neighbours_matched * 1.0 / num_matched) * safe_score
+    ratio = (num_neighbours_matched * 1.0 / num_matched) * safe_score
+    if ratio > LOCATION_BOOST_LOW_THRESHOLD :
+        ratio = 1
+    return LOCATION_BOOST_SCORE * ratio
 
 def areNeighboursSafe():
     """Checks if the neighbour score is stable enough to be used for generating candidates
@@ -235,7 +239,7 @@ def areNeighboursSafe():
     Return Value:
         True iff picking neighbour candidates is safe
     """
-    return LOCATION_BOOST_SCORE * LOCATION_BOOST_THRESHOLD <= getNeighbourScore()
+    return LOCATION_BOOST_SCORE * LOCATION_BOOST_LOW_THRESHOLD <= getNeighbourScore()
 
 ###################
 ## Const Scoring ##
@@ -395,17 +399,19 @@ def libraryName():
 ## Active Function Contexts ##
 ##############################
 
-def registerContexts(src_func, bin_func):
+def registerContexts(src_func, bin_func, island_func):
     """Registers the classes used to create Source and Binary function contexts
 
     Args:
         src_func (class): Ctor() for the source function context
         bin_func (class): Ctor() for the binary function context
+        island_func (class): Ctor() for the island function context
     """
-    global src_func_class, bin_func_class
+    global src_func_class, bin_func_class, island_func_class
 
-    src_func_class = src_func
-    bin_func_class = bin_func
+    src_func_class      = src_func
+    bin_func_class      = bin_func
+    island_func_class   = island_func
 
 def sourceContext():
     """Returns the registerred context for the source functions
@@ -422,3 +428,11 @@ def binaryContext():
         Ctor() for the binary function context
     """
     return bin_func_class
+
+def islandContext():
+    """Returns the registerred context for the island functions
+
+    Return Value:
+        Ctor() for the island function context
+    """
+    return island_func_class

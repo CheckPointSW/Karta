@@ -4,7 +4,7 @@ from ar_parser             import getArchiveFiles
 from config.utils          import *
 from elementals            import Prompter, ProgressBar
 from disassembler.factory  import identifyDisassemblerHandler
-from function_context      import SourceContext, BinaryContext
+from function_context      import SourceContext, BinaryContext, IslandContext
 import config.anchor           as anchor
 
 import os
@@ -232,9 +232,11 @@ def main(args):
     # requesting the path to the chosen disassembler
     setDisassemblerPath()
     disas_cmd = identifyDisassemblerHandler(getDisasPath(), prompter)
+    if disas_cmd is None :
+        return
 
     # register our contexts
-    registerContexts(SourceContext, BinaryContext)
+    registerContexts(SourceContext, BinaryContext, IslandContext)
 
     # check if these are windows binaries or not
     for archive in archive_paths:

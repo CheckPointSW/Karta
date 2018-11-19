@@ -294,7 +294,7 @@ class IDA(DisasAPI):
 
     # Overriden base function
     def exit(self):
-        Exit(0)
+        idc.Exit(0)
 
     ############################
     ## Analysis Logic - Karta ##

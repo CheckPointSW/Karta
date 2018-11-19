@@ -1,6 +1,6 @@
 from config.utils           import *
 from disassembler.factory   import createDisassemblerHandler
-from match_library          import startMatch
+from matching_engine        import KartaMatcher
 from libs                   import lib_factory
 
 ######################
@@ -9,6 +9,47 @@ from libs                   import lib_factory
 
 config_path         = None      # path to the configuration directory (including the *.json files with the pre-compiled libraries)
 logger              = None      # elementals logger instance
+
+def startMatch(config_file):
+    """Starts matching the wanted source library to the loaded binary
+
+    Args:
+        config_file (path): path to the library's configuraiton file
+    """
+    disas = getDisas()
+
+    # always init the utils before we start
+    initUtils(logger, disas, invoked_before = True)
+
+    # Load the configuration file
+    fd = open(config_file, 'r')
+    config_dict = json.load(fd, object_pairs_hook=collections.OrderedDict)
+    fd.close()
+
+    # Init out matching engine
+    matching_engine = KartaMatcher(logger, disas)
+
+    # Load the source functions, and prepare them for use
+    matching_engine.loadAndPrepareSource(config_dict['Files'])
+
+    # Load and match the anchor functions
+    matching_engine.loadAndMatchAnchors(config_dict['Anchors (Src Index)'])
+
+    # Locate the file boundaries in the binary functions list
+    matching_engine.locateFileBoundaries()
+
+    # Prepare the located binary functions for first use
+    matching_engine.prepareBinFunctions()
+
+    # Now try to match all of the files
+    matching_engine.matchFiles()
+
+    # Generate the suggested function names
+    matching_engine.generateSuggestedNames()
+
+    # Show the GUI window with the matches
+    match_entries, external_match_entries = matching_engine.prepareGUIEntries()
+    matching_engine.showResultsGUIWindow(match_entries, external_match_entries)
 
 def matchLibrary(lib_name, lib_version):
     """Checks if the library was already compiled, and matches it
@@ -28,7 +69,7 @@ def matchLibrary(lib_name, lib_version):
     # Start the actual matching
     logger.addIndent()
     logger.info("Starting to match \"%s\" Version: \"%s\"", lib_name, lib_version)
-    startMatch(cur_config_path, logger)
+    startMatch(cur_config_path)
     logger.info("Finished the matching")
     logger.removeIndent()
 

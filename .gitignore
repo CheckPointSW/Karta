@@ -3,4 +3,9 @@ src/*.vpw
 src/*.vpwhist
 src/*.vtg
 src/*.pyc
-/src/libs/*.pyc
+src/libs/*.pyc
+src/config/*.pyc
+src/core/*.pyc
+src/disassembler/*.pyc
+src/disassembler/IDA/*.pyc
+

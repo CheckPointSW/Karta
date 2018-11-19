@@ -2,8 +2,8 @@ import idautils
 import idaapi
 import idc
 import sark
-from config.utils   import *
-from hashlib        import md5
+from config.utils           import *
+from hashlib                import md5
 
 class AnalyzerIDA(object):
     """Logic instance for the IDA disassembler API. Contains the heart of Karta's canonical representation.
@@ -12,7 +12,7 @@ class AnalyzerIDA(object):
         Contains specific Karta logic.
 
     Attributes:
-        _disas (disassembler): disassembler layer instance
+        disas (disassembler): disassembler layer instance
     """
 
     def __init__(self, disas):
@@ -21,7 +21,7 @@ class AnalyzerIDA(object):
         Args:
             disas (disassembler): disassembler layer instance
         """
-        self._disas = disas
+        self.disas = disas
 
     def funcNameInner(self, raw_func_name):
         """Returns the name of the function (including windows name fixes)
@@ -50,10 +50,10 @@ class AnalyzerIDA(object):
         Return Value:
             The actual (wanted) name of the wanted function
         """
-        func = self._disas.funcAt(func_ea)
+        func = self.disas.funcAt(func_ea)
         if func is not None:
             return self.funcNameInner(func.name)
-        return self.funcNameInner(self._disas.nameAt(func_ea))
+        return self.funcNameInner(self.disas.nameAt(func_ea))
 
     def analyzeFunctionGraph(self, func_ea, src_mode) :
         """Analyzes the flow graph of a given function, generating a call-order mapping
@@ -86,7 +86,7 @@ class AnalyzerIDA(object):
                 # Data Refs (strings, fptrs)
                 for ref in line.drefs_from :
                     # Check for a string (finds un-analyzed strings too)
-                    str_const = self._disas.stringAt(ref)
+                    str_const = self.disas.stringAt(ref)
                     if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                         continue
                     # Check for an fptr
@@ -174,7 +174,10 @@ class AnalyzerIDA(object):
             FunctionContext object representing the analyzed function
         """
         func = sark.Function(func_ea)
-        context = FunctionContext(self.funcNameInner(func.name), func_ea)
+        if src_mode :
+            context = sourceContext()(self.funcNameInner(func.name), 0) # Index is irrelevant for the source analysis
+        else :
+            context = binaryContext()(func_ea, self.funcNameInner(func.name), 0) # The index will be adjusted later, manually
         
         func_start = func.startEA
         instr_count = 0
@@ -190,23 +193,23 @@ class AnalyzerIDA(object):
             # Data Refs (strings, fptrs)
             for ref in data_refs :
                 # Check for a string (finds un-analyzed strings too)
-                str_const = self._disas.stringAt(ref)
+                str_const = self.disas.stringAt(ref)
                 if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                     context.recordString(str_const)
                     continue
                 # Check for an fptr
-                called_func = self._disas.funcAt(ref)
+                called_func = self.disas.funcAt(ref)
                 if called_func is not None:
-                    call_candidates.add(self._disas.funcStart(called_func))
+                    call_candidates.add(self.disas.funcStart(called_func))
                 elif src_mode:
                     call_candidates.add(ref)
                     continue
             # Code Refs (calls and unknowns)
             for cref in line.crefs_from :
-                called_func = self._disas.funcAt(cref)
+                called_func = self.disas.funcAt(cref)
                 if called_func is None:
                     continue
-                called_func_start = self._disas.funcStart(called_func)
+                called_func_start = self.disas.funcStart(called_func)
                 if (cref == func_start and line.insn.is_call) or called_func_start != func_start :
                     call_candidates.add(called_func_start)
             # in binary mode don't let the call_candidates expand too much
@@ -221,13 +224,13 @@ class AnalyzerIDA(object):
                 has_fixups = False
                 # data variables
                 for dref in line.drefs_from:
-                    if sark.Line(dref).name in self._disas.exports() :
+                    if sark.Line(dref).name in self.disas.exports() :
                         has_fixups = True
                         break
                 # external code functions
                 if not has_fixups:
                     for cref in line.crefs_from:
-                        if sark.Line(cref).name in self._disas.exports() :
+                        if sark.Line(cref).name in self.disas.exports() :
                             has_fixups = True
                             break
                 # case #2
@@ -241,12 +244,12 @@ class AnalyzerIDA(object):
         if src_mode :
             for candidate in call_candidates :
                 ref_func = None
-                called_func = self._disas.funcAt(candidate)
+                called_func = self.disas.funcAt(candidate)
                 if called_func is not None:
-                    ref_func = self._disas.funcName(called_func)
+                    ref_func = self.disas.funcName(called_func)
                     risky = False
                 else:
-                    ref_func = self._disas.nameAt(candidate)
+                    ref_func = self.disas.nameAt(candidate)
                     risky = True
                 # check if known or unknown
                 if sark.Line(candidate).disasm.startswith("extrn ") :
@@ -267,7 +270,7 @@ class AnalyzerIDA(object):
             except :
                 # happens with code outside of a function
                 continue
-        context._blocks.sort(reverse = True)
+        context.blocks.sort(reverse = True)
 
         # Now add the flow analysis
         context.setCallOrder(self.analyzeFunctionGraph(func_ea, src_mode))
@@ -332,24 +335,24 @@ class AnalyzerIDA(object):
                 for oper in filter(lambda x : x.type.is_imm, line.insn.operands) :
                     if oper.imm not in data_refs :
                         context.recordConst(oper.imm)
-                        context._const_ranks[oper.imm] = rankConst(oper.imm, None)
+                        context.const_ranks[oper.imm] = rankConst(oper.imm, None)
                 # Data Refs (strings, fptrs)
                 for ref in data_refs :
                     # Check for a string (finds un-analyzed strings too)
-                    str_const = self._disas.stringAt(ref)
+                    str_const = self.disas.stringAt(ref)
                     if str_const is not None and len(str_const) >= MIN_STR_SIZE :
                         context.recordString(str_const)
                         continue
                     # Check for an fptr
-                    called_func = self._disas.funcAt(ref)
+                    called_func = self.disas.funcAt(ref)
                     if called_func is not None:
-                        context.recordCall(self._disas.funcStart(called_func))
+                        context.recordCall(self.disas.funcStart(called_func))
                 # Code Refs (calls)
                 for cref in line.crefs_from :
-                    called_func = self._disas.funcAt(ref)
+                    called_func = self.disas.funcAt(ref)
                     if called_func is None:
                         continue
-                    called_func_start = self._disas.funcStart(called_func)
+                    called_func_start = self.disas.funcStart(called_func)
                     if (cref == func_start and line.insn.is_call) or called_func_start != func_start :
                         context.recordCall(called_func_start)
 

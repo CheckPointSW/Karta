@@ -4,6 +4,8 @@ from ar_parser             import getArchiveFiles
 from config.utils          import *
 from elementals            import Prompter, ProgressBar
 from disassembler.factory  import identifyDisassemblerHandler
+from function_context      import SourceContext, BinaryContext
+import config.anchor           as anchor
 
 import os
 import sys
@@ -51,12 +53,12 @@ def resolveUnknowns() :
     global src_functions_ctx
 
     for src_func_index, src_func_ctx in enumerate(src_functions_ctx) :
-        for resolved_call in src_func_ctx._unknown_funcs.intersection(src_functions_list) :
+        for resolved_call in src_func_ctx.unknown_funcs.intersection(src_functions_list) :
             src_func_ctx.recordCall(resolved_call)
-            src_func_ctx._unknown_funcs.remove(resolved_call)
-        for resolved_call in src_func_ctx._unknown_fptrs.intersection(src_functions_list) :
+            src_func_ctx.unknown_funcs.remove(resolved_call)
+        for resolved_call in src_func_ctx.unknown_fptrs.intersection(src_functions_list) :
             src_func_ctx.recordCall(resolved_call)
-        src_func_ctx._unknown_fptrs.clear()
+        src_func_ctx.unknown_fptrs.clear()
 
 def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     """Analyze of the open source library, file-by-file and merge the results
@@ -122,11 +124,11 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         logger.removeIndent()
 
     # Resolve several unknowns refs as code refs
-    logger.info("Resolve cross-references between different files")
+    logger.info("Resolving cross-references between different files")
     resolveUnknowns()
 
     # Remove empty files
-    logger.info("Filter out empty files")
+    logger.info("Filtering out empty files")
     for file_name in filter(lambda x : len(src_file_mappings[x]) == 0, src_file_mappings) :
         src_file_mappings.pop(file_name)
 
@@ -137,15 +139,16 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     anchors_files = set()
     logger.info("Identifying possible Anchor functions")
     logger.addIndent()
+    seen_strings, seen_consts, function_list = getContextsStats()
     for src_func_index, src_func_ctx in enumerate(src_functions_ctx) :
-        is_str, threshold, candidates = isAnchor(src_func_ctx, logger)
+        is_str, threshold, candidates = anchor.isAnchor(src_func_ctx, seen_strings, seen_consts, function_list, logger)
         if candidates is None :
             continue
         if is_str :
             str_anchors.append(src_func_index)
         else :
             const_anchors.append(src_func_index)
-        anchors_files.add(src_func_ctx._file)
+        anchors_files.add(src_func_ctx.file)
     logger.removeIndent()
 
     # strings before const, because they are faster to search for
@@ -229,6 +232,9 @@ def main(args):
     # requesting the path to the chosen disassembler
     setDisassemblerPath()
     disas_cmd = identifyDisassemblerHandler(getDisasPath(), prompter)
+
+    # register our contexts
+    registerContexts(SourceContext, BinaryContext)
 
     # check if these are windows binaries or not
     for archive in archive_paths:

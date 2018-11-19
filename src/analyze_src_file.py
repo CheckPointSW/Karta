@@ -1,5 +1,6 @@
 from config.utils           import *
 from disassembler.factory   import createDisassemblerHandler
+from function_context       import SourceContext, BinaryContext
 from elementals             import Logger
 
 def analyzeFile() :
@@ -18,7 +19,7 @@ def analyzeFile() :
         for function_ea in disas.segmentFunctions(segment_idx) :
             src_ctx = disas.analyzeFunction(function_ea, True)
             # check if static or not
-            if src_ctx._name not in exported :
+            if src_ctx.name not in exported :
                 src_ctx.markStatic()
             contexts.append(src_ctx)
     functionsToFile(disas.inputFile(), contexts)
@@ -28,6 +29,8 @@ def analyzeFile() :
 logger = Logger(LIBRARY_NAME, use_stdout = False)
 # Always init the utils before we start
 initUtils(logger, createDisassemblerHandler(logger))
+# Register our contexts
+registerContexts(SourceContext, BinaryContext)
 # Start to analyze the file
 analyzeFile()
 # Exit the disassembler

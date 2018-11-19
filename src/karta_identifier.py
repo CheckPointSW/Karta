@@ -1,6 +1,5 @@
 from config.utils           import *
 from disassembler.factory   import createDisassemblerHandler
-from match_library          import startMatch
 from libs                   import lib_factory
 
 ####################

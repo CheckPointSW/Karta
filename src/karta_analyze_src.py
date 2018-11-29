@@ -22,21 +22,26 @@ PROGRESS_BAR_THRESHOLD = 25
 
 disas_cmd = None # Global disassembler command-line handler
 
-def locateFiles(bin_dir, file_list) :
+def locateFiles(bin_dir, file_list, suffix) :
     """Locates the inner path of the compiled *.o files
 
     Args:
         bin_dir (str): path to the binary folder containing the compiled *.o file
-        file_list (list): list of *.o file names
+        file_list (list): list of *.o file names (None if has no filter list)
+        suffix (str): suffix for the binary files ("obj" or "o")
 
     Return Value:
         Generator for a tuples of the form: (abs_path, compiled_file file name)
     """
 
     for root, dirs, files in os.walk(bin_dir) :
-        for compiled_file in set(files).intersection(file_list) :
-            yield os.path.abspath(os.path.join(root, compiled_file)), compiled_file
-            file_list.remove(compiled_file)
+        if file_list is not None :
+            for compiled_file in set(files).intersection(file_list) :
+                yield os.path.abspath(os.path.join(root, compiled_file)), compiled_file
+                file_list.remove(compiled_file)
+        else:
+            for file in filter(lambda x : x.endswith("." + suffix), files):
+                yield os.path.abspath(os.path.join(root, file)), file
 
 def analyzeFile(full_file_path, is_windows) :
     """Analyze a single file using IDA Python
@@ -71,6 +76,8 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     """
     logger.info("Starting to analyze the library")
     logger.addIndent()
+    ignore_archive = False
+    finished_scan = False
 
     # ida has severe bugs, make sure to warn the user in advance
     if disas_cmd.name() == "IDA" and ' ' in SCRIPT_PATH:
@@ -78,54 +85,73 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         logger.removeIndent()
         return
 
-    # Prepare & load the stats from each file
-    for index, compiled_ar in enumerate(compiled_ars) :
-        # check if this is a windows archive
-        is_windows = isWindows()
-        bin_dir = bin_dirs[index]
-        logger.info("Analyzing each of the files in the archive - %s", compiled_ar)
-        logger.addIndent()
-        archive_files = list(locateFiles(bin_dir, filter(lambda x : x.endswith(".o" if not is_windows else ".obj"), getArchiveFiles(compiled_ar))))
-        # check if we need a progress bar
-        if len(archive_files) >= PROGRESS_BAR_THRESHOLD :
-            progress_bar = ProgressBar('Analyzed %d/%d files - %d%% Completed', len(archive_files), 20, True, time_format = "Elapsed %M:%S -")
-            progress_bar.start()
-        else :
-            progress_bar = None
-        # start the work itself
-        for full_file_path, compiled_file in archive_files :
-            # ida has severe bugs, make sure to warn the user in advance
-            if disas_cmd.name() == "IDA" and ' ' in full_file_path:
-                logger.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain)")
-                logger.removeIndent()
-                return
-            logger.debug("%s - %s", full_file_path, compiled_file)
-            if progress_bar is None :
-                logger.info("%s - %s", compiled_file, full_file_path)
-            # analyze the file
-            analyzeFile(full_file_path, is_windows)
-            # load the JSON data from it
-            try:
-                fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
-            except:
-                logger.error("Failed to create the .JSON file for file: %s" % (compiled_file))
-                logger.removeIndent()
-                logger.removeIndent()
-                logger.error("Encounterred an error, exiting")
-                exit(1)
-            # all was OK, can continue
-            parseFileStats(full_file_path, json.load(fd, object_pairs_hook=collections.OrderedDict))
-            fd.close()
+    # We could have 2 iteration rounds here
+    while not finished_scan:
+        # Prepare & load the stats from each file
+        for index, compiled_ar in enumerate(compiled_ars) :
+            # check if this is a windows archive
+            is_windows = isWindows()
+            bin_dir = bin_dirs[index]
+            bin_suffix = "o" if not is_windows else "obj"
+            if not ignore_archive:
+                logger.info("Analyzing each of the files in the archive - %s", compiled_ar)
+            else:
+                logger.info("Analyzing each of the *.%s files in the bin directory (archive failed before)" % (bin_suffix))
+            logger.addIndent()
+            archive_files = list(locateFiles(bin_dir, filter(lambda x : x.endswith("." + bin_suffix), getArchiveFiles(compiled_ar)) if not ignore_archive else None, bin_suffix))
+            # check if we need a progress bar
+            if len(archive_files) >= PROGRESS_BAR_THRESHOLD :
+                progress_bar = ProgressBar('Analyzed %d/%d files - %d%% Completed', len(archive_files), 20, True, time_format = "Elapsed %M:%S -")
+                progress_bar.start()
+            else :
+                progress_bar = None
+            # start the work itself
+            for full_file_path, compiled_file in archive_files :
+                # ida has severe bugs, make sure to warn the user in advance
+                if disas_cmd.name() == "IDA" and ' ' in full_file_path:
+                    logger.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain)")
+                    logger.removeIndent()
+                    return
+                logger.debug("%s - %s", full_file_path, compiled_file)
+                if progress_bar is None :
+                    logger.info("%s - %s", compiled_file, full_file_path)
+                # analyze the file
+                analyzeFile(full_file_path, is_windows)
+                # load the JSON data from it
+                try:
+                    fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
+                except:
+                    logger.error("Failed to create the .JSON file for file: %s" % (compiled_file))
+                    logger.removeIndent()
+                    logger.removeIndent()
+                    logger.error("Encounterred an error, exiting")
+                    exit(1)
+                # all was OK, can continue
+                parseFileStats(full_file_path, json.load(fd, object_pairs_hook=collections.OrderedDict))
+                fd.close()
+                if progress_bar is not None :
+                    progress_bar.advance(1)
+            # wrap it up
             if progress_bar is not None :
-                progress_bar.advance(1)
-        # wrap it up
-        if progress_bar is not None :
-            progress_bar.finish()
-        logger.removeIndent()
+                progress_bar.finish()
+            logger.removeIndent()
 
-    # Resolve several unknowns refs as code refs
-    logger.info("Resolving cross-references between different files")
-    resolveUnknowns()
+        # Resolve several unknowns refs as code refs
+        logger.info("Resolving cross-references between different files")
+        resolveUnknowns()
+
+        # check if we have any files in the list
+        if len(src_file_mappings) == 0 :
+            logger.error("No files found in the archive :(")
+            logger.removeIndent()
+            new_path = raw_input("[+] Do you want to analyze all of the *.%s files in the bin directory? <Y/N>: " % (bin_suffix)).lower()
+            if new_path != 'y' :
+                logger.error("Finished with errors!")
+                exit(2)
+            # run again, and ignore the archive this time
+            ignore_archive = True
+        else:
+            finished_scan = True
 
     # Remove empty files
     logger.info("Filtering out empty files")
@@ -153,6 +179,13 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
 
     # strings before const, because they are faster to search for
     anchors_list = str_anchors + const_anchors
+
+    # check if we have any files left
+    if len(src_file_mappings) :
+        logger.error("All files were empty :(")
+        logger.removeIndent()
+        logger.error("Finished with errors!")
+        exit(2)
 
     # Check for an error
     if len(anchors_list) == 0:

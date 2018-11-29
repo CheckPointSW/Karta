@@ -150,6 +150,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
                 exit(2)
             # run again, and ignore the archive this time
             ignore_archive = True
+            logger.addIndent()
         else:
             finished_scan = True
 

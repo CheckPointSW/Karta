@@ -10,47 +10,34 @@ class NetSNMPSeeker(Seeker):
         key_string = "NET-SNMP version: %s"
 
         # Now search
-        match_counter = 0
-        key_index = None
+        key_indices = []
         for idx, bin_str in enumerate(self._all_strings):
             # we have a match
             if key_string in str(bin_str):
-                logger.debug("Located the key string in address 0x%x", bin_str.ea)
-                match_counter += 1
-                if match_counter == 1:
-                    key_index = idx
+                logger.debug("Located a key string of %s in address 0x%x", self.NAME, bin_str.ea)
+                key_indices.append(idx)
                 break
 
         # Now check for the version string
-        self._version_string = None
-        if key_index is not None and match_counter == 1:
+        self._version_strings = []
+        for key_index in key_indices:
             for bin_str in self._all_strings[max(key_index - 10000, 0) : min(key_index + 10000, len(self._all_strings))] :
                 cur_str = str(bin_str)
                 if cur_str.startswith("5."):
-                    logger.debug("Located the version string in address 0x%x", bin_str.ea)
-                    self._version_string = cur_str
+                    logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
+                    self._version_strings.append(cur_str)
                     break
         # return the result
-        return match_counter
+        return len(self._version_strings)
 
     # Overriden base function
-    def identifyVersion(self, logger):
-        # sanity check
-        if self._version_string is None:
-            logger.warning("Failed to find the version string of %s", self.NAME)
-            return self.VERSION_UNKNOWN
-        # extract the version from the saved string
-        work_str = self._version_string
-        start_index = 0
-        legal_chars = string.digits + '.'
-        end_index = start_index
-        # scan until we stop
-        while end_index < len(work_str) and work_str[end_index] in legal_chars:
-            end_index += 1
-        if end_index < len(work_str) and work_str[end_index] == '.':
-            end_index -= 1
+    def identifyVersions(self, logger):
+        results = []
+        # extract the version from the copyright string
+        for work_str in self._version_strings:
+            results.append(self.extractVersion(work_str))
         # return the result
-        return work_str[start_index : end_index]
+        return results
 
 # Register our class
 NetSNMPSeeker.register(NetSNMPSeeker.NAME, NetSNMPSeeker)

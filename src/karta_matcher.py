@@ -95,9 +95,9 @@ def matchLibraries():
         else:
             logger.info("Successfully found \"%s\" in the binary", lib_name)
             # identify it's version
-            lib_version = lib_instance.identifyVersion(logger)
+            lib_versions = lib_instance.identifyVersions(logger)
             # now try to match the library
-            matchLibrary(lib_name, lib_version)
+            matchLibrary(lib_name, lib_versions[0])
         # continue to the next library
         logger.removeIndent()
 

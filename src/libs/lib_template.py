@@ -1,5 +1,6 @@
 from config.utils   import *
 from lib_factory    import registerLibrary
+import string
 
 class Seeker(object):
     """Abstract class that represents a basic library seeker
@@ -49,20 +50,40 @@ class Seeker(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def identifyVersion(self, logger):
-        """Identifies the version of the library (assuming it was already found)
+    def identifyVersions(self, logger):
+        """Identifies the version(s) of the library (assuming it was already found)
 
         Assumptions:
             1. searchLib() was called before calling identifyVersion()
-            2. The call to searchLib() returned True
+            2. The call to searchLib() returned a number > 0
 
         Args:
             logger (logger): elementals logger instance
 
         Return Value:
-            Textual ID of the library's version
+            list of Textual ID(s) of the library's version(s)
         """
         raise NotImplementedError("Subclasses should implement this!")
+
+    def extractVersion(self, raw_version_string, start_index = 0, legal_chars = string.digits + '.'):
+        """Extracts the version of the library from the raw version string
+
+        Args:
+            raw_version_string (str): raw version string
+            start_index (int): start index for the version parsing (0 by default)
+            legal_chars (string): set of legal chars for the version string (string.digits + '.' by default)
+
+        Return Value:
+            Textual ID of the library's version
+        """
+        end_index = start_index
+        # scan until we stop
+        while end_index < len(raw_version_string) and raw_version_string[end_index] in legal_chars:
+            end_index += 1
+        if end_index < len(raw_version_string) and raw_version_string[end_index] == '.':
+            end_index -= 1
+        # return the result
+        return raw_version_string[start_index : end_index]
 
     @staticmethod
     def register(name, init_fn):

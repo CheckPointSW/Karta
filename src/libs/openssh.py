@@ -9,9 +9,8 @@ class OpensshSeeker(Seeker):
 
     # Overriden base function
     def searchLib(self, logger):
-        self._version_string = None
+        self._version_strings = []
         # Now search
-        match_counter = 0
         for bin_str in self._all_strings:
             # we have a match
             if self.VERSION_STRING in str(bin_str):
@@ -22,28 +21,21 @@ class OpensshSeeker(Seeker):
                     (self._version_string is not None and self._version_string in version_string) :
                     continue
                 # valid match
-                logger.debug("Located the version string of in address 0x%x", bin_str.ea)
-                match_counter += 1
+                logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
                 # save the string for later
-                self._version_string = version_string
+                self._version_strings.append(version_string)
 
         # return the result
-        return match_counter
+        return len(self._version_strings)
 
     # Overriden base function
-    def identifyVersion(self, logger):
-        # extract the version from the saved string
-        work_str = self._version_string
-        start_index = work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING)
-        legal_chars = string.digits + '.'
-        end_index = start_index
-        # scan until we stop
-        while end_index < len(work_str) and work_str[end_index] in legal_chars:
-            end_index += 1
-        if end_index < len(work_str) and work_str[end_index] == '.':
-            end_index -= 1
+    def identifyVersions(self, logger):
+        results = []
+        # extract the version from the copyright string
+        for work_str in self._version_strings:
+            results.append(self.extractVersion(work_str, start_index = work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING)))
         # return the result
-        return work_str[start_index : end_index]
+        return results
 
 # Register our class
 OpensshSeeker.register(OpensshSeeker.NAME, OpensshSeeker)

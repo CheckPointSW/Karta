@@ -80,15 +80,13 @@ def identifyLibraries():
         # search for it
         match_counter = lib_instance.searchLib(logger)
         # make sure we have a single match
-        if match_counter > 1:
-            missing_libs.append((lib_name, lib_instance.openSource(), "Found multiple instances"))
-        elif match_counter == 0:
+        if match_counter == 0:
             missing_libs.append((lib_name, lib_instance.openSource(), "Was not found"))
         # exact, single match
         else:
             # identify it's version
-            lib_version = lib_instance.identifyVersion(logger)
-            writeLine(fd, '%s: %s' % (lib_name, lib_version))
+            lib_versions = lib_instance.identifyVersions(logger)
+            writeLine(fd, '%s: %s' % (lib_name, ', '.join(lib_versions)))
 
     # Write the missing ones too
     writeLine(fd, '')

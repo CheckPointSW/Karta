@@ -163,10 +163,18 @@ class KartaMatcher(MatchEngine):
         # prepare a possible collision mapping
         collision_map = {}
 
+        # pre-processed list indices (efficiency improvement)
+        func_indices = {}
+        for func_idx, func_name in enumerate(self._src_functions_list) :
+            if func_name not in func_indices:
+                func_indices[func_name] = []
+            func_indices[func_name].append(func_idx)
+
         # Convert all function calls to contexts instead of names
         self.logger.info("Converting all function references to use the built contexts (instead of string names)")
         src_external_functions = {}
         for src_index, src_func_ctx in enumerate(self.src_functions_ctx) :
+            call_name_to_ctx = {}
             # don't forget the file hint string
             str_file_hint = src_func_ctx.checkFileHint()
             if str_file_hint is not None :
@@ -177,11 +185,12 @@ class KartaMatcher(MatchEngine):
             src_func_ctx.index = src_index
             for call in src_func_ctx.calls :
                 # should make sure to prioritize the call from the same file (duplicates are a nasty edge case)
-                if self._src_functions_list.count(call) == 1 :
-                    call_src_ctx = self.src_functions_ctx[self._src_functions_list.index(call)]
+                if len(func_indices[call]) == 1 :
+                    call_src_ctx = self.src_functions_ctx[func_indices[call][0]]
                 else :
-                    candidates = filter(lambda x : self.src_functions_ctx[x[0]].file == src_func_ctx.file, filter(lambda x : x[1] == call, enumerate(self._src_functions_list)))
-                    call_src_ctx = self.src_functions_ctx[candidates[0][0]]
+                    candidates = filter(lambda idx : self.src_functions_ctx[idx].file == src_func_ctx.file, func_indices[call])
+                    call_src_ctx = self.src_functions_ctx[candidates[0]]
+                call_name_to_ctx[call] = call_src_ctx
                 src_internal_calls.append(call_src_ctx)
             for call in src_func_ctx.unknown_funcs:
                 if call in libc.skip_function_names or len(call) == 0:
@@ -197,8 +206,8 @@ class KartaMatcher(MatchEngine):
             for call in src_func_ctx.call_order :
                 if call in libc.skip_function_names or len(call) == 0:
                     continue
-                if call in self._src_functions_list :
-                    key = self.src_functions_ctx[self._src_functions_list.index(call)]
+                if call in call_name_to_ctx :
+                    key =  call_name_to_ctx[call]
                 elif call in self._src_external_functions :
                     key = self._src_external_functions[call]
                 else : # a global data variable, skip it
@@ -209,8 +218,8 @@ class KartaMatcher(MatchEngine):
                     for inner_call in path :
                         if inner_call in libc.skip_function_names or len(inner_call) == 0:
                             continue
-                        if inner_call in self._src_functions_list :
-                            inner_calls.add(self.src_functions_ctx[self._src_functions_list.index(inner_call)])
+                        if inner_call in call_name_to_ctx :
+                            inner_calls.add(call_name_to_ctx[inner_call])
                         elif inner_call in self._src_external_functions :
                             inner_calls.add(self._src_external_functions[inner_call])
                         else :
@@ -222,8 +231,7 @@ class KartaMatcher(MatchEngine):
                 collision_map[src_func_ctx.hash] = []
             collision_map[src_func_ctx.hash].append(src_func_ctx)
 
-        # Build up an xref map too
-        for src_func_ctx in self.src_functions_ctx :
+            # Build up an xref map too
             for call in src_func_ctx.calls :
                 call.xrefs.add(src_func_ctx)
 
@@ -242,7 +250,7 @@ class KartaMatcher(MatchEngine):
             bin_internal_calls = []
             bin_external_calls = []
             for call_ea in bin_func_ctx.calls :
-                if call_ea in self.bin_functions_ctx.keys() :
+                if call_ea in self.bin_functions_ctx :
                     bin_internal_calls.append(self.bin_functions_ctx[call_ea])
                 else :
                     bin_external_calls.append(call_ea)
@@ -251,7 +259,7 @@ class KartaMatcher(MatchEngine):
             # the call order too
             new_order = {}
             for call_ea in bin_func_ctx.call_order :
-                if call_ea in self.bin_functions_ctx.keys() :
+                if call_ea in self.bin_functions_ctx :
                     key = self.bin_functions_ctx[call_ea]
                 else :
                     key = call_ea
@@ -259,20 +267,18 @@ class KartaMatcher(MatchEngine):
                 for path in bin_func_ctx.call_order[call_ea] :
                     inner_calls = set()
                     for inner_call in path :
-                        if inner_call in self.bin_functions_ctx.keys() :
+                        if inner_call in self.bin_functions_ctx :
                             inner_calls.add(self.bin_functions_ctx[inner_call])
                         else :
                             inner_calls.add(inner_call)
                     new_order[key].append(inner_calls)
             bin_func_ctx.call_order = new_order
 
-        # Build up an xref map too
-        for bin_func_ctx in self.bin_functions_ctx.values() :
+            # Build up an xref map too
             for call in bin_func_ctx.calls :
                 call.xrefs.add(bin_func_ctx)
 
-        # Now check for outer xrefs
-        for bin_func_ctx in self.bin_functions_ctx.values() :
+            # Now check for outer xrefs
             outer_ref = False
             for ref in filter(lambda x : self.disas.funcAt(x) is not None, self.disas.crefsTo(bin_func_ctx.ea)) :
                 if self.disas.funcStart(self.disas.funcAt(ref)) not in self.bin_functions_ctx :

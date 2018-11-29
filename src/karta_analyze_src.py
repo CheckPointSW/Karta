@@ -182,7 +182,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     anchors_list = str_anchors + const_anchors
 
     # check if we have any files left
-    if len(src_file_mappings) :
+    if len(src_file_mappings) == 0:
         logger.error("All files were empty :(")
         logger.removeIndent()
         logger.error("Finished with errors!")

@@ -24,7 +24,7 @@ class mDNSSeeker(Seeker):
 
     # Overriden base function
     def identifyVersions(self, logger):
-        return self.VERSION_UNKNOWN
+        return [self.VERSION_UNKNOWN]
 
 # Register our class
 mDNSSeeker.register(mDNSSeeker.NAME, mDNSSeeker)

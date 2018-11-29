@@ -29,7 +29,7 @@ class TreckSeeker(Seeker):
 
     # Overriden base function
     def identifyVersions(self, logger):
-        return self.VERSION_UNKNOWN
+        return [self.VERSION_UNKNOWN]
 
 # Register our class
 TreckSeeker.register(TreckSeeker.NAME, TreckSeeker)

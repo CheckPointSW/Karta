@@ -12,5 +12,6 @@ from .libtiff        import *
 from .mdnsresponder  import *
 from .mactelnet      import *
 from .libjpeg_turbo  import *
+from .icu            import *
 # Closed Source Libraries
 from .treck          import *

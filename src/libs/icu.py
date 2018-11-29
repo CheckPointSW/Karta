@@ -1,4 +1,3 @@
-
 from lib_template import *
 import string
 

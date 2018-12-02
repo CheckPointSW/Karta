@@ -46,7 +46,8 @@ def writeSuffix(fd):
     """
     writeLine(fd, "Final Note - %s" % (LIBRARY_NAME))
     writeLine(fd, "-------------%s" % ('-' * len(LIBRARY_NAME)))
-    writeLine(fd, "If you encountered any bug, or wanted to add a new extension / feature, don't hesitate to contact us on GitHub.")
+    writeLine(fd, "If you encountered any bug, or wanted to add a new extension / feature, don't hesitate to contact us on GitHub:")
+    writeLine(fd, "https://github.com/CheckPointSW/Karta")
 
 def identifyLibraries():
     """Iterates over the supported libraries, and activates each of them"""

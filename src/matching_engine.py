@@ -189,6 +189,10 @@ class KartaMatcher(MatchEngine):
                     call_src_ctx = self.src_functions_ctx[func_indices[call][0]]
                 else :
                     candidates = filter(lambda idx : self.src_functions_ctx[idx].file == src_func_ctx.file, func_indices[call])
+                    # duplicate symbol in *other* files, we won't know what to pick up :(
+                    if len(candidates) == 0:
+                        self.logger.error("Found duplicate implementations of function \"%s\" in files: %s, can't pick one to use :(", call, ', '.join(map(lambda idx : self.src_functions_ctx[idx].file, func_indices[call])))
+                        raise KartaException()
                     call_src_ctx = self.src_functions_ctx[candidates[0]]
                 call_name_to_ctx[call] = call_src_ctx
                 src_internal_calls.append(call_src_ctx)

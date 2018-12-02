@@ -29,27 +29,30 @@ def startMatch(config_file):
     # Init out matching engine
     matching_engine = KartaMatcher(logger, disas)
 
-    # Load the source functions, and prepare them for use
-    matching_engine.loadAndPrepareSource(config_dict['Files'])
+    try :
+        # Load the source functions, and prepare them for use
+        matching_engine.loadAndPrepareSource(config_dict['Files'])
 
-    # Load and match the anchor functions
-    matching_engine.loadAndMatchAnchors(config_dict['Anchors (Src Index)'])
+        # Load and match the anchor functions
+        matching_engine.loadAndMatchAnchors(config_dict['Anchors (Src Index)'])
 
-    # Locate the file boundaries in the binary functions list
-    matching_engine.locateFileBoundaries()
+        # Locate the file boundaries in the binary functions list
+        matching_engine.locateFileBoundaries()
 
-    # Prepare the located binary functions for first use
-    matching_engine.prepareBinFunctions()
+        # Prepare the located binary functions for first use
+        matching_engine.prepareBinFunctions()
 
-    # Now try to match all of the files
-    matching_engine.matchFiles()
+        # Now try to match all of the files
+        matching_engine.matchFiles()
 
-    # Generate the suggested function names
-    matching_engine.generateSuggestedNames()
+        # Generate the suggested function names
+        matching_engine.generateSuggestedNames()
 
-    # Show the GUI window with the matches
-    match_entries, external_match_entries = matching_engine.prepareGUIEntries()
-    matching_engine.showResultsGUIWindow(match_entries, external_match_entries)
+        # Show the GUI window with the matches
+        match_entries, external_match_entries = matching_engine.prepareGUIEntries()
+        matching_engine.showResultsGUIWindow(match_entries, external_match_entries)
+    except KartaException :
+        logger.error("Critical error, matching was stopped")
 
 def matchLibrary(lib_name, lib_version):
     """Checks if the library was already compiled, and matches it

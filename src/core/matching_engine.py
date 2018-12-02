@@ -354,7 +354,7 @@ class MatchEngine(object):
         # make sure we found atleast one anchor function
         if len(self._src_anchor_list) == 0 :
             self.logger.error("Failed to match even a single Anchor function")
-            self.criticalError()
+            raise KartaException
 
         # Create a binary anchor list for future use
         self._bin_anchor_list = []
@@ -372,7 +372,7 @@ class MatchEngine(object):
             if not started and self.src_functions_ctx[src_anchor_index].file != anchor_files[-1] :
                 if self.src_functions_ctx[src_anchor_index].file in anchor_files :
                     self.logger.error("Sanity check failed: the matched anchor functions are tangled between files...")
-                    selfcriticalError()
+                    raise KartaException
             if self.src_functions_ctx[src_anchor_index].file not in anchor_files :
                 anchor_files.append(self.src_functions_ctx[src_anchor_index].file)
             started = False

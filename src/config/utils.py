@@ -78,6 +78,16 @@ num_instr_samples           = 0
 num_neighbours_matched      = 0
 num_neighbours_mismatched   = 0
 
+######################
+## Inner Exceptions ##
+######################
+
+class KartaException(Exception):
+    pass
+
+##########
+## Init ##
+##########
 
 def initUtils(logger, disas, invoked_before = False):
     """Prepares the utils global variables for a new script execution

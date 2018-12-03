@@ -1,0 +1,274 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Compilation Guidelines &mdash; Karta 0.9.0 beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Adding support for a new open source" href="Supporting a new library.html" />
+    <link rel="prev" title="Compiling a configuration file" href="Compiling a configuration.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Karta
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">User Guide:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Supporting new versions:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Compiling a configuration.html">Compiling a configuration file</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Compilation Guidelines</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#basic-invariant">Basic Invariant</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#windows-compilation">Windows Compilation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bitness-32-vs-64">Bitness - 32 vs 64</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#updating-the-compilation-notes">Updating the compilation notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#adding-a-python-identifier-for-your-library">Adding a python identifier for your library</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Supporting a new library.html">Adding support for a new open source</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Karta</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Compilation Guidelines</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/Compilation Guidelines.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="compilation-guidelines">
+<span id="compilation-guidelines"></span><h1>Compilation Guidelines<a class="headerlink" href="#compilation-guidelines" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="basic-invariant">
+<span id="basic-invariant"></span><h2>Basic Invariant<a class="headerlink" href="#basic-invariant" title="Permalink to this headline">¶</a></h2>
+<p>Karta’s main compilation assumption is that the source compilation can’t modify (inline / split to parts) a function if the wanted binary hadn’t done the exact modification to this function.
+This means that:</p>
+<ol class="simple">
+<li>A function can be modified (inlined) in the binary even if we didn’t inline it in our “source” compilation</li>
+<li>If a function was modified in our “source” compilation, it must be modified in the same way in our wanted binary</li>
+</ol>
+<p>Since we want to maintain this basic invariant, we usually want to compile our open source library with flag for:</p>
+<ul class="simple">
+<li>No inlining</li>
+<li>No compiler optimizations</li>
+</ul>
+</div>
+<div class="section" id="windows-compilation">
+<span id="windows-compilation"></span><h2>Windows Compilation<a class="headerlink" href="#windows-compilation" title="Permalink to this headline">¶</a></h2>
+<p>It seems that when compiling a binary using <code class="docutils literal notranslate"><span class="pre">nmake</span></code> or <code class="docutils literal notranslate"><span class="pre">visual</span> <span class="pre">studio</span></code>, the Window’s compilation adds some linker optimizations. As we couldn’t imitate these linker optimizations when compiling with <code class="docutils literal notranslate"><span class="pre">gcc</span></code>, Karta can (and should) support 2 different configurations for the same version of a specific library:</p>
+<ol class="simple">
+<li>Basic (unix) configuration - Used for Linux, Mac, of various firmwares</li>
+<li>Windows configuration
+Karta can automatically identify the type of the configuration file it was requested to create, based on the suffix of the static library file:</li>
+</ol>
+<ul class="simple">
+<li>.lib - Windows static library =&gt; Windows configuration</li>
+<li>.a - Linux static library =&gt; Basic configuration</li>
+</ul>
+</div>
+<div class="section" id="bitness-32-vs-64">
+<span id="bitness-32-vs-64"></span><h2>Bitness - 32 vs 64<a class="headerlink" href="#bitness-32-vs-64" title="Permalink to this headline">¶</a></h2>
+<p>After various testing rounds, it seems that a configuration for 32 bits can also achieve great matching results for 64 bit binaries. Therefor there is no need to maintain two different configurations files, one for each bitness mode.
+When compiling a configuration file, the rule of thumb should be:</p>
+<ul class="simple">
+<li>Basic (unix) based configurations should be compiled for 32 bits (-m32) - firmware binaries are usually 32 bits</li>
+<li>Windows configurations should be compiled for 64 bits</li>
+</ul>
+</div>
+<div class="section" id="updating-the-compilation-notes">
+<span id="updating-the-compilation-notes"></span><h2>Updating the compilation notes<a class="headerlink" href="#updating-the-compilation-notes" title="Permalink to this headline">¶</a></h2>
+<p>After a successful compilation was made, a new “compilation tips” file should be created and stored under the <code class="docutils literal notranslate"><span class="pre">compilations</span></code> folder. The file’s name should be <code class="docutils literal notranslate"><span class="pre">&lt;library</span> <span class="pre">name&gt;.txt</span></code> and it should have a similar structure as the already existing files.</p>
+</div>
+<div class="section" id="adding-a-python-identifier-for-your-library">
+<span id="adding-a-python-identifier-for-your-library"></span><h2>Adding a python identifier for your library<a class="headerlink" href="#adding-a-python-identifier-for-your-library" title="Permalink to this headline">¶</a></h2>
+<p>As most of the open source projects have unique string identifiers that hold their exact version, all of the currently supported fingerprinting plugins are based on a basic string search.</p>
+<p><strong>searchLib():</strong> Scans all of the strings in the binary (using the <code class="docutils literal notranslate"><span class="pre">self._all_strings</span></code> singleton), in search for a key string (holding the version) or a unique library string that is stored locally near a clear version string.</p>
+<p><strong>identifyVersions():</strong> Will be called only after <code class="docutils literal notranslate"><span class="pre">searchLib</span></code> had identified the existence of the library in the binary. This function is responsible for parsing the exact library version, usually using the <code class="docutils literal notranslate"><span class="pre">self._version_string</span></code> that was found by <code class="docutils literal notranslate"><span class="pre">searchLib</span></code>.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="Supporting a new library.html" class="btn btn-neutral float-right" title="Adding support for a new open source" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="Compiling a configuration.html" class="btn btn-neutral" title="Compiling a configuration file" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018 Check Point Software Technologies LTD.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

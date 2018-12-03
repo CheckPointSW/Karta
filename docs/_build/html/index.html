@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Welcome to Karta’s documentation! &mdash; Karta 0.9.0 beta documentation</title>
+  <title>Brief &mdash; Karta 0.9.0 beta documentation</title>
   
 
   
@@ -27,7 +27,8 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Open source fingerprinting" href="Open Source Fingerprinting.html" /> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
@@ -80,12 +81,18 @@
               
             
             
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Welcome to Karta’s documentation!</a></li>
-<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+              <p class="caption"><span class="caption-text">User Guide:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
 </ul>
-</div>
+<p class="caption"><span class="caption-text">Supporting new versions:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Compiling a configuration.html">Compiling a configuration file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Compilation Guidelines.html">Compilation Guidelines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Supporting a new library.html">Adding support for a new open source</a></li>
+</ul>
+
             
           
         </div>
@@ -129,7 +136,7 @@
     
       <li><a href="#">Docs</a> &raquo;</li>
         
-      <li>Welcome to Karta’s documentation!</li>
+      <li>Brief</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -148,18 +155,63 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="welcome-to-karta-s-documentation">
-<h1>Welcome to Karta’s documentation!<a class="headerlink" href="#welcome-to-karta-s-documentation" title="Permalink to this headline">¶</a></h1>
+  <div class="toctree-wrapper compound">
+</div>
 <div class="toctree-wrapper compound">
 </div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/$$   /$$                       /$$
+| $$  /$$/                      | $$
+| $$ /$$/   /$$$$$$   /$$$$$$  /$$$$$$    /$$$$$$
+| $$$$$/   |____  $$ /$$__  $$|_  $$_/   |____  $$
+| $$  $$    /$$$$$$$| $$  \__/  | $$      /$$$$$$$
+| $$\  $$  /$$__  $$| $$        | $$ /$$ /$$__  $$
+| $$ \  $$|  $$$$$$$| $$        |  $$$$/|  $$$$$$$
+|__/  \__/ \_______/|__/         \___/   \_______/
+</pre></div>
 </div>
-<div class="section" id="indices-and-tables">
-<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="brief">
+<h1>Brief<a class="headerlink" href="#brief" title="Permalink to this headline">¶</a></h1>
+<p>“Karta” (Russian for “Map”) is an IDA Python plugin that identifies and matches open-sourced libraries in a given binary. The plugin uses a unique technique that enables it to support huge binaries (&gt;200,000 functions), with almost no impact over the overall performance.</p>
+<p>The matching algorithm is location-driven. This means that it’s main focus is to locate
+the different compiled files, and match each of the file’s functions based on their original order within the file. This way, the matching depends on M (number of files in the open source) instead of N (size of the binary), gaining a significant performance boost as usually M &lt;&lt; N.</p>
+<p>We believe that there are 3 main use cases for this IDA plugin:</p>
+<ol class="arabic simple">
+<li>Identifying a list of used open sources (and their versions) when searching for a useful 1-Day</li>
+<li>Matching the symbols of supported open sources to help reverse engineer a malware</li>
+<li>Matching the symbols of supported open sources to help reverse engineer a binary / firmware when searching for 0-Days in proprietary code</li>
+</ol>
+<div class="section" id="identifier">
+<h2>Identifier<a class="headerlink" href="#identifier" title="Permalink to this headline">¶</a></h2>
+<p>Karta’s identifier is a smaller plugin that identifies the existence, and fingerprints the versions, of the existing (supported) open source libraries within the binary. No more need to reverse engineer the same open-source library again-and-again, simply run the identifier plugin and get a detailed list of the used open sources.
+Karta currently supports more than 10 open source libraries, including:</p>
 <ul class="simple">
-<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
-<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
-<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+<li>OpenSSL</li>
+<li>Libpng</li>
+<li>Libjpeg</li>
+<li>NetSNMP</li>
+<li>zlib</li>
+<li>Etc.</li>
 </ul>
+</div>
+<div class="section" id="matcher">
+<h2>Matcher<a class="headerlink" href="#matcher" title="Permalink to this headline">¶</a></h2>
+<p>After identifying the used open sources, one can compile a .JSON configuration file for a specific library (libpng version 1.2.9 for instance). Once compiled, Karta will automatically attempt to match the functions (symbols) of the open source in the loaded binary. In addition, in case your open source used external functions (memcpy, fread, or zlib_inflate), Karta will also attempt to match those external functions as well.</p>
+</div>
+<div class="section" id="credits">
+<h2>Credits<a class="headerlink" href="#credits" title="Permalink to this headline">¶</a></h2>
+<p>This project was developed by me (see contact details below) with help and support from my research group at Check Point (Check Point Research).</p>
+</div>
+<div class="section" id="links">
+<h2>Links<a class="headerlink" href="#links" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="https://github.com/CheckPointSW/Karta">https://github.com/CheckPointSW/Karta</a></li>
+<li>TODO: link to a blog post</li>
+</ul>
+</div>
+<div class="section" id="contact">
+<h2>Contact<a class="headerlink" href="#contact" title="Permalink to this headline">¶</a></h2>
+<p>Eyal Itkin (eyalit at checkpoint dot com)</p>
+</div>
 </div>
 
 
@@ -167,6 +219,13 @@
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="Open Source Fingerprinting.html" class="btn btn-neutral float-right" title="Open source fingerprinting" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+    </div>
   
 
   <hr/>

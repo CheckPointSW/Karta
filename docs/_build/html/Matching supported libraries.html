@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html>
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
@@ -9,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; Karta 0.9.0 beta documentation</title>
+  <title>Matching supported libraries &mdash; Karta 0.9.0 beta documentation</title>
   
 
   
@@ -27,8 +26,10 @@
 
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="index" title="Index" href="#" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Compiling a configuration file" href="Compiling a configuration.html" />
+    <link rel="prev" title="Open source fingerprinting" href="Open Source Fingerprinting.html" /> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
@@ -82,9 +83,14 @@
             
             
               <p class="caption"><span class="caption-text">User Guide:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Matching supported libraries</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#step-0">Step #0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#matcher-plugin-start">Matcher Plugin - Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#matcher-plugin-output">Matcher Plugin - Output</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Supporting new versions:</span></p>
 <ul>
@@ -136,12 +142,14 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-      <li>Index</li>
+      <li>Matching supported libraries</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
+            <a href="_sources/Matching supported libraries.md.txt" rel="nofollow"> View page source</a>
+          
         
       </li>
     
@@ -153,11 +161,34 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-
-<h1 id="index">Index</h1>
-
-<div class="genindex-jumpbox">
- 
+  <div class="section" id="matching-supported-libraries">
+<span id="matching-supported-libraries"></span><h1>Matching supported libraries<a class="headerlink" href="#matching-supported-libraries" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="step-0">
+<span id="step-0"></span><h2>Step #0<a class="headerlink" href="#step-0" title="Permalink to this headline">¶</a></h2>
+<p>It is always recommended to start with the identifier script, so you would know if you already have pre-compiled configurations for all the libraries you need.
+In case it is needed, a guide for compiling a new configuration can be found in the next section.</p>
+</div>
+<div class="section" id="matcher-plugin-start">
+<span id="matcher-plugin-start"></span><h2>Matcher Plugin - Start<a class="headerlink" href="#matcher-plugin-start" title="Permalink to this headline">¶</a></h2>
+<p>Assuming you are all set and ready to go, and that your binary is already open in IDA, load the <strong>karta_matcher.py</strong> script and set up the needed configurations:</p>
+<ul class="simple">
+<li>Full path for Karta’s configuration directory - the <code class="docutils literal notranslate"><span class="pre">configs</span></code> dir with all of the *.json files</li>
+<li>In case of a binary that was compiled for Windows, set up the checkbox (not required for firmware binaries)
+Once again, the output will be shown in IDA’s output window, and will also be stored to a file.</li>
+</ul>
+<p>Every matched open source library will open 2 windows:</p>
+<ol class="simple">
+<li>Window with the match results from the library</li>
+<li>Window with the proposed match results for external (usually libc) functions, used by the open source library</li>
+</ol>
+</div>
+<div class="section" id="matcher-plugin-output">
+<span id="matcher-plugin-output"></span><h2>Matcher Plugin - Output<a class="headerlink" href="#matcher-plugin-output" title="Permalink to this headline">¶</a></h2>
+<p>The matched library functions include the reason for the matching.
+As some matching rules are much more accurate than others, they are colored in dark-green, while the others are marked in green.
+You can now select a subset of matches, right click, and export the selected matches to be names in IDA. Or, you can simply right click and import all of the matches directly to IDA.</p>
+<p>The matching process is relatively fast (less than a minute for a small-medium open source), however no user interaction is needed after each library is matched, so you can also run it at night and check all of the results in the morning.</p>
+</div>
 </div>
 
 
@@ -165,6 +196,15 @@
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="Compiling a configuration.html" class="btn btn-neutral float-right" title="Compiling a configuration file" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="Open Source Fingerprinting.html" class="btn btn-neutral" title="Open source fingerprinting" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
   
 
   <hr/>

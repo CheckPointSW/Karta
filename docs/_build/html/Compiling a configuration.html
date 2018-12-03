@@ -1,0 +1,259 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Compiling a configuration file &mdash; Karta 0.9.0 beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Compilation Guidelines" href="Compilation Guidelines.html" />
+    <link rel="prev" title="Matching supported libraries" href="Matching supported libraries.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Karta
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">User Guide:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Supporting new versions:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Compiling a configuration file</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#compiling-the-open-source">Compiling the Open Source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-the-script">Running the script</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#storing-the-config-file">Storing the config file</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Compilation Guidelines.html">Compilation Guidelines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Supporting a new library.html">Adding support for a new open source</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Karta</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Compiling a configuration file</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/Compiling a configuration.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="compiling-a-configuration-file">
+<span id="compiling-a-configuration-file"></span><h1>Compiling a configuration file<a class="headerlink" href="#compiling-a-configuration-file" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="compiling-the-open-source">
+<span id="compiling-the-open-source"></span><h2>Compiling the Open Source<a class="headerlink" href="#compiling-the-open-source" title="Permalink to this headline">¶</a></h2>
+<p>Adding support for a new version for an already supported library, requires only to compile a new (*.json) configuration file for it.
+As Karta is a source code assisted plugin, this process requires you to compile the open source library according to the guidelines of the open source project, together with the specific guidelines that can be found in the <code class="docutils literal notranslate"><span class="pre">compilations</span></code> directory.</p>
+<p><strong>Important:</strong> Karta will need two compiled parts for building the configuration</p>
+<ol class="simple">
+<li>A static library - .a in Linux, and .lib in Windows</li>
+<li>A folder containing all of the *.o (in Linux) or *.obj (in Windows) files</li>
+</ol>
+<p><strong>Note:</strong> Some libraries, such as OpenSSL, are split to several static libraries. In this case you should make sure you found all of the parts for each such static library</p>
+</div>
+<div class="section" id="running-the-script">
+<span id="running-the-script"></span><h2>Running the script<a class="headerlink" href="#running-the-script" title="Permalink to this headline">¶</a></h2>
+<p>Now that we have all of the parts, we should run <strong>karta_analyze_src.py</strong> in the command line, using the following arguments:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Users</span>\<span class="n">user</span>\<span class="n">Documents</span>\<span class="n">Karta</span>\<span class="n">src</span><span class="o">&gt;</span><span class="n">python</span> <span class="n">karta_analyze_src</span><span class="o">.</span><span class="n">py</span>
+<span class="n">Wrong</span> <span class="n">amount</span> <span class="n">of</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">got</span> <span class="mi">0</span><span class="p">,</span> <span class="n">expected</span> <span class="mi">4</span>
+<span class="n">Usage</span><span class="p">:</span> <span class="n">karta_analyze_src</span><span class="o">.</span><span class="n">py</span> <span class="o">&lt;</span><span class="n">library</span> <span class="n">name</span><span class="o">&gt;</span> <span class="o">&lt;</span><span class="n">library</span> <span class="n">version</span><span class="o">&gt;</span> <span class="o">&lt;</span><span class="nb">bin</span> <span class="nb">dir</span> <span class="p">(</span><span class="k">with</span> <span class="o">*.</span><span class="n">o</span> <span class="ow">or</span> <span class="o">*.</span><span class="n">obj</span> <span class="n">files</span><span class="p">)</span><span class="o">&gt;</span> <span class="o">&lt;</span><span class="n">compiled</span> <span class="n">archive</span><span class="p">:</span> <span class="o">*.</span><span class="n">a</span> <span class="ow">or</span> <span class="o">*.</span><span class="n">lib</span><span class="o">&gt;</span>
+<span class="n">Exiting</span>
+</pre></div>
+</div>
+<ol class="simple">
+<li>Name of the open source library (case sensitive)</li>
+<li>Version of the library (as will be identified by the identifier script)</li>
+<li>Path to the directory that contains the compiled (*.o / *.obj) files</li>
+<li>Path to the compiled static library file
+In case there are multiple static libraries, chain more arguments and maintain the current order: <bin dir> <static library path></li>
+</ol>
+<p>The script will ask you for the path to your disassembler (IDA), and will suggest a default path. Enter the path to your disassembler, press ENTER, and a progress bar will show you the progress of the script.</p>
+</div>
+<div class="section" id="storing-the-config-file">
+<span id="storing-the-config-file"></span><h2>Storing the config file<a class="headerlink" href="#storing-the-config-file" title="Permalink to this headline">¶</a></h2>
+<p>In the end, a new *.json file will be generated (using the library name + version), and it should be stored together with the rest of the configuration files in the <code class="docutils literal notranslate"><span class="pre">configs</span></code> directory.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="Compilation Guidelines.html" class="btn btn-neutral float-right" title="Compilation Guidelines" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="Matching supported libraries.html" class="btn btn-neutral" title="Matching supported libraries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018 Check Point Software Technologies LTD.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -40,6 +40,7 @@ Folder Structure
 * **src:** source directory for the plugin
 * **configs:** pre-supplied *.JSON configuration files (hoping the community will contribute more)
 * **compilations:** compilation tips for generating the configuration files, and lessons from past open sources
+* **docs:** sphinx documentation directory
 
 Credits
 =

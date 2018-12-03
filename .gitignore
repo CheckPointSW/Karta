@@ -9,3 +9,6 @@ src/core/*.pyc
 src/disassembler/*.pyc
 src/disassembler/IDA/*.pyc
 
+/build/*
+/dist/*
+/Karta.egg-info/*

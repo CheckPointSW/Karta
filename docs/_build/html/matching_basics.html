@@ -1,0 +1,282 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Karta &mdash; Karta 0.9.0 beta documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Scoring Tips" href="scoring_tips.html" />
+    <link rel="prev" title="Adding support for a new open source" href="Supporting a new library.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Karta
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">User Guide:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Supporting new versions:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Compiling a configuration.html">Compiling a configuration file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Compilation Guidelines.html">Compilation Guidelines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Supporting a new library.html">Adding support for a new open source</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Matching Guidelines:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Karta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#motivation">Motivation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-idea-linker-locality">Key Idea - Linker Locality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#matching-steps">Matching Steps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#geographic-location">Geographic Location</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#modularity">Modularity</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scoring_tips.html">Scoring Tips</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Karta</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Karta</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/matching_basics.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="karta">
+<span id="karta"></span><h1>Karta<a class="headerlink" href="#karta" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="motivation">
+<span id="motivation"></span><h2>Motivation<a class="headerlink" href="#motivation" title="Permalink to this headline">¶</a></h2>
+<p>The main motivation for developing “Karta” was the needed to identify open sources in large firmware files.
+My previous experience with other available tools (at the time) was that they have a memory blowup when dealing with large binaries, meaning that sometimes they will completely crash and give no results :(</p>
+<p>If we could work with a subset of functions, that will be polynomial to M (number of functions in the open source) and not in N (number of functions in the binary) we could escape the limitations that arise when M &lt;&lt; N. And this was the main idea.</p>
+</div>
+<div class="section" id="key-idea-linker-locality">
+<span id="key-idea-linker-locality"></span><h2>Key Idea - Linker Locality<a class="headerlink" href="#key-idea-linker-locality" title="Permalink to this headline">¶</a></h2>
+<p>Matching two functions (src and dest) is usually done after converting them into some “canonical” representation. We aim to narrow our search space, and to convert only a minimal set of binary functions into their canonical representation. And here comes the linker to our rescue:</p>
+<ul class="simple">
+<li>The compiler usually compiles each source file (.c / .cpp) into a single binary file (.o or .obj depending on the compiler)</li>
+<li>The linker then attaches them all together into a single blob</li>
+<li>This blob will be inserted to the firmware <strong>as is</strong></li>
+</ul>
+<p><strong>conclusion #1:</strong> The compiled open source will be contained in a single contiguous blob inside the firmware / executable.</p>
+<p><strong>conclusion #2:</strong> Once we find a single representative of that blob (a.k.a <strong>anchor</strong>), we can speculate about the lower and upper bound of this blob in the binary, according to the number of functions we know that should be in the blob</p>
+</div>
+<div class="section" id="matching-steps">
+<span id="matching-steps"></span><h2>Matching Steps<a class="headerlink" href="#matching-steps" title="Permalink to this headline">¶</a></h2>
+<p>Using these conclusions, “Karta” matches each open source using the following steps:</p>
+<ol class="simple">
+<li>Fingerprint: Identify the existence of the open source, and the version that is being used</li>
+<li>Search for <strong>anchor</strong> functions: functions with unique and rare artifacts (strings or consts)</li>
+<li>Draw basic file boundaries: a map for each located file, and overall scope for the entire open source</li>
+<li>Use <strong>file hints</strong>: search and match functions that contain a string with their source file name</li>
+<li>Locate <strong>agents</strong>: functions with file-unique artifacts (minor <strong>anchors</strong>)</li>
+<li>Regular score-based matching:<ul>
+<li>Scoring similarities</li>
+<li>Control Flow Graph (CFG) analysis</li>
+<li><strong>Note:</strong> give special attention for geographic location</li>
+</ul>
+</li>
+</ol>
+</div>
+<div class="section" id="geographic-location">
+<span id="geographic-location"></span><h2>Geographic Location<a class="headerlink" href="#geographic-location" title="Permalink to this headline">¶</a></h2>
+<p>Compilers tend (when they are nice) to preserve the order of the functions in the compiled binary. For example, if “foo()” was defined after “bar()” in the same source file, the compiled “foo” will usually be found right after the compiled “bar”.
+This means that our matching and scoring logic will pay special attention to geographic characteristics:</p>
+<ol class="simple">
+<li>Possible matching candidates must reside in the same file as our source function</li>
+<li>Adaptively boost the score of neighbours (according to seen matching history)</li>
+<li>Use neighbours to “discover” new matching candidates</li>
+<li>Static functions shouldn’t be referenced by functions from other files / outside of our open source</li>
+</ol>
+</div>
+<div class="section" id="modularity">
+<span id="modularity"></span><h2>Modularity<a class="headerlink" href="#modularity" title="Permalink to this headline">¶</a></h2>
+<p>Using these basic concepts, “Karta” was designed to be modular, to allow other matching libraries to use the basic file mapping logic.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="scoring_tips.html" class="btn btn-neutral float-right" title="Scoring Tips" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="Supporting a new library.html" class="btn btn-neutral" title="Adding support for a new open source" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018 Check Point Software Technologies LTD.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

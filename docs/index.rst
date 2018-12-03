@@ -19,6 +19,15 @@
    Compiling a configuration
    Compilation Guidelines
    Supporting a new library
+   
+.. toctree::
+   :maxdepth: 2
+   :caption: Matching Guidelines:
+   :hidden:
+
+   matching_basics
+   scoring_tips
+   
 ..
    
 ::

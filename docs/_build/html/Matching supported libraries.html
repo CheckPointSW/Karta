@@ -86,7 +86,7 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Matching supported libraries</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#step-0">Step #0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#matcher-plugin-start">Matcher Plugin - Start</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#matcher-plugin-output">Matcher Plugin - Output</a></li>
 </ul>
@@ -97,6 +97,11 @@
 <li class="toctree-l1"><a class="reference internal" href="Compiling a configuration.html">Compiling a configuration file</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Compilation Guidelines.html">Compilation Guidelines</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Supporting a new library.html">Adding support for a new open source</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Matching Guidelines:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="matching_basics.html">Karta</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scoring_tips.html">Scoring Tips</a></li>
 </ul>
 
             
@@ -163,10 +168,13 @@
             
   <div class="section" id="matching-supported-libraries">
 <span id="matching-supported-libraries"></span><h1>Matching supported libraries<a class="headerlink" href="#matching-supported-libraries" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="step-0">
-<span id="step-0"></span><h2>Step #0<a class="headerlink" href="#step-0" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="prerequisites">
+<span id="prerequisites"></span><h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<p><strong>Identifier</strong></p>
 <p>It is always recommended to start with the identifier script, so you would know if you already have pre-compiled configurations for all the libraries you need.
 In case it is needed, a guide for compiling a new configuration can be found in the next section.</p>
+<p><strong>Function Analysis</strong></p>
+<p>“Karta” is highly sensitive to the quality of the function analysis that was done by IDA. It is important to make sure that the matcher plugin is invoked only <em>after</em> the binary is well analyzed. For example: even if there is an un-reffed code snippet, make sure that IDA marked it as a function if it is an un-reffed function.</p>
 </div>
 <div class="section" id="matcher-plugin-start">
 <span id="matcher-plugin-start"></span><h2>Matcher Plugin - Start<a class="headerlink" href="#matcher-plugin-start" title="Permalink to this headline">¶</a></h2>

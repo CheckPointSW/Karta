@@ -14,5 +14,6 @@ from .mactelnet      import *
 from .libjpeg_turbo  import *
 from .libjpeg        import *
 from .icu            import *
+from .libvpx         import *
 # Closed Source Libraries
 from .treck          import *

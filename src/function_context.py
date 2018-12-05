@@ -724,7 +724,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
             self.taken_collision = True
             # make sure that our match will always be in our map
             if match.hash not in self.collision_map:
-                self.collision_map[match.hash] = []
+                self.collision_map[match.hash] = set()
 
     # Overriden base function
     def isPartial(self) :

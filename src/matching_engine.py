@@ -373,7 +373,7 @@ class KartaMatcher(MatchEngine):
         for external_func in self._src_external_functions :
             ext_ctx = self._src_external_functions[external_func]
             if ext_ctx.matched() : 
-                self.logger.info("+ %s - 0x%x (%s)", ext_ctx.name, ext_ctx.ea, self.disas.funcNameEA(ext_ctx.ea))
+                self.logger.info("+ %s - 0x%x (%s)", ext_ctx.name, ext_ctx.match, self.disas.funcNameEA(ext_ctx.match))
             elif external_func in self._ext_unused_functions :
                 self.logger.info("- %s", ext_ctx.name)            
             else :
@@ -1101,7 +1101,7 @@ class KartaMatcher(MatchEngine):
                     self._bin_suggested_names[bin_ctx.ea] = libraryName() + '_' + bin_ctx.match.name
                 # 2. Single file
                 elif len(bin_ctx.files) == 1 :
-                    self._bin_suggested_names[bin_ctx.ea] = libraryName() + '_' + file_name + '_' + ('%X' % (bin_ctx.ea))
+                    self._bin_suggested_names[bin_ctx.ea] = libraryName() + '_' + file_name.replace("/", "_").replace("\\", "_") + '_' + ('%X' % (bin_ctx.ea))
                 # 3. Library related
                 else:
                     self._bin_suggested_names[bin_ctx.ea] = libraryName() + '_' + ('%X' % (bin_ctx.ea))
@@ -1127,12 +1127,10 @@ class KartaMatcher(MatchEngine):
                 address   = bin_match.ea
                 bin_name  = bin_match.name
                 reason    = self._matching_reasons[entry.index]
-                if reason == REASON_ANCHOR:
+                if reason in [REASON_ANCHOR, REASON_AGENT, REASON_FILE_HINT]:
                     color = GUI_COLOR_DARK_GREEN
-                elif reason == REASON_AGENT or reason == REASON_FILE_HINT:
-                    color = GUI_COLOR_GREEN
                 else:
-                    color = GUI_COLOR_LIGHT_GREEN
+                    color = GUI_COLOR_GREEN
             else:
                 address = None
                 bin_name = 'N/A'
@@ -1166,7 +1164,7 @@ class KartaMatcher(MatchEngine):
             except KeyError:
                 reason = REASON_SINGLE_CALL
             # Now insert the entry itself
-            prepared_entries.append((src_name, address, bin_name, reason, color))
+            prepared_entries.append((src_name, address, bin_name, reason, GUI_COLOR_GREEN))
             
         # show the window
         self.disas.showExternalsForm(prepared_entries)

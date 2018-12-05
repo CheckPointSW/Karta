@@ -183,7 +183,7 @@ class ExternalsChooseForm(idaapi.Choose2):
 
     # Overriden base function
     def OnGetLineAttr(self, n):
-        return [GUI_COLOR_LIGHT_GREEN, 0]
+        return [GUI_COLOR_GREEN, 0]
 
 class IDA(DisasAPI):
     """DisasAPI implementation for the IDA disassembler, mainly based on the sark plugin

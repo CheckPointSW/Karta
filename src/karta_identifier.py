@@ -68,16 +68,21 @@ def identifyLibraries():
     writeLine(fd, '-' * len(current_header))
 
     started_closed_sources = False
+    num_listed = 0
     for lib_name in libraries_factory:
         # create the instance
         lib_instance = libraries_factory[lib_name](disas.strings())
         # check if we started the closed sources
         if not lib_instance.openSource() and not started_closed_sources:
+            # pretty print the empty list too
+            if num_listed == 0:
+                writeLine(fd, "(none)")
             started_closed_sources = True
             current_header = "Identified Closed Sources:"
             writeLine(fd, '')
             writeLine(fd, current_header)
             writeLine(fd, '-' * len(current_header))
+            num_listed = 0
         # search for it
         match_counter = lib_instance.searchLib(logger)
         # make sure we have a single match
@@ -88,7 +93,11 @@ def identifyLibraries():
             # identify it's version
             lib_versions = lib_instance.identifyVersions(logger)
             writeLine(fd, '%s: %s' % (lib_name, ', '.join(lib_versions)))
+            num_listed += 1
 
+    # pretty print the empty list too
+    if num_listed == 0:
+        writeLine(fd, "(none)")
     # Write the missing ones too
     writeLine(fd, '')
     current_header = "Missing Open Sources:"

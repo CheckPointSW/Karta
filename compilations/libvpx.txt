@@ -1,0 +1,5 @@
+1. Executed the default configure script
+2. Added flags to avoid inlining: -O0
+
+Overall the added Makefile flags were:
+CFLAGS ==> -O0

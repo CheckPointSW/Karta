@@ -75,9 +75,9 @@ class AnalyzerIDA(object):
         func_start = func.startEA
         flow = idaapi.FlowChart(func.func_t)
         for block in flow :
-            block_to_reach[block.start_ea] = set()
+            block_to_reach[block.startEA] = set()
             try :
-                block_lines = sark.CodeBlock(block.start_ea).lines
+                block_lines = sark.CodeBlock(block.startEA).lines
             except :
                 continue
             for line in block_lines :
@@ -105,9 +105,9 @@ class AnalyzerIDA(object):
                 for ref in call_candidates :
                     call = sark.Function(ref)
                     # record the call
-                    if block.start_ea not in block_to_ref :
-                        block_to_ref[block.start_ea] = set()
-                    block_to_ref[block.start_ea].add(instr_pos)
+                    if block.startEA not in block_to_ref :
+                        block_to_ref[block.startEA] = set()
+                    block_to_ref[block.startEA].add(instr_pos)
                     ref_to_block[instr_pos] = block
                     ref_to_call[instr_pos] = self.funcNameInner(call.name) if src_mode else call.startEA
 
@@ -119,12 +119,12 @@ class AnalyzerIDA(object):
             working_set = set([ref])
             # we distinguish between refs even on the same block, no need to search for them because we scan using sorted_refs
             # mark the start block
-            block_to_reach[start_block.start_ea].add(ref)
+            block_to_reach[start_block.startEA].add(ref)
             # check if we can stop now
-            if len(block_to_ref[start_block.start_ea]) > 1 and ref != max(block_to_ref[start_block.start_ea]) :
+            if len(block_to_ref[start_block.startEA]) > 1 and ref != max(block_to_ref[start_block.startEA]) :
                 continue
             # carry on the tasks that were leftover by previous references
-            working_set.update(block_to_reach[start_block.start_ea])
+            working_set.update(block_to_reach[start_block.startEA])
             # build a list of BFS nodes
             search_list = map(lambda x : (x, set(working_set)), start_block.succs())
             seen_blocks = set()
@@ -133,27 +133,27 @@ class AnalyzerIDA(object):
                 new_search_list = []
                 for cur_block, working_set in search_list :
                     # check for loops
-                    if cur_block.start_ea in seen_blocks and len(block_to_reach[cur_block.start_ea].difference(working_set)) == 0 :
+                    if cur_block.startEA in seen_blocks and len(block_to_reach[cur_block.startEA].difference(working_set)) == 0 :
                         continue
                     # mark as seen
-                    seen_blocks.add(cur_block.start_ea)
+                    seen_blocks.add(cur_block.startEA)
                     # always mark it
-                    block_to_reach[cur_block.start_ea].update(working_set)
+                    block_to_reach[cur_block.startEA].update(working_set)
                     # if reached a starting block of a lesser reference, tell him to keep on for us
-                    if cur_block.start_ea in block_to_ref and max(block_to_ref[cur_block.start_ea]) > cur_block.start_ea :
+                    if cur_block.startEA in block_to_ref and max(block_to_ref[cur_block.startEA]) > cur_block.startEA :
                         # we can stop :)
                         continue
                     # learn, and keep going
                     else :
-                        working_set.update(block_to_reach[cur_block.start_ea])
+                        working_set.update(block_to_reach[cur_block.startEA])
                         new_search_list += map(lambda x : (x, set(working_set)), cur_block.succs())
                 search_list = new_search_list
 
         # 3rd scan, sum up the results - O(k) time, O(k*k) storage
         for ref in ref_to_block.keys() :
-            reachable_from = block_to_reach[ref_to_block[ref].start_ea]
+            reachable_from = block_to_reach[ref_to_block[ref].startEA]
             # add a filter to prevent collisions from the same block
-            reachable_from = reachable_from.difference(filter(lambda x : x > ref, block_to_ref[ref_to_block[ref].start_ea]))
+            reachable_from = reachable_from.difference(filter(lambda x : x > ref, block_to_ref[ref_to_block[ref].startEA]))
             if ref_to_call[ref] not in call_to_reach :
                 call_to_reach[ref_to_call[ref]] = []
             current_record = set(filter(lambda x : x != ref_to_call[ref], map(lambda x : ref_to_call[x], reachable_from)))
@@ -266,7 +266,7 @@ class AnalyzerIDA(object):
         flow = idaapi.FlowChart(func.func_t)
         for block in flow :
             try :
-                context.recordBlock(len(list(sark.CodeBlock(block.start_ea).lines)))
+                context.recordBlock(len(list(sark.CodeBlock(block.startEA).lines)))
             except :
                 # happens with code outside of a function
                 continue
@@ -292,14 +292,14 @@ class AnalyzerIDA(object):
         func = sark.Function(func_ea)
         flow = idaapi.FlowChart(func.func_t)
         for block in flow :
-            if range_start <= block.start_ea and block.end_ea <= range_end :
-                if island_guess is None or block.start_ea < island_guess.start_ea :
+            if range_start <= block.startEA and block.end_ea <= range_end :
+                if island_guess is None or block.startEA < island_guess.startEA :
                     island_guess = block
         # quit if found nothing
         if island_guess is None :
             return None
         # make sure that the island is indeed an island, and not a well known function
-        if sark.Function(island_guess.start_ea).startEA == island_guess.start_ea :
+        if sark.Function(island_guess.startEA).startEA == island_guess.startEA :
             return None
         # find the contained flow, that island_guess is the start of
         island_blocks = []
@@ -310,7 +310,7 @@ class AnalyzerIDA(object):
                 if candidate_block in island_blocks :
                     continue
                 island_blocks.append(candidate_block)
-                new_candidate_list += filter(lambda succs : range_start <= succs.start_ea and succs.end_ea <= range_end, candidate_block.succs())
+                new_candidate_list += filter(lambda succs : range_start <= succs.startEA and succs.end_ea <= range_end, candidate_block.succs())
             candidate_list = new_candidate_list
         # return the results  
         return island_blocks
@@ -324,12 +324,12 @@ class AnalyzerIDA(object):
         Return Value:
             IslandContext object representing the analyzed island
         """
-        island_start = blocks[0].start_ea
+        island_start = blocks[0].startEA
         func = sark.Function(island_start)
         func_start = func.startEA
         context = islandContext()(self.funcNameInner(func.name), island_start)
         for block in blocks :
-            for line in sark.CodeBlock(block.start_ea).lines :
+            for line in sark.CodeBlock(block.startEA).lines :
                 # Numeric Constants
                 data_refs = list(line.drefs_from)
                 for oper in filter(lambda x : x.type.is_imm, line.insn.operands) :

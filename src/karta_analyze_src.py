@@ -9,6 +9,7 @@ import config.anchor           as anchor
 
 import os
 import sys
+import argparse
 
 ####################
 ## Global Configs ##
@@ -76,8 +77,12 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     """
     logger.info("Starting to analyze the library")
     logger.addIndent()
-    ignore_archive = False
+    ignore_archive = len(compiled_ars) == 0
     finished_scan = False
+
+    # workaround the enumerate in the next loop
+    if ignore_archive:
+        compiled_ars = range(len(bin_dirs))
 
     # ida has severe bugs, make sure to warn the user in advance
     if disas_cmd.name() == "IDA" and ' ' in SCRIPT_PATH:
@@ -141,7 +146,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         resolveUnknowns()
 
         # check if we have any files in the list
-        if len(src_file_mappings) == 0 :
+        if len(src_file_mappings) == 0 and not ignore_archive :
             logger.error("No files found in the archive :(")
             logger.removeIndent()
             new_path = raw_input("[+] Do you want to analyze all of the *.%s files in the bin directory? <Y/N>: " % (bin_suffix)).lower()
@@ -232,35 +237,43 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     logger.info("Anchor to function ratio is: %d/%d", len(anchors_list), len(src_functions_list))
     logger.removeIndent()
 
-def printUsage(args):
-    """Prints usage instructions for this file
-    
-    Args:
-        args (list): list of cmd line arguments
-    """
-    print 'Usage: %s <library name> <library version> <bin dir (with *.o or *.obj files)> <compiled archive: *.a or *.lib>' % (args[0])
-    print 'Exiting'
-    exit(1)
-
 def main(args):
     global disas_cmd
 
-    # Check the arguments
-    if len(args) < 1 + 4 or (len(args) - 3) % 2 != 0:
-        print 'Wrong amount of arguments, got %d, expected %d' % (len(args) - 1, 4)
-        printUsage( args )
-        
+    # argument parser
+    parser = argparse.ArgumentParser(description='Compiles a *.json configuration file for a specific version of an open source library, later to be used by %s\'s Matcher.' % (LIBRARY_NAME))
+    parser.add_argument('name', metavar='lib-name', type=str,
+                        help='name (case sensitive) of the open source library')
+    parser.add_argument('version', metavar='lib-version', type=str,
+                        help='version string (case sensitive) as used by the identifier')
+    parser.add_argument('couples', metavar='dir archive', type=str, nargs='+',
+                        help='directory with the compiled *.o / *.obj files + path to the matching *.a / *.lib file (if didn\'t use "--no-archive")')
+    parser.add_argument('-D', '--debug', action='store_true', help='set logging level to logging.DEBUG')
+    parser.add_argument('-N', '--no-archive', action='store_false', help='extract data from all *.o / *.obj files in the directory')
+    parser.add_argument('-W', '--windows', action='store_true', help='signals that the binary was compiled for Windows')
+
     # parse the args
-    library_name    = args[1]
-    library_version = args[2]
+    args = parser.parse_args(args)
+    library_name    = args.name
+    library_version = args.version
+    is_debug        = args.debug
+    is_windows      = args.windows
+    using_archives  = args.no_archive
+    couples         = args.couples
+
     bin_dirs      = []
     archive_paths = []
-    for i in xrange(3, len(args), 2) :
-        bin_dirs.append(args[i])
-        archive_paths.append(args[i + 1])
+    if using_archives:
+        if len(couples) % 2 != 0:
+            parser.error("Odd length in list of dir,archive couples, should be: [(directory, archive name), ...]")
+        for i in xrange(0, len(couples), 2) :
+            bin_dirs.append(couples[i])
+            archive_paths.append(couples[i + 1])
+    else:
+        bin_dirs = couples
 
     # open the log
-    prompter = Prompter(min_log_level = logging.INFO)
+    prompter = Prompter(min_log_level = logging.INFO if not is_debug else logging.DEBUG)
     prompter.info('Starting the Script')
 
     # requesting the path to the chosen disassembler
@@ -272,10 +285,9 @@ def main(args):
     # register our contexts
     registerContexts(SourceContext, BinaryContext, IslandContext)
 
-    # check if these are windows binaries or not
-    for archive in archive_paths:
-        if archive.split('.')[-1].lower() == 'lib':
-            setWindowsMode()
+    # use the user supplied flag
+    if is_windows:
+        setWindowsMode()
 
     # analyze the open source library
     analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, prompter)
@@ -284,4 +296,4 @@ def main(args):
     prompter.info('Finished Successfully')
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main(sys.argv[1:])

@@ -2,6 +2,8 @@ from config.utils           import *
 from disassembler.factory   import createDisassemblerHandler
 from function_context       import SourceContext, BinaryContext, IslandContext
 from elementals             import Logger
+import logging
+import traceback
 
 def analyzeFile() :
     """Analyzes all of the (source) functions for a single compiled file"""
@@ -10,6 +12,7 @@ def analyzeFile() :
     contexts = []
     # check for windows binary
     if disas.inputFile().endswith(".obj"):
+        logger.debug("Activating Windows mode")
         setWindowsMode()
     # build the list of exported (non-static) functions
     exported = disas.exports()
@@ -32,6 +35,10 @@ initUtils(logger, createDisassemblerHandler(logger))
 # Register our contexts
 registerContexts(SourceContext, BinaryContext, IslandContext)
 # Start to analyze the file
-analyzeFile()
+try:
+    logger.linkHandler(logging.FileHandler(constructLogPath(), "w"))
+    analyzeFile()
+except Exception:
+    logger.error(traceback.format_exc())
 # Exit the disassembler
 getDisas().exit()

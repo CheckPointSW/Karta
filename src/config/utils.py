@@ -44,11 +44,11 @@ GUI_MATCH_REASONS       = [REASON_ANCHOR, REASON_FILE_HINT, REASON_AGENT, REASON
 GUI_CMD_IMPORT_SELECTED = "Import Selected"
 GUI_CMD_IMPORT_MATCHED  = "Import ALL Matches"
 
-GUI_COLOR_DARK_GREEN    = 0x0f6000 #0x249600 #0x136B09
-GUI_COLOR_GREEN         = 0x3c8e38 #0x53c800 #0x0E8728
-GUI_COLOR_GRAY          = 0x9e9e9e #0x75726B
-GUI_COLOR_DARK_RED      = 0x0d00ba #0x0B1DE2
-GUI_COLOR_RED           = 0x3643f4 #0x0000FF
+GUI_COLOR_DARK_GREEN    = 0x0f6000
+GUI_COLOR_GREEN         = 0x3c8e38
+GUI_COLOR_GRAY          = 0x9e9e9e
+GUI_COLOR_DARK_RED      = 0x0d00ba
+GUI_COLOR_RED           = 0x3643f4
 
 ######################
 ## Global Variables ##
@@ -179,6 +179,17 @@ def getContextsStats():
         src_seen_strings, src_seen_consts, src_functions_list
     """
     return src_seen_strings, src_seen_consts , src_functions_list
+
+def constructLogPath(bin_path = None):
+    """Generates the name for the log file of the currently analyzed binary file
+    
+    Args:
+        bin_path (str, Optional): path to the compiled binary file (None by default)
+
+    Return value:
+        file name for the log file
+    """
+    return (bin_path if bin_path is not None else disas_layer.inputFile()) + "_analyze.log"
 
 #########################
 ## Adaptive heuristics ##

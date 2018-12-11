@@ -101,11 +101,11 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
             if not ignore_archive:
                 logger.info("Analyzing each of the files in the archive - %s", compiled_ar)
             else:
-                logger.info("Analyzing each of the *.%s files in the bin directory (archive failed before)" % (bin_suffix))
+                logger.info("Analyzing each of the *.%s files in the bin directory" % (bin_suffix))
             logger.addIndent()
             archive_files = list(locateFiles(bin_dir, filter(lambda x : x.endswith("." + bin_suffix), getArchiveFiles(compiled_ar)) if not ignore_archive else None, bin_suffix))
             # check if we need a progress bar
-            if len(archive_files) >= PROGRESS_BAR_THRESHOLD :
+            if len(archive_files) >= PROGRESS_BAR_THRESHOLD and logger.level > logging.DEBUG:
                 progress_bar = ProgressBar('Analyzed %d/%d files - %d%% Completed', len(archive_files), 20, True, time_format = "Elapsed %M:%S -")
                 progress_bar.start()
             else :
@@ -127,6 +127,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
                     fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
                 except:
                     logger.error("Failed to create the .JSON file for file: %s" % (compiled_file))
+                    logger.error("Read the log file for more information: %s" % (constructLogPath(full_file_path)))
                     logger.removeIndent()
                     logger.removeIndent()
                     logger.error("Encounterred an error, exiting")

@@ -20,7 +20,7 @@ We believe that there are 3 main use cases for this IDA plugin:
 2. Matching the symbols of supported open sources to help reverse engineer a malware
 3. Matching the symbols of supported open sources to help reverse engineer a binary / firmware when searching for 0-Days in proprietary code
 
-Karta is currently in Beta version, and is still actively developed and tested.
+**Note:** Karta is currently in Beta version, and is still actively developed and tested.
 
 Identifier
 ----------

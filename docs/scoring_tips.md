@@ -2,7 +2,7 @@ Scoring Tips
 ==========
 Brief
 ------
-During the work on "Karta" I learned quite a few lessons about the nature of scoring algorithms for binary matching. This section will include a list of the tips I found useful, hoping they could help other researchers / developers as well.
+During the work on **Karta** I learned quite a few lessons about the nature of scoring algorithms for binary matching. This section will include a list of the tips I found useful, hoping they could help other researchers / developers as well.
 
 Tips
 -----

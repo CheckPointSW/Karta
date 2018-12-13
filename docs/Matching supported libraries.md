@@ -1,4 +1,3 @@
-
 Matching supported libraries
 ============================
 Prerequisites
@@ -10,11 +9,11 @@ In case it is needed, a guide for compiling a new configuration can be found in 
 
 **Function Analysis**
 
-"Karta" is highly sensitive to the quality of the function analysis that was done by IDA. It is important to make sure that the matcher plugin is invoked only *after* the binary is well analyzed. For example: even if there is an un-reffed code snippet, make sure that IDA marked it as a function if it is an un-reffed function.
+**Karta** is highly sensitive to the quality of the function analysis that was done by IDA. It is important to make sure that the matcher plugin is invoked only *after* the binary is well analyzed. For example: even if there is an un-reffed code snippet, make sure that IDA marked it as a function if it is an un-reffed function.
 
 Matcher Plugin - Start
 ----------------------
-Assuming you are all set and ready to go, and that your binary is already open in IDA, load the **karta_matcher.py** script and set up the needed configurations:
+Assuming you are all set and ready to go, and that your binary is already open in IDA, load the ```karta_matcher.py``` script and set up the needed configurations:
 *  Full path for Karta's configuration directory - the ```configs``` dir with all of the *.json files
 *  In case of a binary that was compiled for Windows, set up the checkbox (not required for firmware binaries)
 Once again, the output will be shown in IDA's output window, and will also be stored to a file.

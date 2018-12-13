@@ -8,6 +8,7 @@
    :caption: User Guide:
    :hidden:
 
+   Installation
    Open Source Fingerprinting
    Matching supported libraries
    

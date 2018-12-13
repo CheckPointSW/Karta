@@ -2,7 +2,7 @@ Karta
 =====
 Motivation
 ----------
-The main motivation for developing "Karta" was the needed to identify open sources in large firmware files.
+The main motivation for developing **Karta** was the needed to identify open sources in large firmware files.
 My previous experience with other available tools (at the time) was that they have a memory blowup when dealing with large binaries, meaning that sometimes they will completely crash and give no results :(
 
 If we could work with a subset of functions, that will be polynomial to M (number of functions in the open source) and not in N (number of functions in the binary) we could escape the limitations that arise when M << N. And this was the main idea.
@@ -43,4 +43,4 @@ This means that our matching and scoring logic will pay special attention to geo
 
 Modularity
 -------------
-Using these basic concepts, "Karta" was designed to be modular, to allow other matching libraries to use the basic file mapping logic.
+Using these basic concepts, **Karta** was designed to be modular, to allow other matching libraries to use the basic file mapping logic.

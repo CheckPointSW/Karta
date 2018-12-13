@@ -2,8 +2,8 @@ Open source fingerprinting
 ==========================
 Identifier Plugin - Start
 -------------------------
-The **karta_identifier.py** script identifies the existence of supported open source projects inside the given binary, and aims to fingerprint the exact version of each located library.
-Once your binary was loaded to IDA, simply load the script **karta_identifier.py**, and it will output the results to the output window and to an output file.
+The ```karta_identifier.py``` script identifies the existence of supported open source projects inside the given binary, and aims to fingerprint the exact version of each located library.
+Once your binary was loaded to IDA, simply load the script ```karta_identifier.py```, and it will output the results to the output window and to an output file.
 Here is an example output after running the script on an HP OfficeJet firmware:
 
 ```

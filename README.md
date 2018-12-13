@@ -20,8 +20,10 @@ We believe that there are 3 main use cases for this IDA plugin:
 2. Matching the symbols of supported open sources to help reverse engineer a malware
 3. Matching the symbols of supported open sources to help reverse engineer a binary / firmware when searching for 0-Days in proprietary code
 
+Karta is currently in Beta version, and is still actively developed and tested.
+
 Identifier
---
+----------
 Karta's identifier is a smaller plugin that identifies the existence, and fingerprints the versions, of the existing (supported) open source libraries within the binary. No more need to reverse engineer the same open-source library again-and-again, simply run the identifier plugin and get a detailed list of the used open sources.
 Karta currently supports more than 10 open source libraries, including:
 * OpenSSL
@@ -32,24 +34,20 @@ Karta currently supports more than 10 open source libraries, including:
 * Etc.
 
 Matcher
---
+-------
 After identifying the used open sources, one can compile a .JSON configuration file for a specific library (libpng version 1.2.9 for instance). Once compiled, Karta will automatically attempt to match the functions (symbols) of the open source in the loaded binary. In addition, in case your open source used external functions (memcpy, fread, or zlib_inflate), Karta will also attempt to match those external functions as well. 
 
 Folder Structure
-=
+================
 * **src:** source directory for the plugin
 * **configs:** pre-supplied *.JSON configuration files (hoping the community will contribute more)
 * **compilations:** compilation tips for generating the configuration files, and lessons from past open sources
 * **docs:** sphinx documentation directory
 
 Credits
-=
+=======
 This project was developed by me (see contact details below) with help and support from my research group at Check Point (Check Point Research).
 
-Links
-=
-TODO: link to a blog post
-
 Contact
-=
+=======
 Eyal Itkin (eyalit at checkpoint dot com)

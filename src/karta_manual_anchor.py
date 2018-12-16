@@ -100,7 +100,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, logger) :
         # merge the results
         for new_index in manual_anchors :
             src_ctx = src_functions_ctx[new_index]
-            cur_manual_anchors[new_index] = [src_ctx.file, src_ctx.name, hex(manual_anchors[new_index]), manual_anchors[new_index]]
+            cur_manual_anchors[str(new_index)] = [src_ctx.file, src_ctx.name, hex(manual_anchors[new_index]), manual_anchors[new_index]]
 
     # return back the data
     return knowledge_config

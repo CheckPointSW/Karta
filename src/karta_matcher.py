@@ -33,8 +33,15 @@ def startMatch(config_file, lib_name):
     if knowledge_config is not None and JSON_TAG_MANUAL_ANCHORS in knowledge_config:
         all_manual_anchors = knowledge_config[JSON_TAG_MANUAL_ANCHORS]
         if lib_name in all_manual_anchors:
+            logger.debug("Loading manual anchors")
+            logger.addIndent()
             for src_index in all_manual_anchors[lib_name]:
-                manual_anchors.append((src_index, all_manual_anchors[lib_name][src_index][-1]))
+                src_file, src_name, hex_ea, bin_ea = all_manual_anchors[lib_name][src_index]
+                logger.debug("Manual anchor: %s (%d), 0x%x", src_name, int(src_index), bin_ea)
+                manual_anchors.append((int(src_index), bin_ea))
+            logger.removeIndent()
+    else:
+        logger.debug("Has no manual anchors")
 
     # Init out matching engine
     matching_engine = KartaMatcher(logger, disas)

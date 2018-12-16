@@ -212,7 +212,7 @@ def accumulatedKnowledgePath(bin_path = None):
     Return value:
         file name for the config file with the accumulated information
     """
-    return (bin_path if bin_path is not None else disas_layer.inputFile()) + KNOWLEDGE_FILE_SUFFIX
+    return (bin_path if bin_path is not None else disas_layer.databaseFile()) + KNOWLEDGE_FILE_SUFFIX
 
 def loadKnowledge(bin_path = None):
     """Loads the .json configuration for the current binary file, if exists

@@ -341,20 +341,27 @@ class MatchEngine(object):
             # check for user errors
             func_ctx = self.disas.funcAt(bin_ea)
             if func_ctx is None or self.disas.funcStart(func_ctx) != bin_ea:
-                self.logger.warning("User defined anchor function %s should be matched to a *start* of a function, not to 0x%x (%s)", self._src_functions_list[src_index], bin_ea, self.disas.funcName(bin_ea))
+                self.logger.warning("User defined anchor function %s should be matched to a *start* of a function, not to 0x%x (%s)", self._src_functions_list[src_index], bin_ea, self.disas.funcNameEA(bin_ea))
                 continue
             # check for duplicates
-            if src_index in self._matched_anchors_ea and bin_ea != self._matched_anchors_ea[bin_ea]:
-                actual_ea = self._matched_anchors_ea[bin_ea]
-                self.logger.warning("User defined anchor function %s contradicts match at 0x%x (%s), ignoring user definition", self._src_functions_list[src_index], actual_ea, self.disas.funcName(actual_ea))
-                continue
+            if src_index in self._matched_anchors_ea :
+                # contradiction
+                if bin_ea != self._matched_anchors_ea[src_index]:
+                    actual_ea = self._matched_anchors_ea[src_index]
+                    self.logger.warning("User defined anchor function %s contradicts match at 0x%x (%s), ignoring user definition", self._src_functions_list[src_index], actual_ea, self.disas.funcNameEA(actual_ea))
+                    continue
+                # duplicate
+                else:
+                    continue
+            # duplicate at this point could only be a contradiction
             if bin_ea in anchor_eas and src_index not in self._matched_anchors_ea :
-                self.logger.warning("User defined anchor function %s contradicts match at 0x%x (%s), ignoring user definition", self._src_functions_list[src_index], bin_ea, self.disas.funcName(bin_ea))
+                self.logger.warning("User defined anchor function %s contradicts match at 0x%x (%s), ignoring user definition", self._src_functions_list[src_index], bin_ea, self.disas.funcNameEA(bin_ea))
                 continue
             # can now safely declare this match
-            self.logger.info("User defined anchor function - %s: Matched at 0x%x (%s)", self._src_functions_list[src_index], bin_ea, self.disas.funcName(bin_ea))
+            self.logger.info("User defined anchor function - %s: Matched at 0x%x (%s)", self._src_functions_list[src_index], bin_ea, self.disas.funcNameEA(bin_ea))
             self._matched_anchors_ea[src_index] = bin_ea
             anchor_eas.append(bin_ea)
+            self._src_anchor_list.append(src_index)
             self.declareMatch(src_index, bin_ea, REASON_MANUAL_ANCHOR)
             # use the match to improve our search range
             # first anchor
@@ -368,7 +375,7 @@ class MatchEngine(object):
                 # try to improve the lower border
                 if bin_ea < lower_match_ea :
                     lower_match_ea = bin_ea
-                    new_lower_index = all_bin_functions.index(calbin_ealer_func_start)
+                    new_lower_index = all_bin_functions.index(bin_ea)
                     if function_range is not None :
                         function_range = function_range[new_lower_index - lower_match_index : ]
                     lower_match_index = new_lower_index
@@ -402,7 +409,7 @@ class MatchEngine(object):
                 if len(filterred_candidates) == 1 :
                     bin_ea = filterred_candidates.pop()
                     if bin_ea in anchor_eas:
-                        self.logger.warningself.logger.warning("User defined anchor function at 0x%x (%s), blocked revived anchor: %s, dropped the anchor", bin_ea, self.disas.funcName(bin_ea), self._src_functions_list[src_anchor_index])
+                        self.logger.warning("User defined anchor function at 0x%x (%s), blocked revived anchor: %s, dropped the anchor", bin_ea, self.disas.funcNameEA(bin_ea), self._src_functions_list[src_anchor_index])
                         self._src_anchor_list.remove(src_anchor_index)
                         continue
                     caller_func = self.disas.funcAt(bin_ea)

@@ -66,7 +66,7 @@ class KartaMatcher(MatchEngine):
     # Overriden base function
     def declareMatch(self, src_index, func_ea, reason) :
         function_name = self.disas.funcNameEA(func_ea)
-        is_anchor = reason == REASON_ANCHOR
+        is_anchor = reason in [REASON_ANCHOR, REASON_MANUAL_ANCHOR]
 
         src_ctx = self.src_functions_ctx[src_index]
         # Sanitation logic that uses contexts (non available in anchor phase)
@@ -1127,7 +1127,7 @@ class KartaMatcher(MatchEngine):
                 address   = bin_match.ea
                 bin_name  = bin_match.name
                 reason    = self._matching_reasons[entry.index]
-                if reason in [REASON_ANCHOR, REASON_AGENT, REASON_FILE_HINT]:
+                if reason in [REASON_ANCHOR, REASON_MANUAL_ANCHOR, REASON_AGENT, REASON_FILE_HINT]:
                     color = GUI_COLOR_DARK_GREEN
                 else:
                     color = GUI_COLOR_GREEN

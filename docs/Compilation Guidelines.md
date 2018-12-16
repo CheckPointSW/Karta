@@ -15,7 +15,7 @@ Since we want to maintain this basic invariant, we usually want to compile our o
 Windows Compilation
 -------------------
 It seems that when compiling a binary using ```nmake``` or ```visual studio```, the Window's compilation adds some linker optimizations. As we couldn't imitate these linker optimizations when compiling with ```gcc```, Karta can (and should) support 2 different configurations for the same version of a specific library:
-1.  Basic (unix) configuration - Used for Linux, Mac, of various firmwares
+1.  Basic (unix) configuration - Used for Linux, Mac, of various firmware files
 1.  Windows configuration
 Karta can automatically identify the type of the configuration file it was requested to create, based on the suffix of the static library file:
 *  .lib - Windows static library => Windows configuration

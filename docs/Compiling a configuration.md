@@ -13,20 +13,35 @@ As Karta is a source code assisted plugin, this process requires you to compile 
 
 Running the script
 ------------------
-Now that we have all of the parts, we should run **karta_analyze_src.py** in the command line, using the following arguments:
+Now that we have all of the parts, we should run ```karta_analyze_src.py``` in the command line, using the following arguments:
 
 ```
-C:\Users\user\Documents\Karta\src>python karta_analyze_src.py
-Wrong amount of arguments, got 0, expected 4
-Usage: karta_analyze_src.py <library name> <library version> <bin dir (with *.o or *.obj files)> <compiled archive: *.a or *.lib>
-Exiting
+C:\Users\user\Documents\Karta\src>python karta_analyze_src.py --help
+usage: karta_analyze_src.py [-h] [-D] [-N] [-W]
+                            lib-name lib-version dir archive [dir archive ...]
+
+Compiles a *.json configuration file for a specific version of an open source
+library, later to be used by Karta's Matcher.
+
+positional arguments:
+  lib-name          name (case sensitive) of the open source library
+  lib-version       version string (case sensitive) as used by the identifier
+  dir archive       directory with the compiled *.o / *.obj files + path to
+                    the matching *.a / *.lib file (if didn't use "--no-
+                    archive")
+
+optional arguments:
+  -h, --help        show this help message and exit
+  -D, --debug       set logging level to logging.DEBUG
+  -N, --no-archive  extract data from all *.o / *.obj files in the directory
+  -W, --windows     signals that the binary was compiled for Windows
 ```
 
 1.  Name of the open source library (case sensitive)
 1.  Version of the library (as will be identified by the identifier script)
 1.  Path to the directory that contains the compiled (*.o / *.obj) files
-1.  Path to the compiled static library file
-In case there are multiple static libraries, chain more arguments and maintain the current order: <bin dir> <static library path>
+1.  Path to the compiled static library file (if "--no-archive" wasn't used)
+In case there are multiple static libraries, simply extend the list of "dir archive" (with archive) or list of "dir" (without archive), depending on the "--no-archive" flag)
 
 The script will ask you for the path to your disassembler (IDA), and will suggest a default path. Enter the path to your disassembler, press ENTER, and a progress bar will show you the progress of the script.
 

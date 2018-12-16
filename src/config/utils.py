@@ -444,11 +444,15 @@ def isMatching():
     """
     return matching_mode
 
-def setDisassemblerPath():
-    """Updates the disassembler path according to input from the user"""
+def setDisassemblerPath(prompter):
+    """Updates the disassembler path according to input from the user
+
+    Args:
+        prompter (prompter): prompter elementals instance
+    """
     global DISASSEMBLER_PATH
 
-    new_path = raw_input("[+] Please insert the command (path) needed in order to execute your disassembler (IDA for instance) (%s): " % (DISASSEMBLER_PATH))
+    new_path = prompter.input("Please insert the command (path) needed in order to execute your disassembler (IDA for instance) (%s): " % (DISASSEMBLER_PATH))
     if len(new_path.strip()) != 0 :
         DISASSEMBLER_PATH = new_path
 

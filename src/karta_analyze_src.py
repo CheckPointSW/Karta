@@ -66,17 +66,17 @@ def resolveUnknowns() :
             src_func_ctx.recordCall(resolved_call)
         src_func_ctx.unknown_fptrs.clear()
 
-def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
+def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter) :
     """Analyze of the open source library, file-by-file and merge the results
     
     Args:
         config_name (str): name of the final JSON config file
         bin_dirs (list): list of paths to the binary folders containing the compiled *.o files
         compiled_ars (list): list of paths to the compiled *.ar files
-        logger (logger): logger instance
+        prompter (prompter): prompter instance
     """
-    logger.info("Starting to analyze the library")
-    logger.addIndent()
+    prompter.info("Starting to analyze the library")
+    prompter.addIndent()
     ignore_archive = len(compiled_ars) == 0
     finished_scan = False
 
@@ -86,8 +86,8 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
 
     # ida has severe bugs, make sure to warn the user in advance
     if disas_cmd.name() == "IDA" and ' ' in SCRIPT_PATH:
-        logger.error("IDA does not support spaces (' ') in the script's path. Please move %s's directory accordingly (I feel your pain)" % (LIBRARY_NAME))
-        logger.removeIndent()
+        prompter.error("IDA does not support spaces (' ') in the script's path. Please move %s's directory accordingly (I feel your pain)" % (LIBRARY_NAME))
+        prompter.removeIndent()
         return
 
     # We could have 2 iteration rounds here
@@ -99,13 +99,13 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
             bin_dir = bin_dirs[index]
             bin_suffix = "o" if not is_windows else "obj"
             if not ignore_archive:
-                logger.info("Analyzing each of the files in the archive - %s", compiled_ar)
+                prompter.info("Analyzing each of the files in the archive - %s", compiled_ar)
             else:
-                logger.info("Analyzing each of the *.%s files in the bin directory" % (bin_suffix))
-            logger.addIndent()
+                prompter.info("Analyzing each of the *.%s files in the bin directory" % (bin_suffix))
+            prompter.addIndent()
             archive_files = list(locateFiles(bin_dir, filter(lambda x : x.endswith("." + bin_suffix), getArchiveFiles(compiled_ar)) if not ignore_archive else None, bin_suffix))
             # check if we need a progress bar
-            if len(archive_files) >= PROGRESS_BAR_THRESHOLD and logger.level > logging.DEBUG:
+            if len(archive_files) >= PROGRESS_BAR_THRESHOLD and prompter.level > logging.DEBUG:
                 progress_bar = ProgressBar('Analyzed %d/%d files - %d%% Completed', len(archive_files), 20, True, time_format = "Elapsed %M:%S -")
                 progress_bar.start()
             else :
@@ -114,23 +114,23 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
             for full_file_path, compiled_file in archive_files :
                 # ida has severe bugs, make sure to warn the user in advance
                 if disas_cmd.name() == "IDA" and ' ' in full_file_path:
-                    logger.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain)")
-                    logger.removeIndent()
+                    prompter.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain)")
+                    prompter.removeIndent()
                     return
-                logger.debug("%s - %s", full_file_path, compiled_file)
+                prompter.debug("%s - %s", full_file_path, compiled_file)
                 if progress_bar is None :
-                    logger.info("%s - %s", compiled_file, full_file_path)
+                    prompter.info("%s - %s", compiled_file, full_file_path)
                 # analyze the file
                 analyzeFile(full_file_path, is_windows)
                 # load the JSON data from it
                 try:
                     fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
                 except:
-                    logger.error("Failed to create the .JSON file for file: %s" % (compiled_file))
-                    logger.error("Read the log file for more information: %s" % (constructLogPath(full_file_path)))
-                    logger.removeIndent()
-                    logger.removeIndent()
-                    logger.error("Encounterred an error, exiting")
+                    prompter.error("Failed to create the .JSON file for file: %s" % (compiled_file))
+                    prompter.error("Read the log file for more information: %s" % (constructLogPath(full_file_path)))
+                    prompter.removeIndent()
+                    prompter.removeIndent()
+                    prompter.error("Encounterred an error, exiting")
                     exit(1)
                 # all was OK, can continue
                 parseFileStats(full_file_path, json.load(fd, object_pairs_hook=collections.OrderedDict))
@@ -140,28 +140,28 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
             # wrap it up
             if progress_bar is not None :
                 progress_bar.finish()
-            logger.removeIndent()
+            prompter.removeIndent()
 
         # Resolve several unknowns refs as code refs
-        logger.info("Resolving cross-references between different files")
+        prompter.info("Resolving cross-references between different files")
         resolveUnknowns()
 
         # check if we have any files in the list
         if len(src_file_mappings) == 0 and not ignore_archive :
-            logger.error("No files found in the archive :(")
-            logger.removeIndent()
-            new_path = raw_input("[+] Do you want to analyze all of the *.%s files in the bin directory? <Y/N>: " % (bin_suffix)).lower()
+            prompter.error("No files found in the archive :(")
+            prompter.removeIndent()
+            new_path = prompter.input("Do you want to analyze all of the *.%s files in the bin directory? <Y/N>: " % (bin_suffix)).lower()
             if new_path != 'y' :
-                logger.error("Finished with errors!")
+                prompter.error("Finished with errors!")
                 exit(2)
             # run again, and ignore the archive this time
             ignore_archive = True
-            logger.addIndent()
+            prompter.addIndent()
         else:
             finished_scan = True
 
     # Remove empty files
-    logger.info("Filtering out empty files")
+    prompter.info("Filtering out empty files")
     for file_name in filter(lambda x : len(src_file_mappings[x]) == 0, src_file_mappings) :
         src_file_mappings.pop(file_name)
 
@@ -170,11 +170,11 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     const_anchors = []
     anchors_list  = []
     anchors_files = set()
-    logger.info("Identifying possible Anchor functions")
-    logger.addIndent()
+    prompter.info("Identifying possible Anchor functions")
+    prompter.addIndent()
     seen_strings, seen_consts, function_list = getContextsStats()
     for src_func_index, src_func_ctx in enumerate(src_functions_ctx) :
-        is_str, threshold, candidates = anchor.isAnchor(src_func_ctx, seen_strings, seen_consts, function_list, logger)
+        is_str, threshold, candidates = anchor.isAnchor(src_func_ctx, seen_strings, seen_consts, function_list, prompter)
         if candidates is None :
             continue
         if is_str :
@@ -182,36 +182,36 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
         else :
             const_anchors.append(src_func_index)
         anchors_files.add(src_func_ctx.file)
-    logger.removeIndent()
+    prompter.removeIndent()
 
     # strings before const, because they are faster to search for
     anchors_list = str_anchors + const_anchors
 
     # check if we have any files left
     if len(src_file_mappings) == 0:
-        logger.error("All files were empty :(")
-        logger.removeIndent()
-        logger.error("Finished with errors!")
+        prompter.error("All files were empty :(")
+        prompter.removeIndent()
+        prompter.error("Finished with errors!")
         exit(2)
 
     # Check for an error
     if len(anchors_list) == 0:
-        logger.error("Failed to find Anchor functions in the library :(")
-        logger.removeIndent()
-        logger.error("Finished with errors!")
+        prompter.error("Failed to find Anchor functions in the library :(")
+        prompter.removeIndent()
+        prompter.error("Finished with errors!")
         exit(2)
 
     # Create the anchors file
-    logger.info("Generating the full JSON file: %s", config_name)
-    logger.addIndent()
+    prompter.info("Generating the full JSON file: %s", config_name)
+    prompter.addIndent()
     full_json = {}
 
     # Serialize the anchor list
-    logger.info("Writing the anchor list")
+    prompter.info("Writing the anchor list")
     full_json[JSON_TAG_ANCHORS] = anchors_list
 
     # Serialize the functions of each files
-    logger.info("Writing the function list for each of the files")
+    prompter.info("Writing the function list for each of the files")
     file_dict = collections.OrderedDict()
     # find a common file prefix, and remove it form the file path
     if len(src_file_mappings) > 1 :
@@ -232,11 +232,11 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
     fd = open(config_name, "w")
     json.dump(full_json, fd)
     fd.close()
-    logger.removeIndent()
+    prompter.removeIndent()
 
-    logger.info("Anchor to file ratio is: %d/%d", len(anchors_files), len(src_file_mappings))
-    logger.info("Anchor to function ratio is: %d/%d", len(anchors_list), len(src_functions_list))
-    logger.removeIndent()
+    prompter.info("Anchor to file ratio is: %d/%d", len(anchors_files), len(src_file_mappings))
+    prompter.info("Anchor to function ratio is: %d/%d", len(anchors_list), len(src_functions_list))
+    prompter.removeIndent()
 
 def main(args):
     global disas_cmd
@@ -278,7 +278,7 @@ def main(args):
     prompter.info('Starting the Script')
 
     # requesting the path to the chosen disassembler
-    setDisassemblerPath()
+    setDisassemblerPath(prompter)
     disas_cmd = identifyDisassemblerHandler(getDisasPath(), prompter)
     if disas_cmd is None :
         return

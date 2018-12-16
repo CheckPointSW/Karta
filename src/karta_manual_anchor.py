@@ -9,14 +9,14 @@ import os
 import sys
 import argparse
 
-def recordManualAnchors(library_config, knowledge_config, lib_name, logger) :
+def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
     """Record the list of user defined manual anchor matches
     
     Args:
         library_config (json): json loaded data from the library's configuration
         knowledge_config (dict): a mapping of all of the accumulated knowledge for the currently analysed binary
         lib_name (str): name of the open source library that will contain these manual anchors
-        logger (logger): logger instance
+        prompter (prompter): prompter instance
 
     Return Value:
         Updated knowledge mapping (to be stored back as a *json file)
@@ -24,14 +24,14 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, logger) :
 
     # Prepare & load the stats from each file (using the functions file)
     src_file_names = []
-    logger.info("Loading the information regarding the compiled source files")
-    logger.addIndent()
+    prompter.info("Loading the information regarding the compiled source files")
+    prompter.addIndent()
     files_config = library_config[JSON_TAG_FILES]
     for full_file_path in files_config :
-        logger.debug("Parsing the canonical representation of file: %s", full_file_path.split(os.path.sep)[-1])
+        prompter.debug("Parsing the canonical representation of file: %s", full_file_path.split(os.path.sep)[-1])
         src_file_names.append(full_file_path)
         parseFileStats(full_file_path, files_config[full_file_path])
-    logger.removeIndent()
+    prompter.removeIndent()
 
     # get the variables from the utils file
     src_functions_list, src_functions_ctx, src_file_mappings = getSourceFunctions()
@@ -45,32 +45,32 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, logger) :
 
     # Start requesting the user to add his manual records
     manual_anchors = {}
-    logger.info("Starting the input loop")
-    logger.addIndent()
+    prompter.info("Starting the input loop")
+    prompter.addIndent()
     finished = False
     while not finished:
-        logger.info("Enter the details for the current manual anchor:")
+        prompter.info("Enter the details for the current manual anchor:")
         parsed_correctly = True
         while parsed_correctly :
-            function_name = raw_input("        [+] Function Name (case sensitive): ")
+            function_name = prompter.input("Function Name (case sensitive): ")
             # check existance
             if src_functions_list.count(function_name) == 0:
-                logger.error("Function \"%s\" does not exist", function_name)
+                prompter.error("Function \"%s\" does not exist", function_name)
                 parsed_correctly = False
                 break
             # check uniqueness
             if src_functions_list.count(function_name) > 1:
-                file_name = raw_input("        [+] File Name (case sensitive): ")
+                file_name = prompter.input("File Name (case sensitive): ")
                 src_indices = filter(lambda x : src_functions_ctx[x].file == file_name, func_indices[function_name])
                 if len(src_indices) == 0:
-                    logger.error("Function \"%s\" does not exist in file \"%s\"", file_name)
+                    prompter.error("Function \"%s\" does not exist in file \"%s\"", file_name)
                     parsed_correctly = False
                     break
                 src_index = src_indices[0]
             else:
                 src_index = func_indices[function_name][0]
             # get the binary address
-            bin_ea_str_raw = raw_input("        [+] Function Address (ea in the form: 0x12345678): ")
+            bin_ea_str_raw = prompter.input("Function Address (ea in the form: 0x12345678): ")
             if bin_ea_str_raw.startswith("0x"):
                 bin_ea_str = bin_ea_str_raw[2:]
             else:
@@ -78,16 +78,16 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, logger) :
             try:
                 bin_ea = int(bin_ea_str, 16)
             except:
-                logger.error("Illegal hexa address: \"%s\"", bin_ea_str_raw)
+                prompter.error("Illegal hexa address: \"%s\"", bin_ea_str_raw)
                 parsed_correctly = False
                 break
             # finished succesfully :)
             manual_anchors[src_index] = bin_ea
             break
 
-        should_continue = raw_input("        [+] Do you want to add another manual anchor? <Y/N>: ")
+        should_continue = prompter.input("Do you want to add another manual anchor? <Y/N>: ")
         finished = should_continue.lower() != 'y'
-    logger.removeIndent()
+    prompter.removeIndent()
 
     # add the info to the json
     if len(manual_anchors) > 0 :

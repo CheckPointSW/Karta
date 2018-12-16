@@ -208,7 +208,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
 
     # Serialize the anchor list
     logger.info("Writing the anchor list")
-    full_json['Anchors (Src Index)'] = anchors_list
+    full_json[JSON_TAG_ANCHORS] = anchors_list
 
     # Serialize the functions of each files
     logger.info("Writing the function list for each of the files")
@@ -226,7 +226,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, logger) :
 
     for src_file_name in src_file_mappings :
         file_dict[src_file_name[common_path_len:]] = map(lambda c : c.serialize(), src_file_mappings[src_file_name])
-    full_json['Files'] = file_dict
+    full_json[JSON_TAG_FILES] = file_dict
 
     # actually dump it
     fd = open(config_name, "w")

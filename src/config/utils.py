@@ -13,13 +13,25 @@ import os
 DISASSEMBLER_PATH = '/opt/ida-7.2/ida'
 SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
 
-LIBRARY_NAME        = "Karta" 
-STATE_FILE_SUFFIX   = "_file_state.json"
+LIBRARY_NAME            = "Karta" 
+STATE_FILE_SUFFIX       = "_file_state.json"
+LOG_FILE_SUFFIX         = "_analyze.log"
+KNOWLEDGE_FILE_SUFFIX   = "_knowledge.json"
+
+####################
+## JSON Structure ##
+####################
+
+JSON_TAG_ANCHORS        = 'Anchors (Src Index)'
+JSON_TAG_FILES          = 'Files'
+JSON_TAG_MANUAL_ANCHORS = 'Manual Anchors'
+JSON_TAG_LIBRARY        = 'Library Name'
 
 ####################
 ## GUI Parameters ##
 ####################
 
+REASON_MANUAL_ANCHOR    = "Manual Anchor - matched by the user"
 REASON_ANCHOR           = "Anchor - Complex unique string / const"
 REASON_FILE_HINT        = "Hint - Includes filename string"
 REASON_AGENT            = "Agent - File-unique string / const"
@@ -37,7 +49,7 @@ REASON_DISABLED         = "ifdeffed out / inlined"
 REASON_LIBRARY_UNUSED   = "Unused - No xrefs inside the open source"
 REASON_STATIC_UNUSED    = "Unused - Static function without internal xrefs"
 
-GUI_MATCH_REASONS       = [REASON_ANCHOR, REASON_FILE_HINT, REASON_AGENT, REASON_NEIGHBOUR, REASON_SINGLE_CALL, 
+GUI_MATCH_REASONS       = [REASON_MANUAL_ANCHOR, REASON_ANCHOR, REASON_FILE_HINT, REASON_AGENT, REASON_NEIGHBOUR, REASON_SINGLE_CALL, 
                            REASON_SINGLE_XREF, REASON_FILE_SINGLETON, REASON_CALL_ORDER, REASON_SWALLOW, REASON_COLLISION, 
                            REASON_SCORE, REASON_TRAPPED_COUPLE]
 
@@ -111,7 +123,7 @@ def initUtils(logger, disas, invoked_before = False):
     if not invoked_before:
         # init the logger
         global_logger = logger
-        # get our disassembler handlerr
+        # get our disassembler handler
         disas_layer = disas
         # register the log handler
         global_logger.linkHandler(disas_layer.logHandler())
@@ -189,7 +201,48 @@ def constructLogPath(bin_path = None):
     Return value:
         file name for the log file
     """
-    return (bin_path if bin_path is not None else disas_layer.inputFile()) + "_analyze.log"
+    return (bin_path if bin_path is not None else disas_layer.inputFile()) + LOG_FILE_SUFFIX
+
+def accumulatedKnowledgePath(bin_path = None):
+    """Generates the name for the configuration file of the currently analyzed binary file
+    
+    Args:
+        bin_path (str, Optional): path to the compiled binary file (None by default)
+
+    Return value:
+        file name for the config file with the accumulated information
+    """
+    return (bin_path if bin_path is not None else disas_layer.inputFile()) + KNOWLEDGE_FILE_SUFFIX
+
+def loadKnowledge(bin_path = None):
+    """Loads the .json configuration for the current binary file, if exists
+    
+    Args:
+        bin_path (str, Optional): path to the compiled binary file (None by default)
+
+    Return value:
+        json parsed information, or None if none exist
+    """
+    json_path = accumulatedKnowledgePath(bin_path)
+    if not os.path.exists(json_path):
+        return None
+
+    fd = open(json_path, 'r')
+    config_dict = json.load(fd, object_pairs_hook=collections.OrderedDict)
+    fd.close()
+    return config_dict
+
+def storeKnowledge(json_config, bin_path = None):
+    """Stores the .json configuration for the current binary file
+    
+    Args:
+        json_config (dict): json configuration content
+        bin_path (str, Optional): path to the compiled binary file (None by default)
+    """
+    json_path = accumulatedKnowledgePath(bin_path)
+    fd = open(json_path, 'w')
+    json.dump(json_config, fd)
+    fd.close()
 
 #########################
 ## Adaptive heuristics ##
@@ -378,7 +431,7 @@ def isWindows():
     return windows_config
 
 def setMatchingMode() :
-    """Updates the global flag to isgnal that we are now in a matching phase"""
+    """Updates the global flag to signal that we are now in a matching phase"""
     global matching_mode
 
     matching_mode = True

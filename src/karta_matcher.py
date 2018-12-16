@@ -10,11 +10,12 @@ from libs                   import lib_factory
 config_path         = None      # path to the configuration directory (including the *.json files with the pre-compiled libraries)
 logger              = None      # elementals logger instance
 
-def startMatch(config_file):
+def startMatch(config_file, lib_name):
     """Starts matching the wanted source library to the loaded binary
 
     Args:
-        config_file (path): path to the library's configuraiton file
+        config_file (path): path to the library's configuration file
+        lib_name (str): name of the open source library
     """
     disas = getDisas()
 
@@ -26,15 +27,24 @@ def startMatch(config_file):
     config_dict = json.load(fd, object_pairs_hook=collections.OrderedDict)
     fd.close()
 
+    # Load the accumulated knowledge for this binary file
+    knowledge_config = loadKnowledge()
+    manual_anchors = []
+    if knowledge_config is not None and JSON_TAG_MANUAL_ANCHORS in knowledge_config:
+        all_manual_anchors = knowledge_config[JSON_TAG_MANUAL_ANCHORS]
+        if lib_name in all_manual_anchors:
+            for src_index in all_manual_anchors[lib_name]:
+                manual_anchors.append((src_index, all_manual_anchors[lib_name][src_index][-1]))
+
     # Init out matching engine
     matching_engine = KartaMatcher(logger, disas)
 
     try :
         # Load the source functions, and prepare them for use
-        matching_engine.loadAndPrepareSource(config_dict['Files'])
+        matching_engine.loadAndPrepareSource(config_dict[JSON_TAG_FILES])
 
         # Load and match the anchor functions
-        matching_engine.loadAndMatchAnchors(config_dict['Anchors (Src Index)'])
+        matching_engine.loadAndMatchAnchors(config_dict[JSON_TAG_ANCHORS], manual_anchors)
 
         # Locate the file boundaries in the binary functions list
         matching_engine.locateFileBoundaries()
@@ -72,7 +82,7 @@ def matchLibrary(lib_name, lib_version):
     # Start the actual matching
     logger.addIndent()
     logger.info("Starting to match \"%s\" Version: \"%s\"", lib_name, lib_version)
-    startMatch(cur_config_path)
+    startMatch(cur_config_path, lib_name)
     logger.info("Finished the matching")
     logger.removeIndent()
 

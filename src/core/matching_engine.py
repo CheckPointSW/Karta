@@ -138,11 +138,12 @@ class MatchEngine(object):
         """
         self._floating_files.remove(file_match)
 
-    def loadAndMatchAnchors(self, anchors_config):
+    def loadAndMatchAnchors(self, anchors_config, manual_anchors_config):
         """Loads the list of anchor functions, and try to match them with the binary
 
         Args:
             anchors_config (list): list of anchor src indices
+            manual_anchors_config (list): list of user defined matches (Manual Anchors): (src index, bin_ea)
         """
         # Parse the anchors file
         self.logger.info("Loading the list of Anchor functions")
@@ -335,13 +336,76 @@ class MatchEngine(object):
                 multiple_option_candidates.append((src_anchor_index, candidates))
         self.logger.removeIndent()
 
+        # good time to match the user declared functions
+        for src_index, bin_ea in manual_anchors_config :
+            # check for user errors
+            func_ctx = self.disas.funcAt(bin_ea)
+            if func_ctx is None or self.disas.funcStart(func_ctx) != bin_ea:
+                self.logger.warning("User defined anchor function %s should be matched to a *start* of a function, not to 0x%x (%s)", self._src_functions_list[src_index], bin_ea, self.disas.funcName(bin_ea))
+                continue
+            # check for duplicates
+            if src_index in self._matched_anchors_ea and bin_ea != self._matched_anchors_ea[bin_ea]:
+                actual_ea = self._matched_anchors_ea[bin_ea]
+                self.logger.warning("User defined anchor function %s contradicts match at 0x%x (%s), ignoring user definition", self._src_functions_list[src_index], actual_ea, self.disas.funcName(actual_ea))
+                continue
+            if bin_ea in anchor_eas and src_index not in self._matched_anchors_ea :
+                self.logger.warning("User defined anchor function %s contradicts match at 0x%x (%s), ignoring user definition", self._src_functions_list[src_index], bin_ea, self.disas.funcName(bin_ea))
+                continue
+            # can now safely declare this match
+            self.logger.info("User defined anchor function - %s: Matched at 0x%x (%s)", self._src_functions_list[src_index], bin_ea, self.disas.funcName(bin_ea))
+            self._matched_anchors_ea[src_index] = bin_ea
+            anchor_eas.append(bin_ea)
+            self.declareMatch(src_index, bin_ea, REASON_MANUAL_ANCHOR)
+            # use the match to improve our search range
+            # first anchor
+            if len(self._matched_anchors_ea.keys()) == 1 :
+                lower_match_ea = bin_ea
+                upper_match_ea = lower_match_ea
+                lower_match_index = all_bin_functions.index(bin_ea)
+                upper_match_index = lower_match_index
+                change = True
+            else :
+                # try to improve the lower border
+                if bin_ea < lower_match_ea :
+                    lower_match_ea = bin_ea
+                    new_lower_index = all_bin_functions.index(calbin_ealer_func_start)
+                    if function_range is not None :
+                        function_range = function_range[new_lower_index - lower_match_index : ]
+                    lower_match_index = new_lower_index
+                    change = True
+                # try to improve the lower border
+                elif upper_match_ea < bin_ea :
+                    upper_match_ea = bin_ea
+                    new_upper_index = all_bin_functions.index(bin_ea)
+                    if function_range is not None :
+                        function_range = function_range[ : new_upper_index - upper_match_index]
+                    upper_match_index = new_upper_index
+                    change = True
+                else :
+                    change = False
+            # adjust the borders accordingly
+            if change :
+                locked_gap = upper_match_index - lower_match_index + 1
+                lower_border_index = lower_match_index - (overall_num_functions - locked_gap)
+                upper_border_index = upper_match_index + (overall_num_functions - locked_gap)
+                lower_border_ea = all_bin_functions[max(lower_match_index - (overall_num_functions - locked_gap), 0)]
+                upper_border_ea = all_bin_functions[min(upper_match_index + (overall_num_functions - locked_gap), len(all_bin_functions) - 1)]
+
         # double check the candidates which had multiple options (if narrowed the search space)
         if lower_match_ea is not None :
             for src_anchor_index, candidates in multiple_option_candidates :
+                # check if the manual definitions already defined this one
+                if src_anchor_index in self._matched_anchors_ea:
+                    continue
                 filterred_candidates = filter(lambda x : lower_match_ea <= x and x <= upper_match_ea, candidates)
                 # matched
                 if len(filterred_candidates) == 1 :
-                    caller_func = self.disas.funcAt(filterred_candidates.pop())
+                    bin_ea = filterred_candidates.pop()
+                    if bin_ea in anchor_eas:
+                        self.logger.warningself.logger.warning("User defined anchor function at 0x%x (%s), blocked revived anchor: %s, dropped the anchor", bin_ea, self.disas.funcName(bin_ea), self._src_functions_list[src_anchor_index])
+                        self._src_anchor_list.remove(src_anchor_index)
+                        continue
+                    caller_func = self.disas.funcAt(bin_ea)
                     caller_func_start = self.disas.funcStart(caller_func)
                     self.logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)", self._src_functions_list[src_anchor_index], caller_func_start, self.disas.funcName(caller_func))
                     self._matched_anchors_ea[src_anchor_index] = caller_func_start

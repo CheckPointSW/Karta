@@ -557,6 +557,7 @@ class MatchEngine(object):
             self.bin_functions_ctx[func_ea].index = bin_start_index + bin_index
             self.bin_functions_ctx[func_ea].preprocess()
 
+        self.logger.info("Linking the binary functions to their respective tentative files")
         # Can now slice it up and build the FileMatch structure
         file_class = self.fileLayer()
         for file_index, file_name in enumerate(self._src_file_names) :
@@ -574,6 +575,10 @@ class MatchEngine(object):
                 # binary indices
                 local_bin_start_index = file_min_bound[file_index]
                 local_bin_end_index   = file_max_bound[file_index]
+                # sanity check
+                if local_bin_start_index > local_bin_end_index :
+                    self.logger.error("File \"%s\" was found at 0x%x, but contains negative amount of functions. Please improve the function analysis", file_name, all_bin_functions[local_bin_start_index])
+                    raise KartaException
                 # scoped binary functions
                 local_bins_ctx = map(lambda ea : self.bin_functions_ctx[ea], all_bin_functions[local_bin_start_index : local_bin_end_index + 1])
                 file_match = file_class(file_name, src_start_index, src_end_index, local_bins_ctx, local_bin_start_index, local_bin_end_index, src_end_index - src_start_index + 1, self)

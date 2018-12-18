@@ -123,7 +123,7 @@ class FileMatch(object) :
                     self._lower_match_ctx = bin_ctx
                 self._upper_match_ctx = bin_ctx
                 if self.located :
-                    self._match_sequences.append(MatchSequence(bin_ctx))
+                    self.cleanupMatches(bin_ctx)
 
         # take full ownership of functions between the two match indices (if they are indeed mine)
         self._locked_eas = set()
@@ -143,10 +143,6 @@ class FileMatch(object) :
         if self._lower_match_ctx is not None :
             self._lower_leftovers = self._lower_match_ctx.index - self._bin_limit_lower
             self._upper_leftovers = self._bin_limit_upper - self._upper_match_ctx.index
-        
-        # Check if can merge the initial sequences (wishful thinking)
-        if self.located and self._lower_match_ctx is not None :
-            self.cleanupMatches()
 
     def matched(self) :
         """Checks if the entire file was matched
@@ -187,59 +183,48 @@ class FileMatch(object) :
                     return None
         return None
 
-    def cleanupMatches(self, new_sequence = None) :
+    def cleanupMatches(self, bin_ctx) :
         """Cleans the list of match sequences, merging adjacent sequences if needed
 
         Args:
-            new_sequence (MatchSequence, optional): newly added match sequence (None by default)
+            bin_ctx (FunctionContext): newly added match
         """
-        if new_sequence is not None :
-            new_match_lower_index = self._bin_functions_ctx.index(new_sequence.bin_lower_ctx)
-            new_match_upper_index = self._bin_functions_ctx.index(new_sequence.bin_upper_ctx)
-        prev_match = self._match_sequences[0]
-        prev_match_lower_index = self._bin_functions_ctx.index(prev_match.bin_lower_ctx)
-        prev_match_upper_index = self._bin_functions_ctx.index(prev_match.bin_upper_ctx)
-        new_sequence_list = [prev_match]
-        # 1st case - the new one is before ours
-        if new_sequence is not None and new_match_upper_index + 1 <= prev_match_lower_index :
-            if new_match_upper_index + 1 == prev_match_lower_index :
-                prev_match.merge(new_sequence, is_lower = True)
-            else :
-                new_sequence_list = [new_sequence, prev_match]
-            new_sequence = None
+        # the empty case
+        if len(self._match_sequences) == 0 :
+            self._match_sequences.append(MatchSequence(bin_ctx))
+            return
+        # the interesting case
+        match_index = self._bin_functions_ctx.index(bin_ctx)
         # Now scan the entire list
-        for current_match in self._match_sequences[1:] :
-            # can we insert the new sequence here?
-            if new_sequence is not None and prev_match_upper_index + 1 == new_match_lower_index :
-                prev_match.merge(new_sequence, is_lower = False)
-                prev_match_upper_index = new_match_upper_index
-                new_sequence = None
-            current_match_lower_index = self._bin_functions_ctx.index(current_match.bin_lower_ctx)
-            current_match_upper_index = self._bin_functions_ctx.index(current_match.bin_upper_ctx)
-            if prev_match_upper_index + 1 == current_match_lower_index :
-                prev_match.merge(current_match, is_lower = False)
-            else :
-                # Should we insert the sequence now?
-                if new_sequence is not None :
-                    if new_match_upper_index + 1 < current_match_lower_index :
-                        new_sequence_list.append(new_sequence)
-                        new_sequence = None
-                    elif new_match_upper_index + 1 == current_match_lower_index :
-                        current_match.merge(new_sequence, is_lower = True)
-                        new_sequence = None
-                prev_match = current_match
-                new_sequence_list.append(prev_match)
-            # update the indices
-            prev_match_lower_index = current_match_lower_index
-            prev_match_upper_index = current_match_upper_index
-        # if we still have a new sequence, it means it is after the last one
-        if new_sequence is not None :
-            if prev_match_upper_index + 1 == new_match_lower_index :
-                prev_match.merge(new_sequence, is_lower = False)
-            else :
-                new_sequence_list.append(new_sequence)
-        # replace the lists
-        self._match_sequences = new_sequence_list
+        for seq_index, current_seq in enumerate(self._match_sequences) :
+            current_seq_lower_index = self._bin_functions_ctx.index(current_seq.bin_lower_ctx)
+            current_seq_upper_index = self._bin_functions_ctx.index(current_seq.bin_upper_ctx)
+            # insert way before
+            if match_index + 1 < current_seq_lower_index :
+                self._match_sequences = self._match_sequences[:seq_index] + [MatchSequence(bin_ctx)] + self._match_sequences[seq_index:]
+                return
+            # merge before
+            elif match_index + 1 == current_seq_lower_index :
+                current_seq.enlarge(bin_ctx, is_lower = True)
+                return
+            # merge after
+            elif match_index - 1 == current_seq_upper_index :
+                current_seq.enlarge(bin_ctx, is_lower = False)
+                # check if we merged with the next one
+                if seq_index + 1 < len(self._match_sequences) :
+                    next_seq = self._match_sequences[seq_index + 1]
+                    if match_index + 1 == self._bin_functions_ctx.index(next_seq.bin_lower_ctx) :
+                        current_seq.merge(next_seq, is_lower = False)
+                        self._match_sequences.remove(next_seq)
+                # finished
+                return
+            # sanity check
+            if current_seq_lower_index <= match_index and match_index <= current_seq_upper_index :
+                self._engine.logger.error("Sanity check failed in cleanupMatches(): matched a function twice in file %s", self.name)
+                raise AssumptionException()
+            # continue to the next case
+        # if we still have a new sequence, it means it is way after the last one
+        self._match_sequences.append(MatchSequence(bin_ctx))
         
     def disableSources(self, removed_sources):
         """Updates the file that several source functions where ifdeffed out / inlined
@@ -404,7 +389,6 @@ class FileMatch(object) :
             # now init all of the fields
             self._lower_match_ctx = bin_ctx
             self._upper_match_ctx = bin_ctx
-            self._match_sequences.append(MatchSequence(bin_ctx))
             # we can finaly set the leftovers' values
             self._lower_leftovers = self._lower_match_ctx.index - self._bin_limit_lower
             self._upper_leftovers = self._bin_limit_upper - self._upper_match_ctx.index
@@ -494,7 +478,7 @@ class FileMatch(object) :
             self._engine.logger.error("Sanity check failed in FileMatch (%s) match() when matching %s: matched binary (%s) not in bin_ctxs after update", self.name, src_ctx.name, bin_ctx.name)
             raise AssumptionException()
         # now it's safe to preform the cleanup
-        self.cleanupMatches(MatchSequence(bin_ctx))
+        self.cleanupMatches(bin_ctx)
 
         # Now link all of the files (atomically)
         for linked_ctx in link_files :

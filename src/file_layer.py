@@ -58,30 +58,38 @@ class FileMatcher(FileMatch) :
         # don't work on unlocated files
         if not self.located:
             return match_result
+        # sanity check
+        src_index_options = filter(lambda x : x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1))
+        if self._remain_size != len(src_index_options) :
+            self._engine.logger.error("File \"%s\" in attemptMatches(): remain_size (%d) != remaining unmatched src functions (%d)", self.name, self._remain_size, len(src_index_options))
+            raise AssumptionException()
         # check for a full (src + bin) singleton
-        if self._remain_size == 1 and len(filter(lambda ctx : ctx.active(), self._bin_functions_ctx)) == 1 :
+        active_bins = filter(lambda ctx : ctx.active(), self._bin_functions_ctx)
+        if self._remain_size == 1 and len(active_bins) == 1 :
             # we have a singleton - check if it has hints / is it locked
-            singleton_ctx = filter(lambda ctx : ctx.active(), self._bin_functions_ctx)[0]
+            singleton_ctx = active_bins[0]
+            singleton_bin_index = self._bin_functions_ctx.index(singleton_ctx)
             # if used, just match it
-            if singleton_ctx.isHinted() or (0 < self._bin_functions_ctx.index(singleton_ctx) and self._bin_functions_ctx.index(singleton_ctx) < len(self._bin_functions_ctx) - 1) :
+            if singleton_ctx.isHinted() or (0 < singleton_bin_index and singleton_bin_index < len(self._bin_functions_ctx) - 1) :
                 singleton_index = filter(lambda x : x not in self._engine.function_matches, xrange(self._src_index_start, self._src_index_end + 1))[0]
                 # check for validity first
                 if self._engine.src_functions_ctx[singleton_index].isValidCandidate(singleton_ctx) :
                     match_result = self._engine.declareMatch(singleton_index, singleton_ctx.ea, REASON_FILE_SINGLETON) or match_result
         # check for a (locked) bin singleton
-        if len(filter(lambda ctx : ctx.active(), self._bin_functions_ctx)) == 1 :
-            singleton_ctx = filter(lambda ctx : ctx.active(), self._bin_functions_ctx)[0]
+        elif len(active_bins) == 1 :
+            singleton_ctx = active_bins[0]
+            singleton_bin_index = self._bin_functions_ctx.index(singleton_ctx)
             # indeed locked
-            if 0 < self._bin_functions_ctx.index(singleton_ctx) and self._bin_functions_ctx.index(singleton_ctx) < len(self._bin_functions_ctx) - 1 :
+            if 0 < singleton_bin_index and singleton_bin_index < len(self._bin_functions_ctx) - 1 :
                 singleton_index_options = filter(lambda x : x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1))
                 if len(singleton_index_options) > 0 :
-                    singleton_index = filter(lambda x : x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1))[0]
+                    singleton_index = singleton_index_options[0]
                     # try to match it to all remaining source options, and pick the best one
                     best_score = None
                     best_src_index = None
-                    prev_match_index = self._engine._bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) - 1].ea]
-                    for src_index in filter(lambda x : x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1)) :
-                        next_match_index = self._engine._bin_matched_ea[self._bin_functions_ctx[self._bin_functions_ctx.index(singleton_ctx) + 1].ea]
+                    prev_match_index = self._engine._bin_matched_ea[self._bin_functions_ctx[singleton_bin_index - 1].ea]
+                    for src_index in singleton_index_options :
+                        next_match_index = self._engine._bin_matched_ea[self._bin_functions_ctx[singleton_bin_index + 1].ea]
                         # filter it, before giving it a matching score
                         if not self._engine.src_functions_ctx[src_index].isValidCandidate(singleton_ctx) :
                             continue
@@ -105,27 +113,25 @@ class FileMatcher(FileMatch) :
             for sequence in self._match_sequences :
                 # prefer internal matches
                 if sequence == self._match_sequences[0] :
-                    match_result = self.attemptMatchEnd(sequence) or match_result
+                    self.attemptMatchEnd(sequence)
                 elif sequence == self._match_sequences[-1] :
-                    match_result = self.attemptMatchStart(sequence) or match_result
+                    self.attemptMatchStart(sequence)
                 # normal case
                 else :
-                    match_result = self.attemptMatchStart(sequence) or match_result
-                    match_result = self.attemptMatchEnd(sequence) or match_result
+                    self.attemptMatchStart(sequence)
+                    self.attemptMatchEnd(sequence)
         # now check the dangerous leftovers zone
         if len(self._match_sequences) > 0 :
-            match_result = self.attemptMatchStart(self._match_sequences[0]) or match_result
-            match_result = self.attemptMatchEnd(self._match_sequences[-1]) or match_result
+            self.attemptMatchStart(self._match_sequences[0])
+            self.attemptMatchEnd(self._match_sequences[-1])
         # for a full size match, check the file borders too
         if len(self._bin_functions_ctx) == (self._src_index_end - self._src_index_start + 1) :
             # file start
             self._lower_neighbours[self._src_index_start] = (self._bin_functions_ctx[0].ea, False)
-            is_match = self._engine.matchAttempt(self._src_index_start, self._bin_functions_ctx[0].ea, file_match = self)
-            match_result = is_match or match_result
+            self._engine.matchAttempt(self._src_index_start, self._bin_functions_ctx[0].ea, file_match = self)
             # file end
             self._upper_neighbours[self._src_index_end] = (self._bin_functions_ctx[-1].ea, False)
-            is_match = self._engine.matchAttempt(self._src_index_end, self._bin_functions_ctx[-1].ea, file_match = self)
-            match_result = is_match or match_result
+            self._engine.matchAttempt(self._src_index_end, self._bin_functions_ctx[-1].ea, file_match = self)
         # Return the result
         return match_result
 
@@ -136,7 +142,7 @@ class FileMatcher(FileMatch) :
             sequence (MatchSequence): given match sequence that we are trying to expand downward
 
         Return Value:
-            True iff matched a function
+            True iff had a successful attempt to match a function
         """
         try:
             matched_bin_index = self._bin_functions_ctx.index(sequence.bin_lower_ctx)
@@ -151,9 +157,7 @@ class FileMatcher(FileMatch) :
         if matched_src_index == self._src_index_start :
             return False
         self._lower_neighbours[matched_src_index - 1] = (self._bin_functions_ctx[matched_bin_index - 1].ea, True)
-        if self._engine.matchAttempt(matched_src_index - 1, self._bin_functions_ctx[matched_bin_index - 1].ea, file_match = self) :
-            return True
-        return False
+        return self._engine.matchAttempt(matched_src_index - 1, self._bin_functions_ctx[matched_bin_index - 1].ea, file_match = self)
 
     def attemptMatchEnd(self, sequence) :
         """Attempt to match a new function from the end (going upward) of the given match sequence
@@ -162,7 +166,7 @@ class FileMatcher(FileMatch) :
             sequence (MatchSequence): given match sequence that we are trying to expand upward
 
         Return Value:
-            True iff matched a function
+            True iff had a successful attempt to match a function
         """
         try:
             matched_bin_index = self._bin_functions_ctx.index(sequence.bin_upper_ctx)
@@ -177,9 +181,7 @@ class FileMatcher(FileMatch) :
         if matched_src_index == self._src_index_end :
             return False
         self._upper_neighbours[matched_src_index + 1] = (self._bin_functions_ctx[matched_bin_index + 1].ea, True)
-        if self._engine.matchAttempt(matched_src_index + 1, self._bin_functions_ctx[matched_bin_index + 1].ea, file_match = self) :
-            return True
-        return False
+        return self._engine.matchAttempt(matched_src_index + 1, self._bin_functions_ctx[matched_bin_index + 1].ea, file_match = self)
 
     def attemptFindFileHints(self) :
         """Attempt to find matches using file name hint strings"""

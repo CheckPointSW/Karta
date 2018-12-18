@@ -81,7 +81,7 @@ class KartaMatcher(MatchEngine):
             self.logger.debug("Matching reason is: %s", reason)
 
         # debug sanity checks
-        if function_name != src_ctx.name :
+        if function_name not in [src_ctx.name, libraryName() + "_" + src_ctx.name] :
             # check if this is an unnamed IDA functions
             if function_name.startswith("sub_") or function_name.startswith("nullsub_") or function_name.startswith("j_") :
                 self.logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)", src_ctx.name, src_index, func_ea, function_name)
@@ -541,7 +541,6 @@ class KartaMatcher(MatchEngine):
                 matched_src_index.add(src_candidate.index)
                 matched_bin_ea.add(bin_candidate.ea)
 
-
         # filter the losers
         final_loser_list = []
         for loser_record in self._match_round_losers :
@@ -600,7 +599,7 @@ class KartaMatcher(MatchEngine):
                     prev_record['reason'] = match_record['reason']
                     return
                 # still the winner in the binary match - had a gap in the binary or the source
-                elif match_round_bin_ea[func_ea] == prev_record :
+                elif self._match_round_bin_ea[func_ea] == prev_record :
                     # If we won the gap
                     if abs(score - prev_record['gap']) > SAFTEY_GAP_SCORE :
                         prev_record['gap-safe'] = True
@@ -722,6 +721,9 @@ class KartaMatcher(MatchEngine):
             src_index (int): (source) index of the candidate (source) function
             func_ea (int): ea of the candidate (binary) function (can't be an island)
             file_match (FileMatch, optional): file in which we are currently trying a geographical match (None by default)
+
+        Return Value:
+            True iff we found a match record with high matching probabilities
         """
         # sanity checks
         if src_index < 0 or len(self.src_functions_ctx) <= src_index or src_index in self.function_matches or func_ea in self._bin_matched_ea :
@@ -837,12 +839,12 @@ class KartaMatcher(MatchEngine):
                 # First, Scan all of the (located) files
                 for match_file in self._match_files :
                     # tell the file to try and match itself
-                    match_file.attemptMatches()
+                    finished = (not match_file.attemptMatches()) and finished
 
                 # Now, check out the changed functions first, and then the once seen functions
                 for scoped_functions in [self._changed_functions, self._once_seen_couples_src] :
                     for src_index in list(scoped_functions.keys()) :
-                        # check if already matched (already popeed out of the dict)
+                        # Sanity (shouldn't happen): check if already matched
                         if src_index in self.function_matches:
                             continue
                         for bin_ctx in list(scoped_functions[src_index]) :

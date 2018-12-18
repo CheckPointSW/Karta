@@ -3,6 +3,7 @@ from core.file_layer        import AssumptionException
 from config.utils           import *
 from file_layer             import FileMatcher
 from function_context       import ExternalFunction, SourceContext, BinaryContext, IslandContext
+from collections            import defaultdict
 import sys
 
 class KartaMatcher(MatchEngine):
@@ -46,9 +47,9 @@ class KartaMatcher(MatchEngine):
         # more match mappings
         self._matching_reason         = {}
         # changed / seen records, to track
-        self._changed_functions       = {}
-        self._once_seen_couples_src   = {}
-        self._once_seen_couples_bin   = {}
+        self._changed_functions       = defaultdict(set)
+        self._once_seen_couples_src   = defaultdict(set)
+        self._once_seen_couples_bin   = defaultdict(set)
         self._call_hints_records      = []
         # Data from anchor matching, waiting to be used
         self._anchor_hints            = []
@@ -161,13 +162,11 @@ class KartaMatcher(MatchEngine):
         self._src_functions_list, self.src_functions_ctx, self._src_file_mappings = getSourceFunctions()
 
         # prepare a possible collision mapping
-        collision_map = {}
+        collision_map = defaultdict(list)
 
         # pre-processed list indices (efficiency improvement)
-        func_indices = {}
+        func_indices = defaultdict(list)
         for func_idx, func_name in enumerate(self._src_functions_list) :
-            if func_name not in func_indices:
-                func_indices[func_name] = []
             func_indices[func_name].append(func_idx)
 
         # Convert all function calls to contexts instead of names
@@ -231,8 +230,6 @@ class KartaMatcher(MatchEngine):
                     new_order[key].append(inner_calls)
             src_func_ctx.call_order = new_order
             # update the collision mapping
-            if src_func_ctx.hash not in collision_map:
-                collision_map[src_func_ctx.hash] = []
             collision_map[src_func_ctx.hash].append(src_func_ctx)
 
             # Build up an xref map too
@@ -424,8 +421,6 @@ class KartaMatcher(MatchEngine):
                 for call_bin_ctx in bin_calls :
                     call_bin_ctx.addHints(src_calls, True)
             for call_src_ctx in src_calls :
-                if call_src_ctx.index not in self._changed_functions :
-                    self._changed_functions[call_src_ctx.index] = set()
                 self._changed_functions[call_src_ctx.index].update(filter(lambda x : call_src_ctx.isValidCandidate(x), bin_calls))
         # function xrefs
         bin_xrefs = filter(lambda x : x.active(), bin_ctx.xrefs)
@@ -436,8 +431,6 @@ class KartaMatcher(MatchEngine):
                 for xref_bin_ctx in bin_xrefs :
                     xref_bin_ctx.addHints(src_xrefs, False)
             for xref_src_ctx in src_xrefs :
-                if xref_src_ctx.index not in self._changed_functions :
-                    self._changed_functions[xref_src_ctx.index] = set()
                 self._changed_functions[xref_src_ctx.index].update(filter(lambda x : xref_src_ctx.isValidCandidate(x), bin_xrefs))
         # external functions
         bin_exts = filter(lambda ea : ea not in self._bin_matched_ea, bin_ctx.externals)
@@ -798,11 +791,9 @@ class KartaMatcher(MatchEngine):
         for loser_record in self._match_round_losers :
             src_index = loser_record['src_index']
             func_ea   = loser_record['func_ea']
-            if src_index not in self._changed_functions :
-                self._changed_functions[src_index] = set()
             self._changed_functions[src_index].add(self.bin_functions_ctx[func_ea])
         # reset the losers list
-        match_round_losers = []
+        self._match_round_losers = []
 
         # Search for useful "agents" to help the initial anchors list
         self.logger.info("Searching for \"agents\" to thicken the anchors list")
@@ -820,8 +811,6 @@ class KartaMatcher(MatchEngine):
         for loser_record in self._match_round_losers :
             src_index = loser_record['src_index']
             func_ea   = loser_record['func_ea']
-            if src_index not in self._changed_functions :
-                self._changed_functions[src_index] = set()
             self._changed_functions[src_index].add(self.bin_functions_ctx[func_ea])
         # reset the losers list
         self._match_round_losers = []
@@ -874,11 +863,7 @@ class KartaMatcher(MatchEngine):
                             # simply compare them both
                             self.matchAttempt(src_index, bin_ctx.ea)
                             # add it to the once seen couples
-                            if src_index not in self._once_seen_couples_src :
-                                self._once_seen_couples_src[src_index] = set()
                             self._once_seen_couples_src[src_index].add(bin_ctx)
-                            if bin_ctx.ea not in self._once_seen_couples_bin :
-                                self._once_seen_couples_bin[bin_ctx.ea] = set()
                             self._once_seen_couples_bin[bin_ctx.ea].add(src_index)
                         
                         # if this is first loop, add all of the records from the matching seen couples
@@ -909,11 +894,7 @@ class KartaMatcher(MatchEngine):
                             src_index = loser_record['src_index']
                             func_ea   = loser_record['func_ea']
                             bin_ctx = self.bin_functions_ctx[func_ea]
-                            if src_index not in self._once_seen_couples_src :
-                                self._once_seen_couples_src[src_index] = set()
                             self._once_seen_couples_src[src_index].add(bin_ctx)
-                            if bin_ctx.ea not in self._once_seen_couples_bin :
-                                self._once_seen_couples_bin[bin_ctx.ea] = set()
                             self._once_seen_couples_bin[bin_ctx.ea].add(src_index)
                         # reset the losers list
                         self._match_round_losers = []
@@ -942,8 +923,8 @@ class KartaMatcher(MatchEngine):
                         if len(src_calls) > 0 and len(bin_calls) > 0 :
                             new_call_hints_records.append((src_calls, bin_calls, src_parent, bin_parent, is_ext))
                         # now continue to the actual logic
-                        order_bins = {}
-                        order_srcs = {}
+                        order_bins = defaultdict(set)
+                        order_srcs = defaultdict(set)
                         # build the bin order
                         for bin_ctx in bin_calls :
                             if bin_ctx not in bin_parent.call_order :
@@ -952,15 +933,11 @@ class KartaMatcher(MatchEngine):
                                 continue
                             for call_path in bin_parent.call_order[bin_ctx] :
                                 order_score = len(call_path.intersection(bin_calls))
-                                if order_score not in order_bins :
-                                    order_bins[order_score] = set()
                                 order_bins[order_score].add(bin_ctx)
                         # build the src order
                         for src_ctx in src_calls :
                             for call_path in src_parent.call_order[src_ctx] :
                                 order_score = len(call_path.intersection(src_calls))
-                                if order_score not in order_srcs :
-                                    order_srcs[order_score] = set()
                                 order_srcs[order_score].add(src_ctx)
                         # check that both orders match
                         agreed_order_index = -1

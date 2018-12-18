@@ -196,10 +196,8 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter) :
 
     # Check for an error
     if len(anchors_list) == 0:
-        prompter.error("Failed to find Anchor functions in the library :(")
-        prompter.removeIndent()
-        prompter.error("Finished with errors!")
-        exit(2)
+        prompter.warning("Failed to find Anchor functions in the library :(")
+        prompter.warning("You should define manual anchors instead")
 
     # Create the anchors file
     prompter.info("Generating the full JSON file: %s", config_name)

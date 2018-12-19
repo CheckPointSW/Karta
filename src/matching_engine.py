@@ -111,10 +111,6 @@ class KartaMatcher(MatchEngine):
         # update the hints now (must be done before we update the files - we need to count in all of the collision candidates)
         self.updateHints(src_index, func_ea)
 
-        # update all of the relevant match files (only on the first time)
-        if duplicate_match :
-            return
-
         bin_merged = not bin_ctx.isPartial() and bin_ctx.merged()
         file_list = list(bin_ctx.files) if not bin_ctx.isPartial() else [src_ctx.file]
         collision_file_list = set()
@@ -124,13 +120,17 @@ class KartaMatcher(MatchEngine):
                 for file_option in file_list:
                     if file_option._src_index_start <= merged_source_ctx.index and merged_source_ctx.index <= file_option._src_index_end :
                         match_file = file_option
-                        # make sure to update that this is the "correct" match
+                        # make sure to update that this is the "correct" match (all collissions in the same file are equivelent)
                         src_index = merged_source_ctx.index
                         bin_ctx.match = merged_source_ctx
                         self._bin_matched_ea[func_ea] = merged_source_ctx.index
                         break
                 if match_file is not None :
                     break
+            # tell the lost files that one of their sources is now gone
+            for merged_source_ctx in bin_ctx.merged_sources :
+                if merged_source_ctx.file != match_file :
+                    merged_source_ctx.file.markMatch()
         else :
             match_file = src_ctx.file
         # update the files
@@ -138,8 +138,8 @@ class KartaMatcher(MatchEngine):
             # winner file
             if file_option == match_file :
                 match_file.match(src_index, bin_ctx)
-            # loser file
-            else :
+            # loser file (only on the first time)
+            elif not duplicate_match :
                 file_option.remove(bin_ctx)
 
     # Overriden base function
@@ -584,12 +584,13 @@ class KartaMatcher(MatchEngine):
             if prev_record['func_ea'] == match_record['func_ea'] :
                 if match_record['score'] <= prev_record['score'] :
                     return
+                # we will need this update anyway
+                prev_record['score']  = match_record['score']
+                prev_record['boost']  = match_record['boost']
+                prev_record['reason'] = match_record['reason']
                 # be safe with the gaps
-                elif prev_record['gap-safe'] :
-                    # simply adjust it's score (no need to throw him out)
-                    prev_record['score']  = match_record['score']
-                    prev_record['boost']  = match_record['boost']
-                    prev_record['reason'] = match_record['reason']
+                if prev_record['gap-safe'] :
+                    # nothing more to be done
                     return
                 # still the winner in the binary match - had a gap in the binary or the source
                 elif self._match_round_bin_ea[func_ea] == prev_record :
@@ -600,16 +601,12 @@ class KartaMatcher(MatchEngine):
                         # revive us back
                         self._match_round_candidates.append(prev_record)
                         self._match_round_losers.remove(prev_record)
-                    # always preform the update
-                    prev_record['score']  = match_record['score']
-                    prev_record['boost']  = match_record['boost']
-                    prev_record['reason'] = match_record['reason']
                     return
                 # lost the binary match - match_round_bin_ea[func_ea] != prev_record
                 else :
                     prev_bin_record = self._match_round_bin_ea[func_ea]
                     # If we won the gap
-                    if abs(score - self._match_round_bin_ea[func_ea]['score']) > SAFTEY_GAP_SCORE :
+                    if abs(score - prev_bin_record['score']) > SAFTEY_GAP_SCORE :
                         prev_record['gap-safe'] = True
                         prev_record['gap'] = None
                         # revive us back (and throw the previous winner)
@@ -628,10 +625,6 @@ class KartaMatcher(MatchEngine):
                             prev_bin_record['gap-safe'] = False
                             self._match_round_candidates.remove(prev_bin_record)
                             self._match_round_losers.append(prev_bin_record)
-                    # always preform the update
-                    prev_record['score']  = match_record['score']
-                    prev_record['boost']  = match_record['boost']
-                    prev_record['reason'] = match_record['reason']
             # check if our candidate even needs to compete
             if score + SAFTEY_GAP_SCORE < prev_record['score'] :
                 # tough luck, we should get rejected
@@ -884,7 +877,7 @@ class KartaMatcher(MatchEngine):
                                         else :
                                             self._once_seen_couples_bin[match_record['func_ea']].remove(src_index)
                             # now reset the dict of changed functions
-                            changed_functions = {}
+                            self._changed_functions = defaultdict(set)
 
                         # check the round results now
                         finished = (not self.roundMatchResults()) and finished

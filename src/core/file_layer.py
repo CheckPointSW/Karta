@@ -68,6 +68,7 @@ class FileMatch(object) :
         _lower_leftovers (int): size (in functions) of the lower "safety" gap (from a last valid match to the start of the file)
         _upper_leftovers (int): size (in functions) of the upper "safety" gap (from a last valid match to the end of the file)
         _match_sequences (list): Orderred list of match sequences in the file (containing MatchSequence instances)
+        _disabled (int): number of disabled (linker optimized) functions that were found before we located our file
         _remain_size (int): number of source functions that are still to be matched
         _lower_match_ctx (FunctionContext): the lowest function that was matched till now
         _upper_match_ctx (FunctionContext): the uppmost function that was matched till now
@@ -102,6 +103,7 @@ class FileMatch(object) :
         self._upper_leftovers    = None
         # orderred list of matching sequences
         self._match_sequences    = []
+        self._disabled           = 0
 
         # calculate the remaining size
         if self.located :
@@ -182,6 +184,17 @@ class FileMatch(object) :
                     # A False positive broke our invariants
                     return None
         return None
+
+    def contains(self, bin_ctx) :
+        """Checks if the given binary function is contained in the scope of the (located) file
+
+        Args:
+            bin_ctx (FunctionContext): binary function to be searched
+
+        Return value:
+            True iff the bin_ctx is located in the scope of the file
+        """
+        return self.located and bin_ctx in self._bin_functions_ctx
 
     def cleanupMatches(self, bin_ctx) :
         """Cleans the list of match sequences, merging adjacent sequences if needed
@@ -346,7 +359,11 @@ class FileMatch(object) :
         # special case for partial functions
         if bin_ctx.isPartial() :
             # we have one less function to handle, and that's it for this one
-            self._remain_size -= 1
+            self.markMatch()
+            return
+        # check for linker optimizations in the same file
+        if bin_ctx.merged() and self.index(bin_ctx) is not None :
+            self.markMatch()
             return
         # internal match could be: 1) below lower bound 2) above upper bound 3) in the middle
         try:
@@ -355,7 +372,6 @@ class FileMatch(object) :
             self._engine.logger.error("Sanity check failed in FileMatch (%s) match() when matching %s: matched binary (%s) not in bin_ctxs", self.name, src_ctx.name, bin_ctx.name)
             raise AssumptionException()
         link_files = set()
-        expelled_funcs = []
         if len(self._match_sequences) != 0 :
             try:
                 upper_match_index = self._bin_functions_ctx.index(self._upper_match_ctx)
@@ -396,7 +412,7 @@ class FileMatch(object) :
             link_files.add(self._bin_functions_ctx[bin_index])
             # mark myself as located
             self.located = True
-            self._remain_size = self._src_index_end - self._src_index_start + 1
+            self._remain_size = self._src_index_end - self._src_index_start + 1 + self._disabled
             cleanup_matches = False
             # now adjust the leftovers (and bin functions) according to (potential) prior matches
             for lower_leftovers in xrange(1, self._lower_leftovers) :
@@ -408,8 +424,10 @@ class FileMatch(object) :
                     self._upper_leftovers = upper_leftovers - 1
                     break
             # build an initial list of expelled functions
-            expelled_funcs += self._bin_functions_ctx[ : bin_index - self._lower_leftovers]
+            expelled_funcs  = self._bin_functions_ctx[ : bin_index - self._lower_leftovers]
             expelled_funcs += self._bin_functions_ctx[bin_index + self._upper_leftovers + 1 : ]
+            for expelled_ctx in expelled_funcs :
+                expelled_ctx.expel(self)
             self._bin_functions_ctx = [] + self._bin_functions_ctx[bin_index - self._lower_leftovers : bin_index + self._upper_leftovers + 1]
         # case #1
         elif bin_index < lower_match_index :
@@ -432,24 +450,12 @@ class FileMatch(object) :
                 self._upper_locked_eas.remove(bin_ctx.ea)
             elif bin_ctx.ea in self._lower_locked_eas :
                 self._lower_locked_eas.remove(bin_ctx.ea)
-        # we have one less function to handle
-        self._remain_size -= 1
 
-        # shorten the upper leftovers
-        if self._upper_leftovers > self._remain_size - (len(self._locked_eas) + len(self._lower_locked_eas)):
-            delta = self._upper_leftovers - (self._remain_size - (len(self._locked_eas) + len(self._lower_locked_eas)))
-            self._upper_leftovers -= delta
-            expelled_funcs += self._bin_functions_ctx[-delta:]
-            self._bin_functions_ctx = self._bin_functions_ctx[:-delta]
-        # shorten the lower leftovers
-        if self._lower_leftovers > self._remain_size - (len(self._locked_eas) + len(self._upper_locked_eas)) :
-            delta = self._lower_leftovers - (self._remain_size - (len(self._locked_eas) + len(self._upper_locked_eas)))
-            self._lower_leftovers -= delta
-            expelled_funcs += self._bin_functions_ctx[:delta]
-            self._bin_functions_ctx = self._bin_functions_ctx[delta:]
+        # can mark the match now
+        self.markMatch()
 
         # update the floating file
-        if floating_representative is not None :
+        if floating_representative is not None:
             bin_index = self._engine.floatingBinFunctions().index(bin_ctx)
             # update the bounds of the floating file, in case we matched an exterme binary function
             upper_part = floating_representative._upper_match_ctx.ea < bin_ctx.ea
@@ -483,6 +489,30 @@ class FileMatch(object) :
         # Now link all of the files (atomically)
         for linked_ctx in link_files :
             linked_ctx.linkFile(self)
+
+    def markMatch(self) :
+        """Notifies the file that there was a match, and that the file leftovers could be adjusted"""
+        # we have one less function to handle
+        if not self.located :
+            self._disabled += 1
+            return
+
+        # our file was located
+        self._remain_size -= 1
+
+        # shorten the upper leftovers
+        expelled_funcs = []
+        if self._upper_leftovers > self._remain_size - (len(self._locked_eas) + len(self._lower_locked_eas)):
+            delta = self._upper_leftovers - (self._remain_size - (len(self._locked_eas) + len(self._lower_locked_eas)))
+            self._upper_leftovers -= delta
+            expelled_funcs += self._bin_functions_ctx[-delta:]
+            self._bin_functions_ctx = self._bin_functions_ctx[:-delta]
+        # shorten the lower leftovers
+        if self._lower_leftovers > self._remain_size - (len(self._locked_eas) + len(self._upper_locked_eas)) :
+            delta = self._lower_leftovers - (self._remain_size - (len(self._locked_eas) + len(self._upper_locked_eas)))
+            self._lower_leftovers -= delta
+            expelled_funcs += self._bin_functions_ctx[:delta]
+            self._bin_functions_ctx = self._bin_functions_ctx[delta:]
 
         # Now expell all of the functions
         for expelled_ctx in expelled_funcs :

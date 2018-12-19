@@ -764,12 +764,8 @@ class BinaryContext(BinFileFunction, FunctionContext):
         # If we reached this point, it looks like they don't belong to each other
         return False
 
+    # Overriden base function
     def merged(self):
-        """Checks if this is a merged (collision) function
-
-        Return value:
-            True iff this is a merged function
-        """
         return self.taken_collision
 
     def mergePotential(self):

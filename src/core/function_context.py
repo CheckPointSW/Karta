@@ -203,3 +203,11 @@ class BinFileFunction(BinaryCodeContext) :
             True iff the src ctx is file-suitable as a collision match candidate
         """
         raise NotImplementedError("Subclasses should implement this!")
+
+    def merged(self):
+        """Checks if this is a merged (collision) function
+
+        Return value:
+            True iff this is a merged function
+        """
+        raise NotImplementedError("Subclasses should implement this!")

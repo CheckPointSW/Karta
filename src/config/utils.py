@@ -43,7 +43,7 @@ REASON_CALL_ORDER       = "Call order in caller function"
 REASON_SWALLOW          = "Swallow - Identified IDA analysis problem"
 REASON_COLLISION        = "Merge - Linker optimization merged source functions"
 REASON_SCORE            = "Score-based Matching"
-REASON_TRAPPED_COUPLE   = "Locked and orderred neighbouring functions"
+REASON_TRAPPED_COUPLE   = "Locked and ordered neighbouring functions"
 
 REASON_DISABLED         = "ifdeffed out / inlined"
 REASON_LIBRARY_UNUSED   = "Unused - No xrefs inside the open source"

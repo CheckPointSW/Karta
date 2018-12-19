@@ -29,6 +29,14 @@
    matching_basics
    scoring_tips
    
+.. toctree::
+   :maxdepth: 2
+   :caption: Modularity:
+   :hidden:
+
+   disassembler
+   file_layer
+   
 ..
    
 ::
@@ -65,11 +73,11 @@ Karta currently supports more than 10 open source libraries, including:
 * Libjpeg
 * NetSNMP
 * zlib
-* Etc.
+* etc.
 
 Matcher
 -------
-After identifying the used open sources, one can compile a .JSON configuration file for a specific library (libpng version 1.2.9 for instance). Once compiled, Karta will automatically attempt to match the functions (symbols) of the open source in the loaded binary. In addition, in case your open source used external functions (memcpy, fread, or zlib_inflate), Karta will also attempt to match those external functions as well. 
+After identifying the used open sources, one can compile a ``.json`` configuration file for a specific library (libpng version 1.2.9 for instance). Once compiled, Karta will automatically attempt to match the functions (symbols) of the open source in the loaded binary. In addition, in case your open source used external functions (memcpy, fread, or zlib_inflate), Karta will also attempt to match those external functions as well. 
 
 Credits
 -------

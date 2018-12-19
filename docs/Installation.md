@@ -3,8 +3,8 @@ Installation
 Prerequisites
 ----------------
 **Karta** makes extensive use of 2 python packages:
-* elementals - https://github.com/eyalitki/elementals
-* sark - https://github.com/tmr232/Sark
+* [elementals](https://github.com/eyalitki/elementals)
+* [sark](https://github.com/tmr232/Sark)
 
 Using the ```setup.py``` script, one can install all of these prerequisites, and be ready to go:
 ```./setup.py install```

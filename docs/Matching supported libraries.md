@@ -39,10 +39,10 @@ The script will store the configurations in a ```*_knowledge.json``` file near t
 Matcher Plugin - Start
 ----------------------
 Assuming you are all set and ready to go, and that your binary is already open in IDA, load the ```karta_matcher.py``` script and set up the needed configurations:
-*  Full path for Karta's configuration directory - the ```configs``` dir with all of the *.json files
+*  Full path for Karta's configuration directory - the ```configs``` dir with all of the ```*.json``` files
 *  In case of a binary that was compiled for Windows, set up the checkbox (not required for firmware binaries)
-Once again, the output will be shown in IDA's output window, and will also be stored to a file.
 
+Once again, the output will be shown in IDA's output window, and will also be stored to a file.
 Every matched open source library will open 2 windows:
 1.  Window with the match results from the library
 1.  Window with the proposed match results for external (usually libc) functions, used by the open source library

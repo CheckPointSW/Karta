@@ -2,8 +2,8 @@ Compiling a configuration file
 ==============================
 Compiling the Open Source
 -------------------------
-Adding support for a new version for an already supported library, requires only to compile a new (*.json) configuration file for it.
-As Karta is a source code assisted plugin, this process requires you to compile the open source library according to the guidelines of the open source project, together with the specific guidelines that can be found in the ```compilations``` directory.
+Adding support for a new version for an already supported library, requires only to compile a new (```*.json```) configuration file for it.
+As **Karta** is a source code assisted plugin, this process requires you to compile the open source library according to the guidelines of the open source project, together with the specific guidelines that can be found in the ```compilations``` directory.
 
 **Important:** Karta will need two compiled parts for building the configuration
 1.  A static library - .a in Linux, and .lib in Windows
@@ -47,4 +47,4 @@ The script will ask you for the path to your disassembler (IDA), and will sugges
 
 Storing the config file
 -----------------------
-In the end, a new *.json file will be generated (using the library name + version), and it should be stored together with the rest of the configuration files in the ```configs``` directory.
+In the end, a new ```*.json``` file will be generated (using the library name + version), and it should be stored together with the rest of the configuration files in the ```configs``` directory.

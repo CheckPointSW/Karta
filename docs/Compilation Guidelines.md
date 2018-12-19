@@ -8,18 +8,15 @@ This means that:
 1.  A function can be modified (inlined) in the binary even if we didn't inline it in our "source" compilation
 1.  If a function was modified in our "source" compilation, it must be modified in the same way in our wanted binary
 
-Since we want to maintain this basic invariant, we usually want to compile our open source library with flag for:
+Since we want to maintain this basic invariant, we usually want to compile our open source library with flags for:
 *  No inlining
 *  No compiler optimizations
 
 Windows Compilation
 -------------------
-It seems that when compiling a binary using ```nmake``` or ```visual studio```, the Window's compilation adds some linker optimizations. As we couldn't imitate these linker optimizations when compiling with ```gcc```, Karta can (and should) support 2 different configurations for the same version of a specific library:
+It seems that when compiling a binary using ```nmake``` or ```visual studio```, the Window's compilation adds some linker optimizations. As we couldn't imitate these linker optimizations when compiling with ```gcc```, **Karta** can (and should) support 2 different configurations for the same version of a specific library:
 1.  Basic (unix) configuration - Used for Linux, Mac, of various firmware files
 1.  Windows configuration
-Karta can automatically identify the type of the configuration file it was requested to create, based on the suffix of the static library file:
-*  .lib - Windows static library => Windows configuration
-*  .a - Linux static library => Basic configuration
 
 Bitness - 32 vs 64
 ------------------

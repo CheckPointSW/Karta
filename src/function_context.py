@@ -1,5 +1,6 @@
 from core.function_context import *
 from config.utils          import *
+from collections           import defaultdict
 
 class ExternalFunction(CodeContext) :
     """This class describes a source-code point of view of an external function, using references from/to it
@@ -522,6 +523,10 @@ class SourceContext(SrcFileFunction, FunctionContext):
         if self.is_static and not bin_ctx.is_static :
             return False
 
+        # 3. A collision candidate must not conflict with the previous matches
+        if not bin_ctx.isPartial() and bin_ctx.matched() and self.hash != bin_ctx.match.hash :
+            return False
+
         # If reached this line, the candidate is probably fine
         return True
 
@@ -705,7 +710,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
         # Compilation clues
         self.is_static  = False
         # Linker optimizations
-        self.collision_map      = {}
+        self.collision_map      = defaultdict(set)
         self.taken_collision    = False
         self.merged_sources     = []
 
@@ -725,6 +730,11 @@ class BinaryContext(BinFileFunction, FunctionContext):
             # make sure that our match will always be in our map
             if match.hash not in self.collision_map:
                 self.collision_map[match.hash] = set()
+        # make sure the collision map won't allow conflicting collisions
+        new_collisions = defaultdict(set)
+        if match.hash in self.collision_map :
+            new_collisions[match.hash] = self.collision_map[match.hash]
+        self.collision_map = new_collisions
 
     # Overriden base function
     def isPartial(self) :
@@ -799,8 +809,6 @@ class BinaryContext(BinFileFunction, FunctionContext):
             # Later on, the matching round will declare them as matched
             if len(new_hints) > 0 :
                 self.call_hints = new_hints
-                if new_hints[0].hash not in self.collision_map :
-                    self.collision_map[new_hints[0].hash] = set()
                 self.collision_map[new_hints[0].hash].update(new_hints)
             return
 
@@ -824,8 +832,6 @@ class BinaryContext(BinFileFunction, FunctionContext):
                 if len(hashes_intersection) > len(remaining_hashes) :
                     collision_candidates = []
                     for collision_hash in set(hashes_intersection).difference(remaining_hashes) :
-                        if collision_hash not in self.collision_map:
-                            self.collision_map[collision_hash] = set()
                         cur_collision_candidates = filter(lambda x : x.hash == collision_hash, context_union)
                         self.collision_map[collision_hash].update(cur_collision_candidates)
                         collision_candidates += cur_collision_candidates

@@ -111,6 +111,10 @@ class KartaMatcher(MatchEngine):
         # update the hints now (must be done before we update the files - we need to count in all of the collision candidates)
         self.updateHints(src_index, func_ea)
 
+        # no need to preform these actions twice
+        if duplicate_match :
+            return
+
         bin_merged = not bin_ctx.isPartial() and bin_ctx.merged()
         file_list = list(bin_ctx.files) if not bin_ctx.isPartial() else [src_ctx.file]
         collision_file_list = set()
@@ -138,8 +142,8 @@ class KartaMatcher(MatchEngine):
             # winner file
             if file_option == match_file :
                 match_file.match(src_index, bin_ctx)
-            # loser file (only on the first time)
-            elif not duplicate_match :
+            # loser file
+            else :
                 file_option.remove(bin_ctx)
 
     # Overriden base function

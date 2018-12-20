@@ -85,10 +85,10 @@ This project was developed by me (see contact details below) with help and suppo
 
 Links
 -----
-
 * https://github.com/CheckPointSW/Karta
 * TODO: link to a blog post
 
 Contact
 -------
-Eyal Itkin (eyalit at checkpoint dot com)
+* `@EyalItkin <https://twitter.com/EyalItkin>`_ 
+* eyalit at checkpoint dot com

@@ -3,6 +3,9 @@ from disassembler.factory   import createDisassemblerHandler
 from matching_engine        import KartaMatcher
 from libs                   import lib_factory
 
+from elementals import Logger
+import logging
+
 ######################
 ## Global Variables ##
 ######################
@@ -11,7 +14,7 @@ config_path         = None      # path to the configuration directory (including
 logger              = None      # elementals logger instance
 
 def startMatch(config_file, lib_name):
-    """Starts matching the wanted source library to the loaded binary
+    """Start matching the wanted source library to the loaded binary.
 
     Args:
         config_file (path): path to the library's configuration file
@@ -20,7 +23,7 @@ def startMatch(config_file, lib_name):
     disas = getDisas()
 
     # always init the utils before we start
-    initUtils(logger, disas, invoked_before = True)
+    initUtils(logger, disas, invoked_before=True)
 
     # Load the configuration file
     fd = open(config_file, 'r')
@@ -46,7 +49,7 @@ def startMatch(config_file, lib_name):
     # Init out matching engine
     matching_engine = KartaMatcher(logger, disas)
 
-    try :
+    try:
         # Load the source functions, and prepare them for use
         matching_engine.loadAndPrepareSource(config_dict[JSON_TAG_FILES])
 
@@ -68,22 +71,22 @@ def startMatch(config_file, lib_name):
         # Show the GUI window with the matches
         match_entries, external_match_entries = matching_engine.prepareGUIEntries()
         matching_engine.showResultsGUIWindow(match_entries, external_match_entries)
-    except KartaException :
+    except KartaException:
         logger.error("Critical error, matching was stopped")
 
 def matchLibrary(lib_name, lib_version):
-    """Checks if the library was already compiled, and matches it
+    """Check if the library was already compiled, and matches it.
 
     Args:
         lib_name (str): name of the open source library
         lib_version (str): version string for the open source library that was found
     """
-
     # Check for existence
     config_name = constructConfigPath(lib_name, lib_version)
     cur_config_path = os.path.join(config_path, config_name)
-    if not os.path.exists(cur_config_path) :
-        logger.error("Missing configuration file (%s) for \"%s\" Version: \"%s\"", config_name, lib_name, lib_version)
+    if not os.path.exists(cur_config_path):
+        logger.error("Missing configuration file (%s) for \"%s\" Version: \"%s\"",
+                                config_name, lib_name, lib_version)
         return
 
     # Start the actual matching
@@ -94,13 +97,13 @@ def matchLibrary(lib_name, lib_version):
     logger.removeIndent()
 
 def matchLibraries():
-    """Iterates over the supported libraries, and activates each of them"""
+    """Iterate over the supported libraries, and activates each of them."""
     libraries_factory = lib_factory.getLibFactory()
-    for lib_name in libraries_factory :
+    for lib_name in libraries_factory:
         # create the instance
         lib_instance = libraries_factory[lib_name](disas.strings())
         # stopped when the first closed source shows up
-        if not lib_instance.openSource() :
+        if not lib_instance.openSource():
             break
         logger.debug("Searching for library \"%s\" in the binary", lib_name)
         logger.addIndent()
@@ -122,7 +125,7 @@ def matchLibraries():
         logger.removeIndent()
 
 def pluginMain():
-    """Main function for the Karta (matcher) plugin"""
+    """Run the Karta (matcher) plugin."""
     global disas, logger, config_path
 
     # init our disassembler handler
@@ -135,16 +138,16 @@ def pluginMain():
 
     # store them / use them now for initialization
     config_path = config_values["config_path"]
-    if config_values["is_windows"] :
+    if config_values["is_windows"]:
         setWindowsMode()
 
     working_path = os.path.split(disas.databaseFile())[0]
 
     log_files  = []
-    #log_files += [(os.path.join(working_path, "%s_debug.log"   % (LIBRARY_NAME)), "w", logging.DEBUG)]
+#    log_files += [(os.path.join(working_path, "%s_debug.log"   % (LIBRARY_NAME)), "w", logging.DEBUG)]
     log_files += [(os.path.join(working_path, "%s_info.log"    % (LIBRARY_NAME)), "w", logging.INFO)]
     log_files += [(os.path.join(working_path, "%s_warning.log" % (LIBRARY_NAME)), "w", logging.WARNING)]
-    logger = Logger(LIBRARY_NAME, log_files, use_stdout = False, min_log_level = logging.INFO)
+    logger = Logger(LIBRARY_NAME, log_files, use_stdout=False, min_log_level=logging.INFO)
     initUtils(logger, disas)
     logger.info("Started the Script")
 
@@ -153,7 +156,6 @@ def pluginMain():
 
     # Init the strings list (Only once, because it's heavy to calculate)
     logger.info("Building a list of all of the strings in the binary")
-    all_bin_strings = disas.strings()
 
     # Start matching the libraries
     logger.info("Going to locate and match the open source libraries")
@@ -164,6 +166,7 @@ def pluginMain():
 
     # Notify the user about the logs
     disas.messageBox("Saved the logs to directory: %s" % (working_path))
+
 
 # Start to analyze the file
 pluginMain()

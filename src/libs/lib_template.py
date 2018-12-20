@@ -1,14 +1,15 @@
-from config.utils   import *
-from lib_factory    import registerLibrary
+from lib_factory import registerLibrary
 import string
 
 class Seeker(object):
-    """Abstract class that represents a basic library seeker
+    """Abstract class that represents a basic library seeker.
 
-    Attributes:
+    Attributes
+    ----------
         _all_strings (list): list of all of the string in the *.idb (to avoid re-generating this list)
 
-    Static Attributes:
+    Static Attributes
+    -----------------
         VERSION_UNKNOWN (str): the default value when we failed to fingerprint the version of a library
         NAME (str): name of the open source library (without versioning info)
     """
@@ -16,7 +17,7 @@ class Seeker(object):
     VERSION_UNKNOWN = 'unknown'
 
     def __init__(self, all_strings):
-        """Inits the base seeker with useful data.
+        """Init the base seeker with useful data.
 
         Args:
             all_string (list): list of all of the strings in the *.idb (to avoid re-generating this list)
@@ -24,7 +25,7 @@ class Seeker(object):
         self._all_strings = all_strings
 
     def name(self):
-        """Returns the name of the library
+        """Return the name of the library.
 
         Return Value:
             The textual name of the open source library
@@ -32,15 +33,15 @@ class Seeker(object):
         return self.NAME
 
     def openSource(self):
-        """Checks if the library is an open source or closed source
+        """Check if the library is an open source or closed source.
 
         Return Value:
             True iff the library is an open source (True by default)
         """
         return True
-        
+
     def searchLib(self, logger):
-        """Checks if the open source library is located somewhere in the binary.
+        """Check if the open source library is located somewhere in the binary.
 
         Args:
             logger (logger): elementals logger instance
@@ -51,7 +52,7 @@ class Seeker(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def identifyVersions(self, logger):
-        """Identifies the version(s) of the library (assuming it was already found)
+        """Identifiy the version(s) of the library (assuming it was already found).
 
         Assumptions:
             1. searchLib() was called before calling identifyVersion()
@@ -65,8 +66,8 @@ class Seeker(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def extractVersion(self, raw_version_string, start_index = 0, legal_chars = string.digits + '.'):
-        """Extracts the version of the library from the raw version string
+    def extractVersion(self, raw_version_string, start_index=0, legal_chars=string.digits + '.'):
+        """Extract the version of the library from the raw version string.
 
         Args:
             raw_version_string (str): raw version string
@@ -83,11 +84,11 @@ class Seeker(object):
         if end_index < len(raw_version_string) and raw_version_string[end_index] == '.':
             end_index -= 1
         # return the result
-        return raw_version_string[start_index : end_index]
+        return raw_version_string[start_index:end_index]
 
     @staticmethod
     def register(name, init_fn):
-        """Registers the library in the overall factory
+        """Register the library in the overall factory.
 
         Args:
             name (str): name of the open source library (used as a unique identifier for it)

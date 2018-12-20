@@ -1,7 +1,8 @@
 from lib_template import *
-import string
 
 class gSOAPSeeker(Seeker):
+    """Seeker (Identifier) for the gSOAP open source library."""
+
     # Library Name
     NAME = 'gSOAP'
     # version string marker
@@ -9,6 +10,14 @@ class gSOAPSeeker(Seeker):
 
     # Overriden base function
     def searchLib(self, logger):
+        """Check if the open source library is located somewhere in the binary.
+
+        Args:
+            logger (logger): elementals logger instance
+
+        Return Value:
+            number of library instances that were found in the binary
+        """
         # Now search
         self._version_strings = []
         for bin_str in self._all_strings:
@@ -25,12 +34,25 @@ class gSOAPSeeker(Seeker):
 
     # Overriden base function
     def identifyVersions(self, logger):
+        """Identify the version(s) of the library (assuming it was already found).
+
+        Assumptions:
+            1. searchLib() was called before calling identifyVersion()
+            2. The call to searchLib() returned a number > 0
+
+        Args:
+            logger (logger): elementals logger instance
+
+        Return Value:
+            list of Textual ID(s) of the library's version(s)
+        """
         results = []
         # extract the version from the copyright string
         for work_str in self._version_strings:
-            results.append(self.extractVersion(work_str, start_index = work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING.split('/')[0]) + 1))
+            results.append(self.extractVersion(work_str, start_index=work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING.split('/')[0]) + 1))
         # return the result
         return results
+
 
 # Register our class
 gSOAPSeeker.register(gSOAPSeeker.NAME, gSOAPSeeker)

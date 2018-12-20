@@ -1,13 +1,13 @@
 import os
 
-def getArchiveFiles(ar_path) :
-    """Returns an orderred list of the files within the .ar archive
-    
+def getArchiveFiles(ar_path):
+    """Return an ordered list of the files within the .ar archive.
+
     Args:
         ar_path (str): path to the compiled *.ar file
 
     Return Value:
-        Orderred list of file names
+        Ordered list of file names
     """
     ar_fd = open(ar_path, 'rb')
     is_windows = ar_path.endswith(".lib")
@@ -26,7 +26,7 @@ def getArchiveFiles(ar_path) :
             if len(ar_part) < 58:
                 continue
             # now read the metadata of the record
-            name = ar_part[-58 : ].split(os.path.sep)[0]
+            name = ar_part[-58:].split(os.path.sep)[0]
         # .lib file format is more complex
         else:
             if ar_part.find(".obj") == -1:
@@ -34,7 +34,7 @@ def getArchiveFiles(ar_path) :
             name = ar_part.split(".obj")[-2].split('\x00')[-1].split(os.path.sep)[-1] + ".obj"
             name = name.strip()
         # append the new record
-        if name not in names :
+        if name not in names:
             names.append(name)
     ar_fd.close()
     return names

@@ -1,7 +1,8 @@
 from lib_template import *
-import string
 
 class libvpxSeeker(Seeker):
+    """Seeker (Identifier) for the libvpx (codec) open source library."""
+
     # Library Name
     NAME = 'libvpx'
     # version string marker
@@ -10,6 +11,14 @@ class libvpxSeeker(Seeker):
 
     # Overriden base function
     def searchLib(self, logger):
+        """Check if the open source library is located somewhere in the binary.
+
+        Args:
+            logger (logger): elementals logger instance
+
+        Return Value:
+            number of library instances that were found in the binary
+        """
         # Now search
         self._version_strings = []
         for bin_str in self._all_strings:
@@ -29,12 +38,25 @@ class libvpxSeeker(Seeker):
 
     # Overriden base function
     def identifyVersions(self, logger):
+        """Identify the version(s) of the library (assuming it was already found).
+
+        Assumptions:
+            1. searchLib() was called before calling identifyVersion()
+            2. The call to searchLib() returned a number > 0
+
+        Args:
+            logger (logger): elementals logger instance
+
+        Return Value:
+            list of Textual ID(s) of the library's version(s)
+        """
         results = set()
         # extract the version from the copyright string
         for work_str in self._version_strings:
-            results.add(self.extractVersion(work_str, start_index = len(self.VERSION_STRING_VP8)))
+            results.add(self.extractVersion(work_str, start_index=len(self.VERSION_STRING_VP8)))
         # return the result
         return list(results)
+
 
 # Register our class
 libvpxSeeker.register(libvpxSeeker.NAME, libvpxSeeker)

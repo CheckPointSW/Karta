@@ -2,16 +2,17 @@
 
 from config.utils          import *
 from elementals            import Prompter
-from disassembler.factory  import identifyDisassemblerHandler
 from function_context      import SourceContext, BinaryContext, IslandContext
 
 import os
 import sys
 import argparse
+import logging
+from collections import defaultdict
 
-def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
-    """Record the list of user defined manual anchor matches
-    
+def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
+    """Record the list of user defined manual anchor matches.
+
     Args:
         library_config (json): json loaded data from the library's configuration
         knowledge_config (dict): a mapping of all of the accumulated knowledge for the currently analysed binary
@@ -21,13 +22,12 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
     Return Value:
         Updated knowledge mapping (to be stored back as a *json file)
     """
-
     # Prepare & load the stats from each file (using the functions file)
     src_file_names = []
     prompter.info("Loading the information regarding the compiled source files")
     prompter.addIndent()
     files_config = library_config[JSON_TAG_FILES]
-    for full_file_path in files_config :
+    for full_file_path in files_config:
         prompter.debug("Parsing the canonical representation of file: %s", full_file_path.split(os.path.sep)[-1])
         src_file_names.append(full_file_path)
         parseFileStats(full_file_path, files_config[full_file_path])
@@ -37,10 +37,8 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
     src_functions_list, src_functions_ctx, src_file_mappings = getSourceFunctions()
 
     # pre-processed list indices (efficiency improvement)
-    func_indices = {}
-    for func_idx, func_name in enumerate(src_functions_list) :
-        if func_name not in func_indices:
-            func_indices[func_name] = []
+    func_indices = defaultdict(list)
+    for func_idx, func_name in enumerate(src_functions_list):
         func_indices[func_name].append(func_idx)
 
     # Start requesting the user to add his manual records
@@ -51,7 +49,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
     while not finished:
         prompter.info("Enter the details for the current manual anchor:")
         parsed_correctly = True
-        while parsed_correctly :
+        while parsed_correctly:
             function_name = prompter.input("Function Name (case sensitive): ")
             # check existance
             if src_functions_list.count(function_name) == 0:
@@ -61,7 +59,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
             # check uniqueness
             if src_functions_list.count(function_name) > 1:
                 file_name = prompter.input("File Name (case sensitive): ")
-                src_indices = filter(lambda x : src_functions_ctx[x].file == file_name, func_indices[function_name])
+                src_indices = filter(lambda x: src_functions_ctx[x].file == file_name, func_indices[function_name])
                 if len(src_indices) == 0:
                     prompter.error("Function \"%s\" does not exist in file \"%s\"", file_name)
                     parsed_correctly = False
@@ -77,7 +75,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
                 bin_ea_str = bin_ea_str_raw
             try:
                 bin_ea = int(bin_ea_str, 16)
-            except:
+            except ValueError:
                 prompter.error("Illegal hexa address: \"%s\"", bin_ea_str_raw)
                 parsed_correctly = False
                 break
@@ -90,15 +88,15 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
     prompter.removeIndent()
 
     # add the info to the json
-    if len(manual_anchors) > 0 :
-        if JSON_TAG_MANUAL_ANCHORS not in knowledge_config :
+    if len(manual_anchors) > 0:
+        if JSON_TAG_MANUAL_ANCHORS not in knowledge_config:
             knowledge_config[JSON_TAG_MANUAL_ANCHORS] = {}
         all_manual_anchors = knowledge_config[JSON_TAG_MANUAL_ANCHORS]
         if lib_name not in all_manual_anchors:
             all_manual_anchors[lib_name] = {}
         cur_manual_anchors = all_manual_anchors[lib_name]
         # merge the results
-        for new_index in manual_anchors :
+        for new_index in manual_anchors:
             src_ctx = src_functions_ctx[new_index]
             cur_manual_anchors[str(new_index)] = [src_ctx.file, src_ctx.name, hex(manual_anchors[new_index]), manual_anchors[new_index]]
 
@@ -107,6 +105,11 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter) :
 
 
 def main(args):
+    """Run the manual anchors script.
+
+    Args:
+        args (list): list of command line arguments
+    """
     global disas_cmd
 
     # argument parser
@@ -132,7 +135,7 @@ def main(args):
     is_windows      = args.windows
 
     # open the log
-    prompter = Prompter(min_log_level = logging.INFO if not is_debug else logging.DEBUG)
+    prompter = Prompter(min_log_level=logging.INFO if not is_debug else logging.DEBUG)
     prompter.info('Starting the Script')
 
     # use the user supplied flag
@@ -140,7 +143,7 @@ def main(args):
         setWindowsMode()
 
     # always init the utils before we start
-    initUtils(prompter, None, invoked_before = True)
+    initUtils(prompter, None, invoked_before=True)
     # register our contexts
     registerContexts(SourceContext, BinaryContext, IslandContext)
 
@@ -149,7 +152,7 @@ def main(args):
     prompter.debug('Loading the configuration file for library: %s', library_name)
     prompter.addIndent()
     cur_config_path = os.path.join(config_path, lib_config_file)
-    if not os.path.exists(cur_config_path) :
+    if not os.path.exists(cur_config_path):
         prompter.error('Missing configuration file (%s) for \"%s\" Version: \"%s\"', lib_config_file, library_name, library_version)
         return
     # Load the configuration file
@@ -174,6 +177,7 @@ def main(args):
 
     # finished
     prompter.info('Finished Successfully')
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -14,7 +14,7 @@ STRING_MEDIUM_GROUP         = 3
 STRING_SHORT_LIMIT          = 6
 STRING_SHORT_GROUP          = 2
 
-CONST_COMPLEX_LIMIT         = 16 # a bit less than 0xdeadbeef
+CONST_COMPLEX_LIMIT         = 16  # a bit less than 0xdeadbeef
 CONST_COMPLEX_GROUP         = 1
-CONST_MEDIUM_LIMIT          = 9 # a bit less than 0xdead
+CONST_MEDIUM_LIMIT          = 9  # a bit less than 0xdead
 CONST_MEDIUM_GROUP          = 2

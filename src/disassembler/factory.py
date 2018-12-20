@@ -12,7 +12,7 @@ disassembler_factory        = collections.OrderedDict()         # Mapping from d
 disassembler_cmd_factory    = []                                # list of couples of the form (identifier_handler, class initializer)
 
 def registerDisassembler(name, init_fn):
-    """Registers the disassembler in the overall factory
+    """Register the disassembler in the overall factory.
 
     Args:
         name (str): name of the supported disassembler program (used as a unique identifier for it)
@@ -23,7 +23,7 @@ def registerDisassembler(name, init_fn):
     disassembler_factory[name] = init_fn
 
 def registerDisassemblerCMD(identifier_fn, init_fn):
-    """Registers the disassembler's command-line identifier in the overall factory
+    """Register the disassembler's command-line identifier in the overall factory.
 
     Args:
         identifier_fn (function): static identifier function
@@ -33,8 +33,8 @@ def registerDisassemblerCMD(identifier_fn, init_fn):
 
     disassembler_cmd_factory.append((identifier_fn, init_fn))
 
-def createDisassemblerHandler(logger) :
-    """Creates the disassembler handler according to the host program
+def createDisassemblerHandler(logger):
+    """Create the disassembler handler according to the host program.
 
     Args:
         logger (logger): logger instance (can be None sometimes)
@@ -42,20 +42,20 @@ def createDisassemblerHandler(logger) :
     Return Value:
         disassembler handler that implements the declared API
     """
-    for disas_name in disassembler_factory :
+    for disas_name in disassembler_factory:
         try:
             handler = disassembler_factory[disas_name]
             if logger is not None and len(logger.handlers) > 0:
                 logger.debug("Chose the %s handler" % (disas_name))
             return handler()
-        except:
+        except Exception:
             continue
     if logger is not None and len(logger.handlers) > 0:
         logger.error("Failed to create a disassembler handler!")
     return None
 
-def identifyDisassemblerHandler(program_path, logger) :
-    """Creates the disassembler handler according to the given program path
+def identifyDisassemblerHandler(program_path, logger):
+    """Create the disassembler handler according to the given program path.
 
     Args:
         program_path (str): command line path to the disassembler program
@@ -64,9 +64,9 @@ def identifyDisassemblerHandler(program_path, logger) :
     Return Value:
         disassembler handler that implements the declared API
     """
-    for identifier, init in disassembler_cmd_factory :
+    for identifier, init in disassembler_cmd_factory:
         if identifier(program_path):
-            disas = init(program_path) 
+            disas = init(program_path)
             logger.debug("Chose the %s handler" % (disas.name()))
             return disas
 

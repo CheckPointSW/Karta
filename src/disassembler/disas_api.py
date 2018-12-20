@@ -3,22 +3,24 @@
 ##################################################################################################################
 
 class DisasAPI(object):
-    """Abstract class that represents the required API from the disassembler layer
+    """Abstract class that represents the required API from the disassembler layer.
 
-    Attributes:
+    Attributes
+    ----------
         _all_functions (list): list of all of the funcitons in the program - calculated once to avoid performance costs
         _all_strings (list): list of all of the strings in the program - calculated once to avoid performance costs
         _exported_symbols (list): list of all of the exported symbols names (as strings) - calculated once to avoid performance costs
     """
+
     def __init__(self):
-        """Basic Ctor for the base class, performs the basic initializations"""
-        self._all_functions = None
-        self._all_strings = None
-        self._exported_symbols = None
+        """Preform basic initialization."""
+        self._all_functions     = None
+        self._all_strings       = None
+        self._exported_symbols  = None
 
     @staticmethod
     def logHandler():
-        """Creates a program specific logger handler, according to the logging.Handler API
+        """Create a program specific logger handler, according to the logging.Handler API.
 
         Return Value:
             Created logger handler to be used throught the program
@@ -26,7 +28,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def functionsInner(self):
-        """Creates a collection / generator of all of the functions in the program (will be called only once)
+        """Create a collection / generator of all of the functions in the program (will be called only once).
 
         Return Value:
             collection of all of the functions in the program
@@ -34,7 +36,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def stringsInner(self):
-        """Creates a collection / generator of all of the strings in the program (will be called only once)
+        """Create a collection / generator of all of the strings in the program (will be called only once).
 
         Return Value:
             collection of all of the used strings in the program
@@ -42,7 +44,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def exportsInner(self):
-        """Creates a collection / generator of all of the exported symbols (string names) in the program (will be called only once)
+        """Create a collection / generator of all of the exported symbols (string names) in the program (will be called only once).
 
         Return Value:
             collection of all of the exported symbols in the program
@@ -50,7 +52,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def functions(self):
-        """Returns a list of all of the functions in the binary (singleton style)
+        """Return a list of all of the functions in the binary (singleton style).
 
         Return Value:
             list of all of functions in the program
@@ -63,7 +65,7 @@ class DisasAPI(object):
         return self._all_functions
 
     def strings(self):
-        """Returns a list of all of the string in the binary (singleton style)
+        """Return a list of all of the string in the binary (singleton style).
 
         Note:
             A string object should have the following methods:
@@ -81,7 +83,7 @@ class DisasAPI(object):
         return self._all_strings
 
     def exports(self):
-        """Returns a list of all of the exported symbols (string names) in the binary (singleton style)
+        """Return a list of all of the exported symbols (string names) in the binary (singleton style).
 
         Return Value:
             list of all of the exported symbols in the program
@@ -94,7 +96,7 @@ class DisasAPI(object):
         return self._exported_symbols
 
     def numSegments(self):
-        """Returns the number of the segments in the binary
+        """Return the number of the segments in the binary.
 
         Return Value:
             number of segments in the binary
@@ -102,7 +104,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def segmentName(self, index):
-        """Returns the name of the wanted segment
+        """Return the name of the wanted segment.
 
         Args:
             index (int): segment index (in the range [0, numSegments() - 1])
@@ -113,7 +115,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def segmentFunctions(self, index):
-        """Returns a collection / generator of addresses (ea) of the functions in the given segment
+        """Return a collection / generator of addresses (ea) of the functions in the given segment.
 
         Args:
             index (int): segment index (in the range [0, numSegments() - 1])
@@ -124,7 +126,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def inputFile(self):
-        """Returns the (full) path of the input file that was used to create the database
+        """Return the (full) path of the input file that was used to create the database.
 
         Return Value:
             Path to the input file
@@ -132,7 +134,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def databaseFile(self):
-        """Returns the (full) path of the database file
+        """Return the (full) path of the database file.
 
         Return Value:
             Path to the database file
@@ -140,7 +142,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def renameFunction(self, ea, name):
-        """Renames the function at the specified address, using the supplied name
+        """Rename the function at the specified address, using the supplied name.
 
         Args:
             ea (int): effective address of the wanted function
@@ -149,7 +151,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def stringAt(self, ea):
-        """Returns the string that was found on the given address, regardless of it's type
+        """Return the string that was found on the given address, regardless of it's type.
 
         Args:
             ea (int): effective address of the wanted string
@@ -160,7 +162,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def nameAt(self, ea):
-        """Returns the name (if there is one) of the given address
+        """Return the name (if there is one) of the given address.
 
         Args:
             ea (int): wanted effective address
@@ -171,7 +173,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def funcAt(self, ea):
-        """Returns the function that includes the given address
+        """Return the function that includes the given address.
 
         Args:
             ea (int): effective address of the wanted function
@@ -182,7 +184,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def funcName(self, func_ctx):
-        """Returns the name of the function, using it's given context instance
+        """Return the name of the function, using it's given context instance.
 
         Args:
             func_ctx (func): funciton instance (differs between implementations)
@@ -193,7 +195,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def funcStart(self, func_ctx):
-        """Returns the start ea of the function, using it's given context instance
+        """Return the start ea of the function, using it's given context instance.
 
         Args:
             func_ctx (func): funciton instance (differs between implementations)
@@ -204,7 +206,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def funcEnd(self, func_ctx):
-        """Returns the end ea of the function, using it's given context instance
+        """Return the end ea of the function, using it's given context instance.
 
         Args:
             func_ctx (func): funciton instance (differs between implementations)
@@ -215,7 +217,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def findImmediate(self, range_start, range_end, value):
-        """Returns all of the places (in the range) in which the immediate value was found
+        """Return all of the places (in the range) in which the immediate value was found.
 
         Args:
             range_start (int): ea of the range's start
@@ -228,7 +230,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def drefsTo(self, ea):
-        """Returns a collection / generator of data references (eas) to the given address
+        """Return a collection / generator of data references (eas) to the given address.
 
         Args:
             ea (int): wanted ea
@@ -239,7 +241,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def crefsTo(self, ea):
-        """Returns a collection / generator of code references (eas) to the given address
+        """Return a collection / generator of code references (eas) to the given address.
 
         Args:
             ea (int): wanted ea
@@ -250,7 +252,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def exit(self):
-        """Exits the disassembler (cleanly)"""
+        """Exit the disassembler (cleanly)."""
         raise NotImplementedError("Subclasses should implement this!")
 
     ############################
@@ -258,8 +260,8 @@ class DisasAPI(object):
     ############################
 
     def funcNameEA(self, func_ea):
-        """Returns the name of the function that was defined in the given address (including windows name fixes)
-        
+        """Return the name of the function that was defined in the given address (including windows name fixes).
+
         Args:
             func_ea (int): effective address of the wanted function
 
@@ -271,9 +273,9 @@ class DisasAPI(object):
             return self.funcName(func)
         return self.logic.funcNameInner(self.nameAt(func_ea))
 
-    def analyzeFunctionGraph(self, func_ea, src_mode) :
-        """Analyzes the flow graph of a given function, generating a call-order mapping
-        
+    def analyzeFunctionGraph(self, func_ea, src_mode):
+        """Analyze the flow graph of a given function, generating a call-order mapping.
+
         Args:
             func_ea (int): effective address of the wanted function
             src_mode (bool): True iff analyzing a self-compiled source file, otherwise analyzing a binary function
@@ -283,9 +285,9 @@ class DisasAPI(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def analyzeFunction(self, func_ea, src_mode) :
-        """Analyze a given function, and creates a canonical representation for it
-        
+    def analyzeFunction(self, func_ea, src_mode):
+        """Analyze a given function, and creates a canonical representation for it.
+
         Args:
             func_ea (int): effective address of the wanted function
             src_mode (bool): True iff analyzing a self-compiled source file, otherwise analyzing a binary function
@@ -295,37 +297,37 @@ class DisasAPI(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def searchIslands(self, func_ea, range_start, range_end) :
-        """Search a given function for "Islands" from a specific code range
-        
+    def searchIslands(self, func_ea, range_start, range_end):
+        """Search a given function for "Islands" from a specific code range.
+
         Args:
             func_ea (int): effective address of the wanted function
             range_start (int): effective address of the start of the island range
             range_end (int): effective address of the end of the island range
 
         Return Value:
-            Orderred list of code blocks for the found island, or None if found nothing
+            Ordered list of code blocks for the found island, or None if found nothing
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def analyzeIslandFunction(self, blocks) :
-        """Analyze a given island function, and creates a canonical representation for it
-        
+    def analyzeIslandFunction(self, blocks):
+        """Analyze a given island function, and creates a canonical representation for it.
+
         Args:
-            blocks (list): orderred list of code blocks (as returned from searchIslands())
+            blocks (list): ordered list of code blocks (as returned from searchIslands())
 
         Return Value:
             IslandContext object representing the analyzed island
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def locateAnchorConsts(self, func_ea, const_set) :
-        """Analyzes the function in search for specific immediate numerics
+    def locateAnchorConsts(self, func_ea, const_set):
+        """Analyze the function in search for specific immediate numerics.
 
         Args:
             func_ea (int): effective address of the analyzed function
             const_set (set): set of numeric consts to search for as immediate values
-        
+
         Return Value :
             a set that contains the matched immediate value, an empty set if found none)
         """
@@ -336,7 +338,7 @@ class DisasAPI(object):
     ######################
 
     def messageBox(self, text):
-        """Pops a MessageBox to the user, with the given text. Blocks untill closed
+        """Pop a MessageBox to the user, with the given text. Blocks untill closed.
 
         Note:
             This function contains some of Karta's UI logic
@@ -347,7 +349,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def configForm(self):
-        """Pops open Karta's configuration form (for the matcher parameters)
+        """Pop open Karta's configuration form (for the matcher parameters).
 
         Note:
             This function contains some of Karta's UI logic
@@ -358,7 +360,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def showMatchesForm(self, prepared_entries, suggested_names, rename_fn):
-        """Pops open Karta's form presenting the matched library functions
+        """Pop open Karta's form presenting the matched library functions.
 
         Note:
             This function contains some of Karta's UI logic
@@ -371,7 +373,7 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def showExternalsForm(self, prepared_entries):
-        """Pops open Karta's form presenting the matched external functions
+        """Pop open Karta's form presenting the matched external functions.
 
         Note:
             This function contains some of Karta's UI logic
@@ -382,14 +384,16 @@ class DisasAPI(object):
         raise NotImplementedError("Subclasses should implement this!")
 
 class DisasCMD(object):
-    """Abstract class that represents the required command-line API from the disassembler layer
+    """Abstract class that represents the required command-line API from the disassembler layer.
 
-    Attributes:
+    Attributes
+    ----------
         _path (path): command line path for the program
     """
+
     def __init__(self, path):
-        """Basic Ctor for the base class, performs the basic initializations
-        
+        """Preform the basic initialization.
+
         Args:
             path (path): command line path for the program
         """
@@ -397,7 +401,7 @@ class DisasCMD(object):
 
     @staticmethod
     def identify(path):
-        """Checks if the given command-line path refers to this disassembler
+        """Check if the given command-line path refers to this disassembler.
 
         Args:
             path (str): command-line path to some disassembler (maybe for us)
@@ -409,7 +413,7 @@ class DisasCMD(object):
 
     @staticmethod
     def name():
-        """Returns the program's name (used mainly for bug fixes in our code...)
+        """Get the program's name (used mainly for bug fixes in our code...).
 
         Return Value:
             String name of the disassembler program
@@ -417,7 +421,7 @@ class DisasCMD(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def createDatabase(self, binary_file, is_windows):
-        """Creates a database file for the given binary file, compiled to windows or linux as specified
+        """Create a database file for the given binary file, compiled to windows or linux as specified.
 
         Args:
             binary_file (path): path to the input binary (*.o / *.obj) file
@@ -429,7 +433,7 @@ class DisasCMD(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     def executeScript(self, database, script):
-        """Executes the given script over the given database file that was created earlier
+        """Execute the given script over the given database file that was created earlier.
 
         Args:
             database (path): path to a database file created by the same program

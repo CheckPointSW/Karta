@@ -8,19 +8,27 @@ from disassembler.factory   import registerDisassembler
 from ida_analysis_api       import AnalyzerIDA
 import logging
 
-class IdaLogHandler(logging.Handler) :
-    """Integrates the log messages with IDA's output window"""
-    def emit(self, record) :
+class IdaLogHandler(logging.Handler):
+    """Integrate the log messages with IDA's output window."""
+
+    def emit(self, record):
+        """Emit a log record into IDA's output window.
+
+        Args:
+            record (LogRecord): a logging.LogRecord instance
+        """
         idc.Message("%s\n" % (super(IdaLogHandler, self).format(record)))
 
 class MessageBox(idaapi.Form):
-    """Wrapper class that represents a GUI MessageBox
+    """Wrapper class that represents a GUI MessageBox.
 
-    Note:
+    Note
+    ----
         Contains specific (basic) Karta logic.
     """
+
     def __init__(self, text):
-        """Basic Ctor for the class
+        """Create a basic message box.
 
         Args:
             text (str): Text to be shown by the message box
@@ -32,17 +40,20 @@ class MessageBox(idaapi.Form):
         idaapi.Form.__init__(self, dialog_content, {})
 
 class ConfigForm(idaapi.Form):
-    """Wrapper class that represents the GUI configuration form for Karta's scripts
+    """Wrapper class that represents the GUI configuration form for Karta's scripts.
 
-    Note:
+    Note
+    ----
         Contains specific Karta logic.
 
-    Attributes:
+    Attributes
+    ----------
         _config_path (str): path to the chosen configuration directory (that includes the *.json files)
         _is_windows (bool): True iff the user specified this as a windows binary (False by default)
     """
+
     def __init__(self):
-        """Basic Ctor for the Form class"""
+        """Create the starting configuration form."""
         # dialog content
         dialog_content = """%s
                             Please insert the path to configuration directory that holds the *.json files
@@ -52,18 +63,21 @@ class ConfigForm(idaapi.Form):
                             <#Enable this option for binaries compiled for Windows              #Is Windows binary    :{_is_windows}>{_check_group}>
                           """ % (LIBRARY_NAME, LIBRARY_NAME)
         # argument parsing
-        args = {'_config_path'       : idaapi.Form.DirInput(swidth=65),
-                '_check_group'       : idaapi.Form.ChkGroupControl(("_is_windows",)),
-                }
+        args = {
+                '_config_path': idaapi.Form.DirInput(swidth=65),
+                '_check_group': idaapi.Form.ChkGroupControl(("_is_windows",)),
+               }
         idaapi.Form.__init__(self, dialog_content, args)
 
 class ChooseForm(idaapi.Choose2):
-    """Choose Form (view) implementation, responsible for showing and handling the matching results
+    """Choose Form (view) implementation, responsible for showing and handling the matching results.
 
-    Note:
+    Note
+    ----
         Contains specific Karta logic.
 
-    Attributes:
+    Attributes
+    ----------
         _entries (list): (sorted) list of match results to be shown in the table
         _names (dict): suggested names for the match results: bin ea => name
         _selected (list): list of selected row indices
@@ -71,8 +85,9 @@ class ChooseForm(idaapi.Choose2):
         _import_matched (cmd): GUI action handler responsible for importing all of the matches
         _rename_handler (func): function handler for renaming the exported functions
     """
+
     def __init__(self, prepared_entries, suggested_names, rename_fn):
-        """Constructs the UI Form view, according to the matching entries
+        """Construct the UI Form view, according to the matching entries.
 
         Args:
             prepared_entries (list): list of UI rows, including the length for the different columns
@@ -80,7 +95,7 @@ class ChooseForm(idaapi.Choose2):
             rename_fn (func): function handler for renaming the exported functions
         """
         # Using tuples causes this to crash...
-        columns = [['Line', 4], ['File Name', 20], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \ Information', 35]]
+        columns = [['Line', 4], ['File Name', 20], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \\ Information', 35]]
         idaapi.Choose2.__init__(self, "%s Matching Results" % (libraryName()), columns, idaapi.Choose2.CH_MULTI)
         self.deflt = 0
         self.icon = -1
@@ -100,60 +115,104 @@ class ChooseForm(idaapi.Choose2):
 
     # Overriden base function
     def OnClose(self):
+        """Close the window - does nothing."""
         pass
 
     # Overriden base function
     def OnGetLine(self, n):
+        """Retrieve a line from the form.
+
+        Args:
+            n (int): the desired input line
+
+        Return Value:
+            The selected line
+        """
         return self.items[n]
 
     # Overriden base function
     def OnGetSize(self):
+        """Return the number of items (rows) in the form.
+
+        Return Value:
+            number of rows in the table
+        """
         return len(self.items)
 
     # Overriden base function
     def show(self):
+        """Show the GUI of the form.
+
+        Return Value:
+            True iff successful
+        """
         return self.Show(False) >= 0
 
     # Overriden base function
     def OnGetLineAttr(self, n):
+        """Retrieve the line's attribute (color) from the form.
+
+        Args:
+            n (int): the desired input line
+
+        Return Value:
+            The selected line's attributes
+        """
         return [self._entries[n][-1], 0]
 
     # Overriden base function
     def OnCommand(self, n, cmd_id):
+        """Act upon the user's command.
+
+        Args:
+            n (int): unused
+            cmd_id (int): ID for the requested command
+
+        Return Value:
+            Always returns True
+        """
         imports = None
         # import (only) the selected functions
         if cmd_id == self._import_selected:
-            imports = filter(lambda x : self._entries[x][4] in GUI_MATCH_REASONS, self._selected)
+            imports = filter(lambda x: self._entries[x][4] in GUI_MATCH_REASONS, self._selected)
         # import all of the matched functions
         elif cmd_id == self._import_matched:
-            imports = filter(lambda x : self._entries[x][4] in GUI_MATCH_REASONS, xrange(len(self.items)))
+            imports = filter(lambda x: self._entries[x][4] in GUI_MATCH_REASONS, xrange(len(self.items)))
         # check if there is something to be done
         if imports is not None:
-            self._rename_handler(map(lambda x : self._entries[x][2], imports), self._names)
+            self._rename_handler(map(lambda x: self._entries[x][2], imports), self._names)
         # always return true
         return True
 
     # Overriden base function
-    def OnSelectionChange(self,  sel_list):
+    def OnSelectionChange(self, sel_list):
+        """Update the list of selected rows.
+
+        Args:
+            sel_list (list): list of currently selected rows
+        """
         self._selected = sel_list
 
 class ExternalsChooseForm(idaapi.Choose2):
-    """Choose Form (view) implementation, responsible for showing and handling the external matching results
+    """Choose Form (view) implementation, responsible for showing and handling the external matching results.
 
-    Note:
+    Note
+    ----
         Contains specific Karta logic.
 
-    Attributes:
+    Attributes
+    ----------
         _entries (list): (sorted) list of match results to be shown in the table
     """
+
     def __init__(self, prepared_entries):
-        """Constructs the UI Form view, according to the external matching entries
+        """Construct the UI Form view, according to the external matching entries.
 
         Args:
             prepared_entries (list): list of UI rows, including the length for the different columns
         """
         # Using tuples causes this to crash...
-        columns = [['Line', 4], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \ Information', 35]]
+        columns = [['Line', 4], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \\ Information', 35]]
         idaapi.Choose2.__init__(self, "%s Matched Externals (LibC)" % (libraryName()), columns, idaapi.Choose2.CH_MULTI)
         self.deflt = 0
         self.icon = -1
@@ -167,78 +226,172 @@ class ExternalsChooseForm(idaapi.Choose2):
 
     # Overriden base function
     def OnClose(self):
+        """Close the window - does nothing."""
         pass
 
     # Overriden base function
     def OnGetLine(self, n):
+        """Retrieve a line from the form.
+
+        Args:
+            n (int): the desired input line
+
+        Return Value:
+            The selected line
+        """
         return self.items[n]
 
     # Overriden base function
     def OnGetSize(self):
+        """Return the number of items (rows) in the form.
+
+        Return Value:
+            number of rows in the table
+        """
         return len(self.items)
 
     # Overriden base function
     def show(self):
+        """Show the GUI of the form.
+
+        Return Value:
+            True iff successful
+        """
         return self.Show(False) >= 0
 
     # Overriden base function
     def OnGetLineAttr(self, n):
+        """Retrieve the line's attribute (color) from the form.
+
+        Args:
+            n (int): the desired input line (unused)
+
+        Return Value:
+            Always the same color: GUI_COLOR_GREEN
+        """
         return [GUI_COLOR_GREEN, 0]
 
 class IDA(DisasAPI):
-    """DisasAPI implementation for the IDA disassembler, mainly based on the sark plugin
+    """DisasAPI implementation for the IDA disassembler, mainly based on the sark plugin.
 
-    Attributes:
+    Attributes
+    ----------
         _logic (analyzer): IDA Analyzer, containg the heart of Karta's canonical representation
     """
 
     def __init__(self):
+        """Create the IDA adapter."""
         DisasAPI.__init__(self)
         self._logic = AnalyzerIDA(self)
 
     # Overriden base function
     @staticmethod
     def logHandler():
+        """Create a program specific logger handler, according to the logging.Handler API.
+
+        Return Value:
+            Created logger handler to be used throught the program
+        """
         return IdaLogHandler()
 
     # Overriden base function
     def functionsInner(self):
+        """Create a collection / generator of all of the functions in the program (will be called only once).
+
+        Return Value:
+            collection of all of the functions in the program
+        """
         return idautils.Functions()
 
     # Overriden base function
     def stringsInner(self):
+        """Create a collection / generator of all of the strings in the program (will be called only once).
+
+        Return Value:
+            collection of all of the used strings in the program
+        """
         return idautils.Strings()
 
     # Overriden base function
     def exportsInner(self):
-        return map(lambda x : x[-1], idautils.Entries())
+        """Create a collection / generator of all of the exported symbols (string names) in the program (will be called only once).
+
+        Return Value:
+            collection of all of the exported symbols in the program
+        """
+        return map(lambda x: x[-1], idautils.Entries())
 
     # Overriden base function
     def numSegments(self):
+        """Return the number of the segments in the binary.
+
+        Return Value:
+            number of segments in the binary
+        """
         return len(list(idautils.Segments()))
 
     # Overriden base function
-    def segmentName(self, index):
-        return sark.Segment(index = index).name
+    def segmentName(self, idx):
+        """Return the name of the wanted segment.
+
+        Args:
+            idx (int): segment index (in the range [0, numSegments() - 1])
+
+        Return Value:
+            string name of the given segment
+        """
+        return sark.Segment(index=idx).name
 
     # Overriden base function
-    def segmentFunctions(self, index):
-        return map(lambda x : x.ea, sark.Segment(index = index).functions)
+    def segmentFunctions(self, idx):
+        """Return a collection / generator of addresses (ea) of the functions in the given segment.
+
+        Args:
+            idx (int): segment index (in the range [0, numSegments() - 1])
+
+        Return Value:
+            collection of function addresses
+        """
+        return map(lambda x: x.ea, sark.Segment(index=idx).functions)
 
     # Overriden base function
     def inputFile(self):
+        """Return the (full) path of the input file that was used to create the database.
+
+        Return Value:
+            Path to the input file
+        """
         return idc.GetInputFile()
 
     # Overriden base function
     def databaseFile(self):
+        """Return the (full) path of the database file.
+
+        Return Value:
+            Path to the database file
+        """
         return idc.GetIdbPath()
 
     # Overriden base function
     def renameFunction(self, ea, name):
+        """Rename the function at the specified address, using the supplied name.
+
+        Args:
+            ea (int): effective address of the wanted function
+            name (str): new name for the function
+        """
         idc.MakeName(ea, name.encode("ascii"))
 
     # Overriden base function
     def stringAt(self, ea):
+        """Return the string that was found on the given address, regardless of it's type.
+
+        Args:
+            ea (int): effective address of the wanted string
+
+        Return Value:
+            A python string that contains the found string (or None on error)
+        """
         str_type = idc.GetStringType(ea)
         if str_type is None:
             return None
@@ -246,54 +399,121 @@ class IDA(DisasAPI):
 
     # Overriden base function
     def nameAt(self, ea):
+        """Return the name (if there is one) of the given address.
+
+        Args:
+            ea (int): wanted effective address
+
+        Return Value:
+            String name of the given address, or None if no such name exists
+        """
         return self._logic.funcNameInner(sark.Line(ea).name)
 
     # Overriden base function
     def funcAt(self, ea):
+        """Return the function that includes the given address.
+
+        Args:
+            ea (int): effective address of the wanted function
+
+        Return Value:
+            A function instance, or None if no such function
+        """
         func = idaapi.get_func(ea)
-        if func is None :
+        if func is None:
             return None
         # can now use sark more freely
         try:
             return sark.Function(ea)
-        except:
+        except sark.exceptions.SarkNoFunction:
             # just to be sure
             return None
 
     # Overriden base function
     def funcName(self, func_ctx):
+        """Return the name of the function, using it's given context instance.
+
+        Args:
+            func_ctx (func): funciton instance (differs between implementations)
+
+        Return Value:
+            String name of the given function
+        """
         return self._logic.funcNameInner(func_ctx.name)
 
     # Overriden base function
     def funcStart(self, func_ctx):
+        """Return the start ea of the function, using it's given context instance.
+
+        Args:
+            func_ctx (func): funciton instance (differs between implementations)
+
+        Return Value:
+            start address (ea) of the given function
+        """
         return func_ctx.startEA
 
     # Overriden base function
     def funcEnd(self, func_ctx):
+        """Return the end ea of the function, using it's given context instance.
+
+        Args:
+            func_ctx (func): funciton instance (differs between implementations)
+
+        Return Value:
+            end address (ea) of the given function
+        """
         return func_ctx.endEA
 
     # Overriden base function
     def findImmediate(self, range_start, range_end, value):
+        """Return all of the places (in the range) in which the immediate value was found.
+
+        Args:
+            range_start (int): ea of the range's start
+            range_end (int): ea of the rang's end
+            value (int): value of the searched immediate
+
+        Return Value:
+            collection of ea's in which the value was found
+        """
         search_pos = range_start
-        while search_pos < range_end :
+        while search_pos < range_end:
             match_ea, garbage = idc.FindImmediate(search_pos, idc.SEARCH_DOWN, value)
             search_pos = match_ea + 1
             # Filter out mismatches
-            if match_ea == idc.BADADDR :
+            if match_ea == idc.BADADDR:
                 break
             # return the correct result to the caller
             yield match_ea
 
     # Overriden base function
     def drefsTo(self, ea):
+        """Return a collection / generator of data references (eas) to the given address.
+
+        Args:
+            ea (int): wanted ea
+
+        Return Value:
+            collection of ea's that have data references to our given address
+        """
         return sark.Line(ea).drefs_to
 
     # Overriden base function
     def crefsTo(self, ea):
+        """Return a collection / generator of code references (eas) to the given address.
+
+        Args:
+            ea (int): wanted ea
+
+        Return Value:
+            collection of ea's that have code references to our given address
+        """
         return sark.Line(ea).crefs_to
 
     # Overriden base function
     def exit(self):
+        """Exit the disassembler (cleanly)."""
         idc.Exit(0)
 
     ############################
@@ -301,23 +521,68 @@ class IDA(DisasAPI):
     ############################
 
     # Overriden base function
-    def analyzeFunctionGraph(self, func_ea, src_mode) :
+    def analyzeFunctionGraph(self, func_ea, src_mode):
+        """Analyze the flow graph of a given function, generating a call-order mapping.
+
+        Args:
+            func_ea (int): effective address of the wanted function
+            src_mode (bool): True iff analyzing a self-compiled source file, otherwise analyzing a binary function
+
+        Return Value:
+            A dictionary representing the the list of function calls that lead to a specific function call: call ==> list of preceding calls
+        """
         return self._logic.analyzeFunctionGraph(func_ea, src_mode)
 
     # Overriden base function
-    def analyzeFunction(self, func_ea, src_mode) :
+    def analyzeFunction(self, func_ea, src_mode):
+        """Analyze a given function, and creates a canonical representation for it.
+
+        Args:
+            func_ea (int): effective address of the wanted function
+            src_mode (bool): True iff analyzing a self-compiled source file, otherwise analyzing a binary function
+
+        Return Value:
+            FunctionContext object representing the analyzed function
+        """
         return self._logic.analyzeFunction(func_ea, src_mode)
 
     # Overriden base function
-    def searchIslands(self, func_ea, range_start, range_end) :
+    def searchIslands(self, func_ea, range_start, range_end):
+        """Search a given function for "Islands" from a specific code range.
+
+        Args:
+            func_ea (int): effective address of the wanted function
+            range_start (int): effective address of the start of the island range
+            range_end (int): effective address of the end of the island range
+
+        Return Value:
+            Ordered list of code blocks for the found island, or None if found nothing
+        """
         return self._logic.searchIslands(func_ea, range_start, range_end)
 
     # Overriden base function
-    def analyzeIslandFunction(self, blocks) :
+    def analyzeIslandFunction(self, blocks):
+        """Analyze a given island function, and creates a canonical representation for it.
+
+        Args:
+            blocks (list): ordered list of code blocks (as returned from searchIslands())
+
+        Return Value:
+            IslandContext object representing the analyzed island
+        """
         return self._logic.analyzeIslandFunction(blocks)
 
     # Overriden base function
-    def locateAnchorConsts(self, func_ea, const_set) :
+    def locateAnchorConsts(self, func_ea, const_set):
+        """Analyze the function in search for specific immediate numerics.
+
+        Args:
+            func_ea (int): effective address of the analyzed function
+            const_set (set): set of numeric consts to search for as immediate values
+
+        Return Value:
+            a set that contains the matched immediate value, an empty set if found none)
+        """
         return self._logic.locateAnchorConsts(func_ea, const_set)
 
     ######################
@@ -326,31 +591,67 @@ class IDA(DisasAPI):
 
     # Overriden base function
     def messageBox(self, text):
+        """Pop a MessageBox to the user, with the given text. Blocks untill closed.
+
+        Note:
+            This function contains some of Karta's UI logic
+
+        Args:
+            text (str): text to be written to the UI message box
+        """
         m = MessageBox(text)
         m.Compile()
         m.Execute()
 
     # Overriden base function
     def configForm(self):
+        """Pop open Karta's configuration form (for the matcher parameters).
+
+        Note:
+            This function contains some of Karta's UI logic
+
+        Return Value:
+            result dict iff the form was filled and "OK"ed, None otherwise
+        """
         c = ConfigForm()
         c.Compile()
         if not c.Execute():
             return None
         # return the values to the caller
-        config_values = {"config_path" : c._config_path.value,
-                         "is_windows"  : c._is_windows.checked,
+        config_values = {
+                         "config_path": c._config_path.value,
+                         "is_windows":  c._is_windows.checked,
                         }
         return config_values
 
     # Overriden base function
     def showMatchesForm(self, prepared_entries, bin_suggested_names, rename_fn):
+        """Pop open Karta's form presenting the matched library functions.
+
+        Note:
+            This function contains some of Karta's UI logic
+
+        Args:
+            prepared_entries (list): list of UI rows, including the length for the different columns
+            suggested_names (dict): suggested names for the renaming: bin ea => name
+            rename_fn (func): function handler for renaming the exported functions
+        """
         view = ChooseForm(prepared_entries, bin_suggested_names, rename_fn)
         view.show()
 
     # Overriden base function
     def showExternalsForm(self, prepared_entries):
+        """Pop open Karta's form presenting the matched external functions.
+
+        Note:
+            This function contains some of Karta's UI logic
+
+        Args:
+            prepared_entries (list): list of UI rows, including the length for the different columns
+        """
         view = ExternalsChooseForm(prepared_entries)
         view.show()
+
 
 # Don't forget to register at the factory
 registerDisassembler("IDA", IDA)

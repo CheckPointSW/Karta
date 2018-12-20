@@ -2,6 +2,9 @@ from config.utils           import *
 from disassembler.factory   import createDisassemblerHandler
 from libs                   import lib_factory
 
+from elementals import Logger
+import logging
+
 ####################
 ## Global Configs ##
 ####################
@@ -17,7 +20,7 @@ logger              = None      # elementals logger instance
 disas               = None      # disassembler lyaer handler
 
 def writeLine(fd, line):
-    """Writes the result line to the file and the log simultaneously
+    """Write the result line to the file and the log simultaneously.
 
     Args:
         fd (fd): fd for the results file
@@ -27,7 +30,7 @@ def writeLine(fd, line):
     logger.info(line)
 
 def writeHeader(fd):
-    """Writes the header of the output file
+    """Write the header of the output file.
 
     Args:
         fd (fd): fd for the results file
@@ -39,7 +42,7 @@ def writeHeader(fd):
     writeLine(fd, '')
 
 def writeSuffix(fd):
-    """Writes the SUFFIX of the output file
+    """Write the SUFFIX of the output file.
 
     Args:
         fd (fd): fd for the results file
@@ -50,7 +53,7 @@ def writeSuffix(fd):
     writeLine(fd, "https://github.com/CheckPointSW/Karta")
 
 def identifyLibraries():
-    """Iterates over the supported libraries, and activates each of them"""
+    """Iterate over the supported libraries, and activates each of them."""
     libraries_factory = lib_factory.getLibFactory()
     missing_libs = []
 
@@ -105,7 +108,7 @@ def identifyLibraries():
     writeLine(fd, '-' * len(current_header))
 
     started_closed_sources = False
-    for lib_name, is_open, reason in missing_libs :
+    for lib_name, is_open, reason in missing_libs:
         # check if we started the closed sources
         if not is_open and not started_closed_sources:
             started_closed_sources = True
@@ -127,17 +130,16 @@ def identifyLibraries():
     disas.messageBox("Results were saved to file: %s" % (result_file))
 
 def pluginMain():
-    """Main function for the Karta (identifier) plugin"""
+    """Run the Karta (identifier) plugin."""
     global logger, disas
 
-    logger = Logger(LIBRARY_NAME, [], use_stdout = False, min_log_level = logging.INFO)
+    logger = Logger(LIBRARY_NAME, [], use_stdout=False, min_log_level=logging.INFO)
     initUtils(logger, createDisassemblerHandler(logger))
     disas = getDisas()
     logger.info("Started the Script")
 
     # Init the strings list (Only once, because it's heavy to calculate)
     logger.info("Building a list of all of the strings in the binary")
-    all_bin_strings = disas.strings()
 
     # Start identifying the libraries
     logger.info("Going to identify the open (and closed) source libraries")
@@ -145,6 +147,7 @@ def pluginMain():
 
     # Finished successfully
     logger.info("Finished Successfully")
+
 
 # Start to analyze the file
 pluginMain()

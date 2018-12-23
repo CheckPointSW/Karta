@@ -2,6 +2,7 @@ import idaapi
 import sark
 from config.utils   import *
 from hashlib        import md5
+from collections    import defaultdict
 
 class AnalyzerIDA(object):
     """Logic instance for the IDA disassembler API. Contains the heart of Karta's canonical representation.
@@ -65,7 +66,7 @@ class AnalyzerIDA(object):
         Return Value:
             A dictionary representing the the list of function calls that lead to a specific function call: call ==> list of preceding calls
         """
-        block_to_ref   = {}
+        block_to_ref   = defaultdict(set)
         ref_to_block   = {}
         ref_to_call    = {}
         block_to_reach = {}
@@ -105,8 +106,6 @@ class AnalyzerIDA(object):
                 for ref in call_candidates:
                     call = sark.Function(ref)
                     # record the call
-                    if block.startEA not in block_to_ref:
-                        block_to_ref[block.startEA] = set()
                     block_to_ref[block.startEA].add(instr_pos)
                     ref_to_block[instr_pos] = block
                     ref_to_call[instr_pos] = self.funcNameInner(call.name) if src_mode else call.startEA

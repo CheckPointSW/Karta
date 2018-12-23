@@ -8,8 +8,7 @@
 | $$ \  $$|  $$$$$$$| $$        |  $$$$/|  $$$$$$$
 |__/  \__/ \_______/|__/         \___/   \_______/
 ```
-Purpose
-=======
+## Purpose
 "Karta" (Russian for "Map") is an IDA Python plugin that identifies and matches open-sourced libraries in a given binary. The plugin uses a unique technique that enables it to support huge binaries (>200,000 functions), with almost no impact over the overall performance.
 
 The matching algorithm is location-driven. This means that it's main focus is to locate
@@ -22,8 +21,7 @@ We believe that there are 3 main use cases for this IDA plugin:
 
 **Note:** Karta is currently in Beta version, and is still actively developed and tested.
 
-Identifier
-----------
+## Identifier
 Karta's identifier is a smaller plugin that identifies the existence, and fingerprints the versions, of the existing (supported) open source libraries within the binary. No more need to reverse engineer the same open-source library again-and-again, simply run the identifier plugin and get a detailed list of the used open sources.
 Karta currently supports more than 10 open source libraries, including:
 * OpenSSL
@@ -33,23 +31,19 @@ Karta currently supports more than 10 open source libraries, including:
 * zlib
 * Etc.
 
-Matcher
--------
+## Matcher
 After identifying the used open sources, one can compile a .JSON configuration file for a specific library (libpng version 1.2.29 for instance). Once compiled, Karta will automatically attempt to match the functions (symbols) of the open source in the loaded binary. In addition, in case your open source used external functions (memcpy, fread, or zlib_inflate), Karta will also attempt to match those external functions as well. 
 
-Folder Structure
-================
+## Folder Structure
 * **src:** source directory for the plugin
 * **configs:** pre-supplied *.JSON configuration files (hoping the community will contribute more)
 * **compilations:** compilation tips for generating the configuration files, and lessons from past open sources
 * **docs:** sphinx documentation directory
 
-Credits
-=======
+### Credits
 This project was developed by me (see contact details below) with help and support from my research group at Check Point (Check Point Research).
 
-Contact
-=======
+### Contact
 Eyal Itkin (eyalit at checkpoint dot com)
 
 [@EyalItkin](https://twitter.com/EyalItkin)

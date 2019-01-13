@@ -46,12 +46,12 @@ class gSOAPSeeker(Seeker):
         Return Value:
             list of Textual ID(s) of the library's version(s)
         """
-        results = []
+        results = set()
         # extract the version from the copyright string
         for work_str in self._version_strings:
-            results.append(self.extractVersion(work_str, start_index=work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING.split('/')[0]) + 1))
+            results.add(self.extractVersion(work_str, start_index=work_str.find(self.VERSION_STRING) + len(self.VERSION_STRING.split('/')[0]) + 1))
         # return the result
-        return results
+        return list(results)
 
 
 # Register our class

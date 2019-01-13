@@ -1,4 +1,5 @@
 from lib_template import *
+from collections  import defaultdict
 
 class ZlibSeeker(Seeker):
     """Seeker (Identifier) for the zlib open source library."""
@@ -19,6 +20,9 @@ class ZlibSeeker(Seeker):
             number of library instances that were found in the binary
         """
         key_string = " Jean-loup Gailly "
+        error_strings = ["need dictionary", "stream end", "file error", "stream error", "data error", "buffer error", "incompatible version"]
+        key_error_strings = [error_strings[0], error_strings[-1]]
+        matched_error_strings = defaultdict(list)
 
         # Now search
         self._version_strings = []
@@ -34,6 +38,15 @@ class ZlibSeeker(Seeker):
                 logger.debug("Located a copyright string of %s in address 0x%x", self.NAME, bin_str.ea)
                 # save the string for later
                 self._version_strings.append(copyright_string)
+            # use the error strings as backups
+            elif str(bin_str) in key_error_strings and len(self._version_strings) == 0:
+                logger.debug("Located a key error string of %s in address 0x%x", self.NAME, bin_str.ea)
+                matched_error_strings[str(bin_str)].append(bin_str)
+
+        # check if we need the backup
+        if len(self._version_strings) == 0 and len(matched_error_strings.keys()) == len(key_error_strings):
+            logger.debug("We found the library, however we can't resolve its version :(")
+            self._version_strings = [self.VERSION_UNKNOWN]
 
         # return the result
         return len(self._version_strings)
@@ -52,6 +65,10 @@ class ZlibSeeker(Seeker):
         Return Value:
             list of Textual ID(s) of the library's version(s)
         """
+        # check for the error string backup case
+        if len(self._version_strings) == 1 and self.VERSION_UNKNOWN in self._version_strings:
+            return self._version_strings
+        # continue as before
         results = []
         # extract the version from the copyright string
         for work_str in self._version_strings:

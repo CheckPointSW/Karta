@@ -9,7 +9,7 @@ class libvpxSeeker(Seeker):
     VERSION_STRING_VP8 = "WebM Project VP8 Decoder v"
     VERSION_STRING_VP9 = "WebM Project VP9 Decoder v"
 
-    # Overriden base function
+    # Overridden base function
     def searchLib(self, logger):
         """Check if the open source library is located somewhere in the binary.
 
@@ -36,7 +36,7 @@ class libvpxSeeker(Seeker):
         # return the result
         return len(self._version_strings)
 
-    # Overriden base function
+    # Overridden base function
     def identifyVersions(self, logger):
         """Identify the version(s) of the library (assuming it was already found).
 

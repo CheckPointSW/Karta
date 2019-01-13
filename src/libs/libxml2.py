@@ -6,7 +6,7 @@ class Libxml2Seeker(Seeker):
     # Library Name
     NAME = 'libxml2'
 
-    # Overriden base function
+    # Overridden base function
     def searchLib(self, logger):
         """Check if the open source library is located somewhere in the binary.
 
@@ -40,7 +40,7 @@ class Libxml2Seeker(Seeker):
         # return the result
         return len(self._version_strings)
 
-    # Overriden base function
+    # Overridden base function
     def identifyVersions(self, logger):
         """Identify the version(s) of the library (assuming it was already found).
 

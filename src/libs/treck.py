@@ -6,7 +6,7 @@ class TreckSeeker(Seeker):
     # Library Name
     NAME = 'Treck'
 
-    # Overriden base function
+    # Overridden base function
     def openSource(self):
         """Check if the library is an open source or closed source.
 
@@ -15,7 +15,7 @@ class TreckSeeker(Seeker):
         """
         return False
 
-    # Overriden base function
+    # Overridden base function
     def searchLib(self, logger):
         """Check if the closed source library is located somewhere in the binary.
 
@@ -41,7 +41,7 @@ class TreckSeeker(Seeker):
         # return the result
         return len(self._version_strings)
 
-    # Overriden base function
+    # Overridden base function
     def identifyVersions(self, logger):
         """Identify the version(s) of the library (assuming it was already found).
 

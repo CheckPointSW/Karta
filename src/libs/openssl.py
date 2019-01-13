@@ -9,7 +9,7 @@ class OpenSSLSeeker(Seeker):
     # version string marker
     VERSION_STRING = " part of OpenSSL "
 
-    # Overriden base function
+    # Overridden base function
     def searchLib(self, logger):
         """Check if the open source library is located somewhere in the binary.
 
@@ -48,7 +48,7 @@ class OpenSSLSeeker(Seeker):
         # return the result
         return len(self._version_strings)
 
-    # Overriden base function
+    # Overridden base function
     def identifyVersions(self, logger):
         """Identify the version(s) of the library (assuming it was already found).
 

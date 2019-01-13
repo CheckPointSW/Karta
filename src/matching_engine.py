@@ -62,13 +62,13 @@ class KartaMatcher(MatchEngine):
         # register our contexts
         registerContexts(SourceContext, BinaryContext, IslandContext)
 
-    # Overriden base function
+    # Overridden base function
     def criticalError(self):
         """Critical error that mandates we exit WITHOUT showing partial results to the user, we must exit now."""
         self.logger.error("Encounterred an error, exiting")
         sys.exit(1)
 
-    # Overriden base function
+    # Overridden base function
     def declareMatch(self, src_index, func_ea, reason):
         """Officially declare a match of a source function to code that starts with the given binary ea.
 
@@ -160,12 +160,12 @@ class KartaMatcher(MatchEngine):
             else:
                 file_option.remove(bin_ctx)
 
-    # Overriden base function
+    # Overridden base function
     def fileLayer(self):
         """Return the basic class used for the file layer (FileMatch by default)."""
         return FileMatcher
 
-    # Overriden base function
+    # Overridden base function
     def loadAndPrepareSource(self, files_config):
         """Load the stored info on the source files, and prepares the source contexts for use.
 

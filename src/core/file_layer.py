@@ -64,7 +64,7 @@ class FileMatch(object):
     Attributes
     ----------
         name (str): name of the file (from the list of compiled files)
-        located (bool): True iff already located atleast one function in the file (otherwise we till don't know where it is)
+        located (bool): True iff already located at least one function in the file (otherwise we till don't know where it is)
         valid (bool): True iff the file play a role in the matching process (False means it was probably ifdeffed out)
         _src_index_start (int): source index of the first function in the source file
         _src_index_end (int): source index of last function in the source file

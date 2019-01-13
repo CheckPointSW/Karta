@@ -113,12 +113,12 @@ class ChooseForm(idaapi.Choose2):
         self._import_matched  = self.AddCommand(GUI_CMD_IMPORT_MATCHED)
         self._rename_handler  = rename_fn
 
-    # Overriden base function
+    # Overridden base function
     def OnClose(self):
         """Close the window - does nothing."""
         pass
 
-    # Overriden base function
+    # Overridden base function
     def OnGetLine(self, n):
         """Retrieve a line from the form.
 
@@ -130,7 +130,7 @@ class ChooseForm(idaapi.Choose2):
         """
         return self.items[n]
 
-    # Overriden base function
+    # Overridden base function
     def OnGetSize(self):
         """Return the number of items (rows) in the form.
 
@@ -139,7 +139,7 @@ class ChooseForm(idaapi.Choose2):
         """
         return len(self.items)
 
-    # Overriden base function
+    # Overridden base function
     def show(self):
         """Show the GUI of the form.
 
@@ -148,7 +148,7 @@ class ChooseForm(idaapi.Choose2):
         """
         return self.Show(False) >= 0
 
-    # Overriden base function
+    # Overridden base function
     def OnGetLineAttr(self, n):
         """Retrieve the line's attribute (color) from the form.
 
@@ -160,7 +160,7 @@ class ChooseForm(idaapi.Choose2):
         """
         return [self._entries[n][-1], 0]
 
-    # Overriden base function
+    # Overridden base function
     def OnCommand(self, n, cmd_id):
         """Act upon the user's command.
 
@@ -184,7 +184,7 @@ class ChooseForm(idaapi.Choose2):
         # always return true
         return True
 
-    # Overriden base function
+    # Overridden base function
     def OnSelectionChange(self, sel_list):
         """Update the list of selected rows.
 
@@ -224,12 +224,12 @@ class ExternalsChooseForm(idaapi.Choose2):
         for idx, entry in enumerate(prepared_entries):
             self.items.append(["%04d" % (idx + 1), entry[0], ("0x%08X" % (entry[1])) if entry[1] is not None else 'N/A', entry[2], entry[3]])
 
-    # Overriden base function
+    # Overridden base function
     def OnClose(self):
         """Close the window - does nothing."""
         pass
 
-    # Overriden base function
+    # Overridden base function
     def OnGetLine(self, n):
         """Retrieve a line from the form.
 
@@ -241,7 +241,7 @@ class ExternalsChooseForm(idaapi.Choose2):
         """
         return self.items[n]
 
-    # Overriden base function
+    # Overridden base function
     def OnGetSize(self):
         """Return the number of items (rows) in the form.
 
@@ -250,7 +250,7 @@ class ExternalsChooseForm(idaapi.Choose2):
         """
         return len(self.items)
 
-    # Overriden base function
+    # Overridden base function
     def show(self):
         """Show the GUI of the form.
 
@@ -259,7 +259,7 @@ class ExternalsChooseForm(idaapi.Choose2):
         """
         return self.Show(False) >= 0
 
-    # Overriden base function
+    # Overridden base function
     def OnGetLineAttr(self, n):
         """Retrieve the line's attribute (color) from the form.
 
@@ -284,7 +284,7 @@ class IDA(DisasAPI):
         DisasAPI.__init__(self)
         self._logic = AnalyzerIDA(self)
 
-    # Overriden base function
+    # Overridden base function
     @staticmethod
     def logHandler():
         """Create a program specific logger handler, according to the logging.Handler API.
@@ -294,7 +294,7 @@ class IDA(DisasAPI):
         """
         return IdaLogHandler()
 
-    # Overriden base function
+    # Overridden base function
     def functionsInner(self):
         """Create a collection / generator of all of the functions in the program (will be called only once).
 
@@ -303,7 +303,7 @@ class IDA(DisasAPI):
         """
         return idautils.Functions()
 
-    # Overriden base function
+    # Overridden base function
     def stringsInner(self):
         """Create a collection / generator of all of the strings in the program (will be called only once).
 
@@ -312,7 +312,7 @@ class IDA(DisasAPI):
         """
         return idautils.Strings()
 
-    # Overriden base function
+    # Overridden base function
     def exportsInner(self):
         """Create a collection / generator of all of the exported symbols (string names) in the program (will be called only once).
 
@@ -321,7 +321,7 @@ class IDA(DisasAPI):
         """
         return map(lambda x: x[-1], idautils.Entries())
 
-    # Overriden base function
+    # Overridden base function
     def numSegments(self):
         """Return the number of the segments in the binary.
 
@@ -330,7 +330,7 @@ class IDA(DisasAPI):
         """
         return len(list(idautils.Segments()))
 
-    # Overriden base function
+    # Overridden base function
     def segmentName(self, idx):
         """Return the name of the wanted segment.
 
@@ -342,7 +342,7 @@ class IDA(DisasAPI):
         """
         return sark.Segment(index=idx).name
 
-    # Overriden base function
+    # Overridden base function
     def segmentFunctions(self, idx):
         """Return a collection / generator of addresses (ea) of the functions in the given segment.
 
@@ -354,7 +354,7 @@ class IDA(DisasAPI):
         """
         return map(lambda x: x.ea, sark.Segment(index=idx).functions)
 
-    # Overriden base function
+    # Overridden base function
     def inputFile(self):
         """Return the (full) path of the input file that was used to create the database.
 
@@ -363,7 +363,7 @@ class IDA(DisasAPI):
         """
         return idc.GetInputFile()
 
-    # Overriden base function
+    # Overridden base function
     def databaseFile(self):
         """Return the (full) path of the database file.
 
@@ -372,7 +372,7 @@ class IDA(DisasAPI):
         """
         return idc.GetIdbPath()
 
-    # Overriden base function
+    # Overridden base function
     def renameFunction(self, ea, name):
         """Rename the function at the specified address, using the supplied name.
 
@@ -382,7 +382,7 @@ class IDA(DisasAPI):
         """
         idc.MakeName(ea, name.encode("ascii"))
 
-    # Overriden base function
+    # Overridden base function
     def stringAt(self, ea):
         """Return the string that was found on the given address, regardless of it's type.
 
@@ -397,7 +397,7 @@ class IDA(DisasAPI):
             return None
         return idc.GetString(ea, -1, str_type)
 
-    # Overriden base function
+    # Overridden base function
     def nameAt(self, ea):
         """Return the name (if there is one) of the given address.
 
@@ -409,7 +409,7 @@ class IDA(DisasAPI):
         """
         return self._logic.funcNameInner(sark.Line(ea).name)
 
-    # Overriden base function
+    # Overridden base function
     def funcAt(self, ea):
         """Return the function that includes the given address.
 
@@ -429,7 +429,7 @@ class IDA(DisasAPI):
             # just to be sure
             return None
 
-    # Overriden base function
+    # Overridden base function
     def funcName(self, func_ctx):
         """Return the name of the function, using it's given context instance.
 
@@ -441,7 +441,7 @@ class IDA(DisasAPI):
         """
         return self._logic.funcNameInner(func_ctx.name)
 
-    # Overriden base function
+    # Overridden base function
     def funcStart(self, func_ctx):
         """Return the start ea of the function, using it's given context instance.
 
@@ -453,7 +453,7 @@ class IDA(DisasAPI):
         """
         return func_ctx.startEA
 
-    # Overriden base function
+    # Overridden base function
     def funcEnd(self, func_ctx):
         """Return the end ea of the function, using it's given context instance.
 
@@ -465,7 +465,7 @@ class IDA(DisasAPI):
         """
         return func_ctx.endEA
 
-    # Overriden base function
+    # Overridden base function
     def findImmediate(self, range_start, range_end, value):
         """Return all of the places (in the range) in which the immediate value was found.
 
@@ -487,7 +487,7 @@ class IDA(DisasAPI):
             # return the correct result to the caller
             yield match_ea
 
-    # Overriden base function
+    # Overridden base function
     def drefsTo(self, ea):
         """Return a collection / generator of data references (eas) to the given address.
 
@@ -499,7 +499,7 @@ class IDA(DisasAPI):
         """
         return sark.Line(ea).drefs_to
 
-    # Overriden base function
+    # Overridden base function
     def crefsTo(self, ea):
         """Return a collection / generator of code references (eas) to the given address.
 
@@ -511,7 +511,7 @@ class IDA(DisasAPI):
         """
         return sark.Line(ea).crefs_to
 
-    # Overriden base function
+    # Overridden base function
     def exit(self):
         """Exit the disassembler (cleanly)."""
         idc.Exit(0)
@@ -520,7 +520,7 @@ class IDA(DisasAPI):
     ## Analysis Logic - Karta ##
     ############################
 
-    # Overriden base function
+    # Overridden base function
     def analyzeFunctionGraph(self, func_ea, src_mode):
         """Analyze the flow graph of a given function, generating a call-order mapping.
 
@@ -533,7 +533,7 @@ class IDA(DisasAPI):
         """
         return self._logic.analyzeFunctionGraph(func_ea, src_mode)
 
-    # Overriden base function
+    # Overridden base function
     def analyzeFunction(self, func_ea, src_mode):
         """Analyze a given function, and creates a canonical representation for it.
 
@@ -546,7 +546,7 @@ class IDA(DisasAPI):
         """
         return self._logic.analyzeFunction(func_ea, src_mode)
 
-    # Overriden base function
+    # Overridden base function
     def searchIslands(self, func_ea, range_start, range_end):
         """Search a given function for "Islands" from a specific code range.
 
@@ -560,7 +560,7 @@ class IDA(DisasAPI):
         """
         return self._logic.searchIslands(func_ea, range_start, range_end)
 
-    # Overriden base function
+    # Overridden base function
     def analyzeIslandFunction(self, blocks):
         """Analyze a given island function, and creates a canonical representation for it.
 
@@ -572,7 +572,7 @@ class IDA(DisasAPI):
         """
         return self._logic.analyzeIslandFunction(blocks)
 
-    # Overriden base function
+    # Overridden base function
     def locateAnchorConsts(self, func_ea, const_set):
         """Analyze the function in search for specific immediate numerics.
 
@@ -585,7 +585,7 @@ class IDA(DisasAPI):
         """
         return self._logic.locateAnchorConsts(func_ea, const_set)
 
-    # Overriden base function
+    # Overridden base function
     def stringsInFunc(self, func_ea):
         """Analyze the function in search for all referenced strings.
 
@@ -601,7 +601,7 @@ class IDA(DisasAPI):
     ## UI Functionality ##
     ######################
 
-    # Overriden base function
+    # Overridden base function
     def messageBox(self, text):
         """Pop a MessageBox to the user, with the given text. Blocks untill closed.
 
@@ -615,7 +615,7 @@ class IDA(DisasAPI):
         m.Compile()
         m.Execute()
 
-    # Overriden base function
+    # Overridden base function
     def configForm(self):
         """Pop open Karta's configuration form (for the matcher parameters).
 
@@ -636,7 +636,7 @@ class IDA(DisasAPI):
                         }
         return config_values
 
-    # Overriden base function
+    # Overridden base function
     def showMatchesForm(self, prepared_entries, bin_suggested_names, rename_fn):
         """Pop open Karta's form presenting the matched library functions.
 
@@ -651,7 +651,7 @@ class IDA(DisasAPI):
         view = ChooseForm(prepared_entries, bin_suggested_names, rename_fn)
         view.show()
 
-    # Overriden base function
+    # Overridden base function
     def showExternalsForm(self, prepared_entries):
         """Pop open Karta's form presenting the matched external functions.
 

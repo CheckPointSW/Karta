@@ -267,7 +267,7 @@ class FileMatcher(FileMatch):
         """Attempt to match new functions by searching for swallowd functions (islands).
 
         Return Value:
-            True iff matched atleast one function
+            True iff matched at least one function
         """
         # can't match anything if already matched them all (or was disabled)
         if not self.active():
@@ -315,7 +315,7 @@ class FileMatcher(FileMatch):
             upper_bound (int): ea of the upper bound of the gap in the binary address space
 
         Return Value:
-            True iff matched atleast one function
+            True iff matched at least one function
         """
         gap_size = upper_bound - lower_bound
         # sanity check - should not happen

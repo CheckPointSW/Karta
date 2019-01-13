@@ -426,7 +426,7 @@ class MatchEngine(object):
                 else:
                     self._src_anchor_list.remove(src_anchor_index)
 
-        # make sure we found atleast one anchor function
+        # make sure we found at least one anchor function
         if len(self._src_anchor_list) == 0:
             self.logger.error("Failed to match even a single Anchor function")
             raise KartaException

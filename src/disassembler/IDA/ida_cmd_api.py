@@ -5,7 +5,7 @@ import os
 class IdaCMD(DisasCMD):
     """DisasCMD implementation for the IDA disassembler."""
 
-    # Overriden base function
+    # Overridden base function
     @staticmethod
     def identify(path):
         """Check if the given command-line path refers to this disassembler.
@@ -18,7 +18,7 @@ class IdaCMD(DisasCMD):
         """
         return os.path.split(path)[-1].split('.')[0].lower().startswith("ida")
 
-    # Overriden base function
+    # Overridden base function
     @staticmethod
     def name():
         """Return the program's name (used mainly for bug fixes in our code...).
@@ -28,7 +28,7 @@ class IdaCMD(DisasCMD):
         """
         return "IDA"
 
-    # Overriden base function
+    # Overridden base function
     def createDatabase(self, binary_file, is_windows):
         """Create a database file for the given binary file, compiled to windows or linux as specified.
 
@@ -46,7 +46,7 @@ class IdaCMD(DisasCMD):
         # return back the (should be) created database file path
         return binary_file + suffix
 
-    # Overriden base function
+    # Overridden base function
     def executeScript(self, database, script):
         """Execute the given script over the given database file that was created earlier.
 

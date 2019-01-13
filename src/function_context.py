@@ -22,7 +22,7 @@ class ExternalFunction(CodeContext):
         self.hints = None
         self.xrefs = set()
 
-    # Overriden base function
+    # Overridden base function
     def declareMatch(self, match):
         """Declare a match between our source external and a binary function.
 
@@ -31,7 +31,7 @@ class ExternalFunction(CodeContext):
         """
         self.match = match
 
-    # Overriden base function
+    # Overridden base function
     def valid(self):
         """Check if the function is still valid (still active).
 
@@ -256,7 +256,7 @@ class IslandContext(BinaryCodeContext, ComparableContext):
         ComparableContext.__init__(self)
         self.xrefs = set()
 
-    # Overriden base function
+    # Overridden base function
     def isPartial(self):
         """Tell us that the current instance is only a partial one (an island).
 
@@ -265,7 +265,7 @@ class IslandContext(BinaryCodeContext, ComparableContext):
         """
         return True
 
-    # Overriden base function
+    # Overridden base function
     def valid(self):
         """Check if the function is still valid (still active).
 
@@ -274,18 +274,18 @@ class IslandContext(BinaryCodeContext, ComparableContext):
         """
         return True
 
-    # Overriden base function
+    # Overridden base function
     def preprocess(self):
         """Preform preprocess calculations once here after initialization, to avoid performance costs later."""
         self.rankConsts()
 
-    # Overriden base function
+    # Overridden base function
     def rankConsts(self):
         """Rank all of the consts of our context - should be done only once on init."""
         for num_const in self.consts:
             self._const_ranks[num_const] = rankConst(num_const, None)
 
-    # Overriden base function
+    # Overridden base function
     def declareMatch(self, match):
         """Declare a match between a source and our (partial) bin context.
 
@@ -441,7 +441,7 @@ class SourceContext(SrcFileFunction, FunctionContext):
         # Linker optimizations
         self.collision_candidates = []
 
-    # Overriden base function
+    # Overridden base function
     def declareMatch(self, match):
         """Declare a match between a source and a bin context.
 
@@ -454,7 +454,7 @@ class SourceContext(SrcFileFunction, FunctionContext):
             follower.removeHint(self, clear=False)
         self.followers = set()
 
-    # Overriden base function
+    # Overridden base function
     def isPartial(self):
         """Tell us that the current instance is a full function.
 
@@ -463,7 +463,7 @@ class SourceContext(SrcFileFunction, FunctionContext):
         """
         return False
 
-    # Overriden base function
+    # Overridden base function
     def valid(self):
         """Check if the function is still valid (still active).
 
@@ -472,12 +472,12 @@ class SourceContext(SrcFileFunction, FunctionContext):
         """
         return self.exists
 
-    # Overriden base function
+    # Overridden base function
     def preprocess(self):
         """Preform preprocess calculations once here after initialization, to avoid performance costs later."""
         self.rankConsts()
 
-    # Overriden base function
+    # Overridden base function
     def disable(self):
         """Mark the source function as absent (inlined / ifdeffed out)."""
         # singleton lock
@@ -769,7 +769,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
         self.taken_collision    = False
         self.merged_sources     = []
 
-    # Overriden base function
+    # Overridden base function
     def declareMatch(self, match):
         """Declare a match between our a bin context and a source context.
 
@@ -796,7 +796,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
             new_collisions[match.hash] = self.collision_map[match.hash]
         self.collision_map = new_collisions
 
-    # Overriden base function
+    # Overridden base function
     def isPartial(self):
         """Tell us that the current instance is a full function.
 
@@ -805,7 +805,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
         """
         return False
 
-    # Overriden base function
+    # Overridden base function
     def valid(self):
         """Check if the function is still valid (still active).
 
@@ -814,12 +814,12 @@ class BinaryContext(BinFileFunction, FunctionContext):
         """
         return self.exists
 
-    # Overriden base function
+    # Overridden base function
     def preprocess(self):
         """Preform preprocess calculations once here after initialization, to avoid performance costs later."""
         self.rankConsts()
 
-    # Overriden base function
+    # Overridden base function
     def active(self):
         """Check if the given function is still in the matching game.
 
@@ -829,7 +829,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
         # special case for collisions
         return self.valid() and (self.mergePotential() or not self.matched())
 
-    # Overriden base function
+    # Overridden base function
     def selfCheck(self):
         """Double checks our hints, and keeps only those who match our possible file candidates."""
         for hint in set(self.xref_hints).union(self.call_hints if self.call_hints is not None else set()):
@@ -837,7 +837,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
             if not hint.isValidCandidate(self):
                 self.removeHint(hint)
 
-    # Overriden base function
+    # Overridden base function
     def isLinkerOptimizationCandidate(self, src_ctx):
         """Check if the given source context can be a possible match for a linker optimized version of our binary function.
 
@@ -858,7 +858,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
         # If we reached this point, it looks like they don't belong to each other
         return False
 
-    # Overriden base function
+    # Overridden base function
     def merged(self):
         """Check if this is a merged (collision) function.
 

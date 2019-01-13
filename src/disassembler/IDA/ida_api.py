@@ -585,6 +585,18 @@ class IDA(DisasAPI):
         """
         return self._logic.locateAnchorConsts(func_ea, const_set)
 
+    # Overriden base function
+    def stringsInFunc(self, func_ea):
+        """Analyze the function in search for all referenced strings.
+
+        Args:
+            func_ea (int): effective address of the analyzed function
+
+        Return Value :
+            a *list* that contains all of the referenced strings (including duplicates)
+        """
+        return self._logic.stringsInFunc(func_ea)
+
     ######################
     ## UI Functionality ##
     ######################

@@ -374,3 +374,23 @@ class AnalyzerIDA(object):
                 if oper.imm in const_set and oper.imm not in data_refs:
                     results.add(oper.imm)
         return results
+
+    def stringsInFunc(self, func_ea):
+        """Analyze the function in search for all referenced strings.
+
+        Args:
+            func_ea (int): effective address of the analyzed function
+
+        Return Value :
+            a *list* that contains all of the referenced strings (including duplicates)
+        """
+        results = []
+        for line in sark.Function(func_ea).lines:
+            # String Constants
+            data_refs = list(line.drefs_from)
+            for ref in data_refs:
+                # Check for a string (finds un-analyzed strings too)
+                str_const = self.disas.stringAt(ref)
+                if str_const is not None and len(str_const) >= MIN_STR_SIZE:
+                    results.append(str_const)
+        return results

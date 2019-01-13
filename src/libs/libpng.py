@@ -1,4 +1,5 @@
 from lib_template import *
+from config.utils import getDisas
 
 class LibpngSeeker(Seeker):
     """Seeker (Identifier) for the libpng open source library."""
@@ -19,7 +20,9 @@ class LibpngSeeker(Seeker):
             number of library instances that were found in the binary
         """
         key_string = "Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc."
+        backup_string = "Incompatible libpng version in application and library"
         # Now search
+        backup_strings = []
         self._version_strings = []
         for bin_str in self._all_strings:
             # we have a match
@@ -33,6 +36,33 @@ class LibpngSeeker(Seeker):
                 logger.debug("Located a copyright string of %s in address 0x%x", self.NAME, bin_str.ea)
                 # save the string for later
                 self._version_strings.append(copyright_string)
+            # partial match, only the backup
+            if backup_string in str(bin_str) and len(self._version_strings) == 0:
+                # valid placeholder
+                logger.debug("Located a place holder string of %s in address 0x%x", self.NAME, bin_str.ea)
+                # save the string for later
+                backup_strings.append(bin_str)
+
+        # check if we need the backups
+        if len(self._version_strings) == 0 and len(backup_strings) > 0:
+            clue_strings = []
+            seen_funcs   = []
+            disas = getDisas()
+            # collect all of the strings that are referenced by the caller function
+            for backup_string in backup_strings:
+                for dref in disas.drefsTo(backup_string.ea):
+                    caller_func = disas.funcAt(dref)
+                    if caller_func is not None and caller_func not in seen_funcs:
+                        # collect the strings
+                        clue_strings += disas.stringsInFunc(disas.funcStart(caller_func))
+                        # mark that we saw this function
+                        seen_funcs.append(caller_func)
+            # drop all illegal options
+            clue_strings = filter(lambda x: self.extractVersion(x) == x, clue_strings)
+            # the version will be the most popular string
+            chosen_string = max(set(clue_strings), key=clue_strings.count)
+            logger.debug("The chosen version string is: %s", chosen_string)
+            self._version_strings.append(self.VERSION_STRING + chosen_string)
 
         # return the result
         return len(self._version_strings)

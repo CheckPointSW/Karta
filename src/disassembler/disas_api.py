@@ -333,6 +333,17 @@ class DisasAPI(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
+    def stringsInFunc(self, func_ea):
+        """Analyze the function in search for all referenced strings.
+
+        Args:
+            func_ea (int): effective address of the analyzed function
+
+        Return Value :
+            a *list* that contains all of the referenced strings (including duplicates)
+        """
+        raise NotImplementedError("Subclasses should implement this!")
+
     ######################
     ## UI Functionality ##
     ######################

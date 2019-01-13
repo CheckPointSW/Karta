@@ -2,7 +2,6 @@
 
 from setuptools import setup, find_packages
 from codecs     import open
-from os         import path
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -14,7 +13,7 @@ setup(name='Karta',
       author_email='eyalit@checkpoint.com',
       long_description=long_description,
       long_description_content_type="text/markdown",
-	  url='https://github.com/CheckPointSW/Karta',
+      url='https://github.com/CheckPointSW/Karta',
       license='MIT',
       packages=find_packages(),
       install_requires=['elementals', 'sark', 'pydocstyle', 'flake8'],

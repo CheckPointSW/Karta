@@ -38,8 +38,13 @@ class DisasAPI(object):
     def stringsInner(self):
         """Create a collection / generator of all of the strings in the program (will be called only once).
 
+        Note:
+            A string object should have the following methods:
+                str(str_obj) := string content
+                str_obj.ea   := definition address (ea) of the string
+
         Return Value:
-            collection of all of the used strings in the program
+            sorted (by address) collection of all of the used strings in the program (as string objects)
         """
         raise NotImplementedError("Subclasses should implement this!")
 
@@ -73,7 +78,7 @@ class DisasAPI(object):
                 str_obj.ea   := definition address (ea) of the string
 
         Return Value:
-            list of all of the used strings in the program (as string objects)
+            sorted (by address) list of all of the used strings in the program (as string objects)
         """
         # singleton
         if self._all_strings is None:

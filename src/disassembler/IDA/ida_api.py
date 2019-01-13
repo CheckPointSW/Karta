@@ -307,8 +307,13 @@ class IDA(DisasAPI):
     def stringsInner(self):
         """Create a collection / generator of all of the strings in the program (will be called only once).
 
+        Note:
+            A string object should have the following methods:
+                str(str_obj) := string content
+                str_obj.ea   := definition address (ea) of the string
+
         Return Value:
-            collection of all of the used strings in the program
+            sorted (by address) collection of all of the used strings in the program (as string objects)
         """
         return idautils.Strings()
 

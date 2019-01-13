@@ -46,7 +46,7 @@ class TreckSeeker(Seeker):
         """Identify the version(s) of the library (assuming it was already found).
 
         Assumptions:
-            1. searchLib() was called before calling identifyVersion()
+            1. searchLib() was called before calling identifyVersions()
             2. The call to searchLib() returned a number > 0
 
         Args:

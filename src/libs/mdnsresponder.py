@@ -28,15 +28,15 @@ class mDNSSeeker(Seeker):
                 # save the string for later
                 self._version_strings.append(version_string)
 
-        # return the result
-        return len(self._version_strings)
+        # return the result (artificial, as we don't yet support exact identification for this library)
+        return 1 if len(self._version_strings) > 0 else 0
 
     # Overridden base function
     def identifyVersions(self, logger):
         """Identify the version(s) of the library (assuming it was already found).
 
         Assumptions:
-            1. searchLib() was called before calling identifyVersion()
+            1. searchLib() was called before calling identifyVersions()
             2. The call to searchLib() returned a number > 0
 
         Args:

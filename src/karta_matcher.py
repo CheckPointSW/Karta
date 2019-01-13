@@ -98,6 +98,13 @@ def matchLibrary(lib_name, lib_version):
 
 def matchLibraries():
     """Iterate over the supported libraries, and activates each of them."""
+    # Load the accumulated knowledge for this binary file
+    knowledge_config = loadKnowledge()
+    if knowledge_config is not None and JSON_TAG_MANUAL_VERSIONS in knowledge_config:
+        all_manual_versions = knowledge_config[JSON_TAG_MANUAL_VERSIONS]
+    else:
+        all_manual_versions = []
+        logger.debug("Has no manual versions")
     libraries_factory = lib_factory.getLibFactory()
     for lib_name in libraries_factory:
         # create the instance
@@ -105,13 +112,19 @@ def matchLibraries():
         # stopped when the first closed source shows up
         if not lib_instance.openSource():
             break
+        # check for a pre-supplied manual version
+        if lib_name in all_manual_versions:
+            manual_versions = all_manual_versions[lib_name]
+            logger.debug("Manual versions: %s", ", ".join(manual_versions))
+        else:
+            manual_versions = []
         logger.debug("Searching for library \"%s\" in the binary", lib_name)
         logger.addIndent()
         # search for it
         match_counter = lib_instance.searchLib(logger)
         # make sure we have a single match
         if match_counter > 1:
-            logger.warning("Found multiple instance of \"%s\" - multiple instances are not supported right now", lib_name)
+            logger.warning("Found multiple instances of \"%s\" - multiple instances are not supported right now", lib_name)
         elif match_counter == 0:
             logger.info("Did not find \"%s\" in the binary", lib_name)
         # exact, single match
@@ -119,8 +132,16 @@ def matchLibraries():
             logger.info("Successfully found \"%s\" in the binary", lib_name)
             # identify it's version
             lib_versions = lib_instance.identifyVersions(logger)
+            # check if we need to identify this one
+            if lib_versions[0] == lib_instance.VERSION_UNKNOWN:
+                if len(manual_versions) != 1:
+                    logger.warning("Can't match an unknown version of library \"%s\"", lib_name)
+                    continue
+                actual_version = manual_versions[0]
+            else:
+                actual_version = lib_versions[0]
             # now try to match the library
-            matchLibrary(lib_name, lib_versions[0])
+            matchLibrary(lib_name, actual_version)
         # continue to the next library
         logger.removeIndent()
 

@@ -65,6 +65,14 @@ def identifyLibraries():
     logger.info('')
     writeHeader(fd)
 
+    # Load the accumulated knowledge for this binary file
+    knowledge_config = loadKnowledge()
+    if knowledge_config is not None and JSON_TAG_MANUAL_VERSIONS in knowledge_config:
+        all_manual_versions = knowledge_config[JSON_TAG_MANUAL_VERSIONS]
+    else:
+        all_manual_versions = []
+        logger.debug("Has no manual versions")
+
     # We start with the matched open sources
     current_header = "Identified Open Sources:"
     writeLine(fd, current_header)
@@ -73,6 +81,12 @@ def identifyLibraries():
     started_closed_sources = False
     num_listed = 0
     for lib_name in libraries_factory:
+        # check for a pre-supplied manual version
+        if lib_name in all_manual_versions:
+            manual_versions = all_manual_versions[lib_name]
+            logger.debug("Manual versions: %s", ", ".join(manual_versions))
+        else:
+            manual_versions = []
         # create the instance
         lib_instance = libraries_factory[lib_name](disas.strings())
         # check if we started the closed sources
@@ -91,10 +105,20 @@ def identifyLibraries():
         # make sure we have a single match
         if match_counter == 0:
             missing_libs.append((lib_name, lib_instance.openSource(), "Was not found"))
-        # exact, single match
+        # found at least one version
         else:
-            # identify it's version
+            # identify the version
             lib_versions = lib_instance.identifyVersions(logger)
+            # check if we can solve some unknowns
+            if lib_instance.VERSION_UNKNOWN in lib_versions:
+                # remove the intersection with the manual versions
+                agreed_versions = set(lib_versions).intersection(manual_versions)
+                conflicting_versions = list(set(lib_versions).difference(manual_versions))
+                useful_versions = list(set(manual_versions).difference(agreed_versions))
+                # check for an exact match
+                if len(conflicting_versions) == 1 and len(useful_versions) == 1:
+                    # unfortunately python's list has no "replace" method...
+                    lib_versions = list(agreed_versions) + useful_versions
             writeLine(fd, '%s: %s' % (lib_name, ', '.join(lib_versions)))
             num_listed += 1
 

@@ -51,7 +51,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
         parsed_correctly = True
         while parsed_correctly:
             function_name = prompter.input("Function Name (case sensitive): ")
-            # check existance
+            # check existence
             if src_functions_list.count(function_name) == 0:
                 prompter.error("Function \"%s\" does not exist", function_name)
                 parsed_correctly = False
@@ -79,7 +79,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
                 prompter.error("Illegal hexa address: \"%s\"", bin_ea_str_raw)
                 parsed_correctly = False
                 break
-            # finished succesfully :)
+            # finished successfully :)
             manual_anchors[src_index] = bin_ea
             break
 

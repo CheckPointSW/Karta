@@ -19,10 +19,11 @@ KNOWLEDGE_FILE_SUFFIX   = "_knowledge.json"
 ## JSON Structure ##
 ####################
 
-JSON_TAG_ANCHORS        = 'Anchors (Src Index)'
-JSON_TAG_FILES          = 'Files'
-JSON_TAG_MANUAL_ANCHORS = 'Manual Anchors'
-JSON_TAG_LIBRARY        = 'Library Name'
+JSON_TAG_ANCHORS            = 'Anchors (Src Index)'
+JSON_TAG_FILES              = 'Files'
+JSON_TAG_MANUAL_ANCHORS     = 'Manual Anchors'
+JSON_TAG_MANUAL_VERSIONS    = 'Manual Versions'
+JSON_TAG_LIBRARY            = 'Library Name'
 
 ####################
 ## GUI Parameters ##

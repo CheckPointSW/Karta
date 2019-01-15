@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import pydocstyle
 import os
 from glob import glob

@@ -259,7 +259,7 @@ class MatchEngine(object):
                                 current_set.add(function_ea)
 
                 # Same merging logic, for strings and consts
-                # simply add this option (only if rellevant)
+                # simply add this option (only if relevant)
                 if len(current_set) > 0:
                     candidate_sets.append(current_set)
                 # check if reached the limit
@@ -482,7 +482,7 @@ class MatchEngine(object):
         last_anchor_index  = None
         overall_min_bin_anchor_index = None
         overall_max_bin_anchor_index = None
-        # 1st round, basic estimates using only the anchors (files without anchors are placed artificialy at the end)
+        # 1st round, basic estimates using only the anchors (files without anchors are placed artificially at the end)
         for file_index, file_name in enumerate(self._src_file_names):
             # return back to this file after the initial round
             if len(file_to_anchor_mapping[file_name]) == 0:
@@ -512,7 +512,7 @@ class MatchEngine(object):
         for file_index in xrange(first_anchor_index, last_anchor_index + 1):
             additional_lower_bounds = additional_lower_bounds + [prev_hard_limit]
             prev_hard_limit = file_max_bound[file_index] - file_upper_gap[file_index] + 1
-        # create the same kind of upper bounds to all files, going from top to buttom
+        # create the same kind of upper bounds to all files, going from top to bottom
         additional_upper_bounds = []
         prev_hard_limit = len(all_bin_functions)
         for file_index in xrange(last_anchor_index, first_anchor_index - 1, -1):

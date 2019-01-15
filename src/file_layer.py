@@ -22,7 +22,7 @@ class FileMatcher(FileMatch):
             src_index_end (int): source index of last function in the source file
             fuzzy_bin_functions_ctx (list): initial list of all candidate binary functions for this file (containing FunctionContext instances)
             bin_limit_lower (int): binary index (in all of the functions) of the lowest binary candidate for this file
-            bin_limit_upper (int): binary index (in all of the functions) of the uppmost binary candidate for this file
+            bin_limit_upper (int): binary index (in all of the functions) of the highest binary candidate for this file
             src_scope (int): number of src functions that are currently in scope of this file (differs between located and unlocated files)
             engine (MatchEngine): match engine context with the scope for the matching process
         """
@@ -264,7 +264,7 @@ class FileMatcher(FileMatch):
                 self._engine.recordRoundMatchAttempt(src_index, bin_ctx.ea, score_boost, score + score_boost, REASON_AGENT)
 
     def attemptMatchSwallows(self):
-        """Attempt to match new functions by searching for swallowd functions (islands).
+        """Attempt to match new functions by searching for swallowed functions (islands).
 
         Return Value:
             True iff matched at least one function
@@ -306,7 +306,7 @@ class FileMatcher(FileMatch):
         return False
 
     def attemptMatchSwallow(self, src_index_start, src_index_end, lower_bound, upper_bound):
-        """Attempt to match new functions by searching for swallowd functions (islands) in a given range.
+        """Attempt to match new functions by searching for swallowed functions (islands) in a given range.
 
         Args:
             src_index_start (int): start (source) index of an unmatched (source) gap

@@ -7,7 +7,7 @@ class DisasAPI(object):
 
     Attributes
     ----------
-        _all_functions (list): list of all of the funcitons in the program - calculated once to avoid performance costs
+        _all_functions (list): list of all of the functions in the program - calculated once to avoid performance costs
         _all_strings (list): list of all of the strings in the program - calculated once to avoid performance costs
         _exported_symbols (list): list of all of the exported symbols names (as strings) - calculated once to avoid performance costs
     """
@@ -23,7 +23,7 @@ class DisasAPI(object):
         """Create a program specific logger handler, according to the logging.Handler API.
 
         Return Value:
-            Created logger handler to be used throught the program
+            Created logger handler to be used throughout the program
         """
         raise NotImplementedError("Subclasses should implement this!")
 
@@ -192,7 +192,7 @@ class DisasAPI(object):
         """Return the name of the function, using it's given context instance.
 
         Args:
-            func_ctx (func): funciton instance (differs between implementations)
+            func_ctx (func): function instance (differs between implementations)
 
         Return Value:
             String name of the given function
@@ -203,7 +203,7 @@ class DisasAPI(object):
         """Return the start ea of the function, using it's given context instance.
 
         Args:
-            func_ctx (func): funciton instance (differs between implementations)
+            func_ctx (func): function instance (differs between implementations)
 
         Return Value:
             start address (ea) of the given function
@@ -214,7 +214,7 @@ class DisasAPI(object):
         """Return the end ea of the function, using it's given context instance.
 
         Args:
-            func_ctx (func): funciton instance (differs between implementations)
+            func_ctx (func): function instance (differs between implementations)
 
         Return Value:
             end address (ea) of the given function
@@ -226,7 +226,7 @@ class DisasAPI(object):
 
         Args:
             range_start (int): ea of the range's start
-            range_end (int): ea of the rang's end
+            range_end (int): ea of the range's end
             value (int): value of the searched immediate
 
         Return Value:
@@ -354,7 +354,7 @@ class DisasAPI(object):
     ######################
 
     def messageBox(self, text):
-        """Pop a MessageBox to the user, with the given text. Blocks untill closed.
+        """Pop a MessageBox to the user, with the given text. Blocks until closed.
 
         Note:
             This function contains some of Karta's UI logic

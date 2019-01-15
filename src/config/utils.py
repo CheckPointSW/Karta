@@ -106,7 +106,7 @@ def initUtils(logger, disas, invoked_before=False):
     Args:
         logger (logger): logger instance
         disas (disassembler): disassembler handler instance
-        invoked_before (bool): True iff was invoked before, and is part of a repetitive invokation (False by default)
+        invoked_before (bool): True iff was invoked before, and is part of a repetitive invocation (False by default)
     """
     global global_logger, disas_layer, src_seen_consts, src_seen_strings, src_functions_list, src_functions_ctx, src_file_mappings
     # same as the init list on the top of the file
@@ -119,7 +119,7 @@ def initUtils(logger, disas, invoked_before=False):
     resetRatio()
     # don't forget the neighbour scoring
     resetScoring()
-    # don't do this initialization after the first invokation
+    # don't do this initialization after the first invocation
     if not invoked_before:
         # init the logger
         global_logger = logger
@@ -491,7 +491,7 @@ def registerContexts(src_func, bin_func, island_func):
     island_func_class   = island_func
 
 def sourceContext():
-    """Return the registerred context for the source functions.
+    """Return the registered context for the source functions.
 
     Return Value:
         Ctor() for the source function context
@@ -499,7 +499,7 @@ def sourceContext():
     return src_func_class
 
 def binaryContext():
-    """Return the registerred context for the binary functions.
+    """Return the registered context for the binary functions.
 
     Return Value:
         Ctor() for the binary function context
@@ -507,7 +507,7 @@ def binaryContext():
     return bin_func_class
 
 def islandContext():
-    """Return the registerred context for the island functions.
+    """Return the registered context for the island functions.
 
     Return Value:
         Ctor() for the island function context

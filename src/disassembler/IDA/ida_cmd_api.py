@@ -41,7 +41,7 @@ class IdaCMD(DisasCMD):
         """
         type = "elf" if not is_windows else "coff"
         suffix = ".i64" if self._path.endswith("64") else ".idb"
-        # execute the prorgam
+        # execute the program
         os.system("%s -A -B -T%s %s" % (self._path, type, binary_file))
         # return back the (should be) created database file path
         return binary_file + suffix

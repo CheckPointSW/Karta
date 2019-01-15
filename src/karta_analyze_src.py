@@ -130,7 +130,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
                     prompter.error("Read the log file for more information: %s" % (constructLogPath(full_file_path)))
                     prompter.removeIndent()
                     prompter.removeIndent()
-                    prompter.error("Encounterred an error, exiting")
+                    prompter.error("Encountered an error, exiting")
                     exit(1)
                 # all was OK, can continue
                 parseFileStats(full_file_path, json.load(fd, object_pairs_hook=collections.OrderedDict))

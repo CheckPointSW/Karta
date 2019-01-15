@@ -17,7 +17,7 @@ class MatchSequence(object):
     Attributes
     ----------
         bin_lower_ctx (FunctionContext): the lowest matched binary function in the sequence
-        bin_upper_ctx (FunctionContext): the uppmost matched binary function in the sequence
+        bin_upper_ctx (FunctionContext): the highest matched binary function in the sequence
 
     Notes
     -----
@@ -70,14 +70,14 @@ class FileMatch(object):
         _src_index_end (int): source index of last function in the source file
         _bin_functions_ctx (list): list of all candidate binary functions for this file (containing FunctionContext instances)
         _bin_limit_lower (int): binary index (in all of the functions) of the lowest binary candidate for this file
-        _bin_limit_upper (int): binary index (in all of the functions) of the uppmost binary candidate for this file
+        _bin_limit_upper (int): binary index (in all of the functions) of the highest binary candidate for this file
         _lower_leftovers (int): size (in functions) of the lower "safety" gap (from a last valid match to the start of the file)
         _upper_leftovers (int): size (in functions) of the upper "safety" gap (from a last valid match to the end of the file)
         _match_sequences (list): Ordered list of match sequences in the file (containing MatchSequence instances)
         _disabled (int): number of disabled (linker optimized) functions that were found before we located our file
         _remain_size (int): number of source functions that are still to be matched
         _lower_match_ctx (FunctionContext): the lowest function that was matched till now
-        _upper_match_ctx (FunctionContext): the uppmost function that was matched till now
+        _upper_match_ctx (FunctionContext): the highest function that was matched till now
         _locked_eas (set): set of (unmatched) eas that were "locked" between two binary matches when the FileMatch instance was created
         _lower_locked_eas (set): set of (unmatched) eas that were "locked" between two binary matches when expanding the match sequences downward
         _upper_locked_eas (set): set of (unmatched) eas that were "locked" between two binary matches when expanding the match sequences upward
@@ -93,7 +93,7 @@ class FileMatch(object):
             src_index_end (int): source index of last function in the source file
             fuzzy_bin_functions_ctx (list): initial list of all candidate binary functions for this file (containing FunctionContext instances)
             bin_limit_lower (int): binary index (in all of the functions) of the lowest binary candidate for this file
-            bin_limit_upper (int): binary index (in all of the functions) of the uppmost binary candidate for this file
+            bin_limit_upper (int): binary index (in all of the functions) of the highest binary candidate for this file
             src_scope (int): number of src functions that are currently in scope of this file (differs between located and unlocated files)
             engine (MatchEngine): match engine context with the scope for the matching process
         """
@@ -126,7 +126,7 @@ class FileMatch(object):
         # take ownership over the contained functions
         for bin_index, bin_ctx in enumerate(self._bin_functions_ctx if self.located else self._engine.floatingBinFunctions()):
             bin_ctx.linkFile(self)
-            # can't use "matched()" because we are in a pre-updateHints phase
+            # can't use "matched()" because we are in a pre-updateHints() phase
             if self._engine.binMatched(bin_ctx.ea):
                 if self._lower_match_ctx is None:
                     self._lower_match_ctx = bin_ctx
@@ -144,7 +144,7 @@ class FileMatch(object):
             for bin_index in bin_range:
                 bin_ctx = self._bin_functions_ctx[bin_index]
                 bin_ctx.linkFile(self)
-                # can't use "matched()" because we are in a pre-updateHints phase
+                # can't use "matched()" because we are in a pre-updateHints() phase
                 if self._engine.binMatched(bin_ctx.ea):
                     self._locked_eas.remove(bin_ctx.ea)
 
@@ -469,7 +469,7 @@ class FileMatch(object):
         # update the floating file
         if floating_representative is not None:
             bin_index = self._engine.floatingBinFunctions().index(bin_ctx)
-            # update the bounds of the floating file, in case we matched an exterme binary function
+            # update the bounds of the floating file, in case we matched an extreme binary function
             upper_part = floating_representative._upper_match_ctx.ea < bin_ctx.ea
             lower_part = bin_ctx.ea < floating_representative._lower_match_ctx.ea
             if upper_part:
@@ -527,7 +527,7 @@ class FileMatch(object):
             expelled_funcs += self._bin_functions_ctx[:delta]
             self._bin_functions_ctx = self._bin_functions_ctx[delta:]
 
-        # Now expell all of the functions
+        # Now expel all of the functions
         for expelled_ctx in expelled_funcs:
             expelled_ctx.expel(self)
 

@@ -13,7 +13,7 @@ class ExternalFunction(CodeContext):
     """
 
     def __init__(self, name):
-        """Create a class instance using only the name (ea is unknown untill we will have a match).
+        """Create a class instance using only the name (ea is unknown until we will have a match).
 
         Args:
             name (str): name of the external function
@@ -107,12 +107,12 @@ class ComparableContext(object):
         """Record a numeric constant artifact in the code's artifacts list.
 
         Args:
-            const (int): numric constant artifact
+            const (int): numeric constant artifact
         """
         self.consts.add(const)
 
     def recordString(self, string):
-        """Record a string artifact in the code's arteficts list.
+        """Record a string artifact in the code's artifacts list.
 
         Args:
             string (str): string artifact
@@ -702,7 +702,7 @@ class SourceContext(SrcFileFunction, FunctionContext):
         """Deserialize the stored context from it's file representation dict.
 
         Args:
-            serialized_ctx (dict): a dict containg a serialize()d context instance
+            serialized_ctx (dict): a dict containing a serialize()d context instance
             source_index (int): source index for the current function
 
         Return value:

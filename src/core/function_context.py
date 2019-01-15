@@ -160,7 +160,7 @@ class BinFileFunction(BinaryCodeContext):
 
         Note:
             * 1st invocation: adds the given source file as a potential candidate
-            * 2nd invocation: signals that ths given source file is indeed our source file
+            * 2nd invocation: signals that this given source file is indeed our source file
 
         Args:
             file_match (FileMatch): context representing a source file

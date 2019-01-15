@@ -276,7 +276,7 @@ class IDA(DisasAPI):
 
     Attributes
     ----------
-        _logic (analyzer): IDA Analyzer, containg the heart of Karta's canonical representation
+        _logic (analyzer): IDA Analyzer, containing the heart of Karta's canonical representation
     """
 
     def __init__(self):
@@ -290,7 +290,7 @@ class IDA(DisasAPI):
         """Create a program specific logger handler, according to the logging.Handler API.
 
         Return Value:
-            Created logger handler to be used throught the program
+            Created logger handler to be used throughout the program
         """
         return IdaLogHandler()
 
@@ -439,7 +439,7 @@ class IDA(DisasAPI):
         """Return the name of the function, using it's given context instance.
 
         Args:
-            func_ctx (func): funciton instance (differs between implementations)
+            func_ctx (func): function instance (differs between implementations)
 
         Return Value:
             String name of the given function
@@ -451,7 +451,7 @@ class IDA(DisasAPI):
         """Return the start ea of the function, using it's given context instance.
 
         Args:
-            func_ctx (func): funciton instance (differs between implementations)
+            func_ctx (func): function instance (differs between implementations)
 
         Return Value:
             start address (ea) of the given function
@@ -463,7 +463,7 @@ class IDA(DisasAPI):
         """Return the end ea of the function, using it's given context instance.
 
         Args:
-            func_ctx (func): funciton instance (differs between implementations)
+            func_ctx (func): function instance (differs between implementations)
 
         Return Value:
             end address (ea) of the given function
@@ -476,7 +476,7 @@ class IDA(DisasAPI):
 
         Args:
             range_start (int): ea of the range's start
-            range_end (int): ea of the rang's end
+            range_end (int): ea of the range's end
             value (int): value of the searched immediate
 
         Return Value:
@@ -608,7 +608,7 @@ class IDA(DisasAPI):
 
     # Overridden base function
     def messageBox(self, text):
-        """Pop a MessageBox to the user, with the given text. Blocks untill closed.
+        """Pop a MessageBox to the user, with the given text. Blocks until closed.
 
         Note:
             This function contains some of Karta's UI logic

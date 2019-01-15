@@ -17,7 +17,7 @@ class KartaMatcher(MatchEngine):
         _match_round_bin_ea (dict): mapping of the match records for the current matching round: bin ea => match record
         _match_round_losers (list): list of match records representing the match round losers (to be tracked for changes)
         _matching_reasons (dict): dictionary of all (non-external) matching reasons: src index => reason
-        _src_external_functions (dict): dictionay of all (source) external function: src name => external context
+        _src_external_functions (dict): dictionary of all (source) external function: src name => external context
         _ext_unused_functions (set): set of (src) names for unused external functions (all callers were disabled)
         _matching_reason (dict): mapping of all (non-external) matching reasons: src index => reason
         _changed_functions (dict): mappings for hints derived at the current matching round: src index => set of bin function ea
@@ -65,7 +65,7 @@ class KartaMatcher(MatchEngine):
     # Overridden base function
     def criticalError(self):
         """Critical error that mandates we exit WITHOUT showing partial results to the user, we must exit now."""
-        self.logger.error("Encounterred an error, exiting")
+        self.logger.error("Encountered an error, exiting")
         sys.exit(1)
 
     # Overridden base function
@@ -138,7 +138,7 @@ class KartaMatcher(MatchEngine):
                 for file_option in file_list:
                     if file_option._src_index_start <= merged_source_ctx.index and merged_source_ctx.index <= file_option._src_index_end:
                         match_file = file_option
-                        # make sure to update that this is the "correct" match (all collissions in the same file are equivelent)
+                        # make sure to update that this is the "correct" match (all collisions in the same file are equivalent)
                         src_index = merged_source_ctx.index
                         bin_ctx.match = merged_source_ctx
                         self._bin_matched_ea[func_ea] = merged_source_ctx.index
@@ -416,7 +416,7 @@ class KartaMatcher(MatchEngine):
                 self.logger.info(". %s", ext_ctx.name)
         # exit on error
         if error:
-            self.logger.error("Internal assumption was broken - probably matched a false positive - exitting")
+            self.logger.error("Internal assumption was broken - probably matched a false positive - exiting")
             return
 
     def updateHints(self, src_index, func_ea):
@@ -429,7 +429,7 @@ class KartaMatcher(MatchEngine):
         src_ctx = self.src_functions_ctx[src_index]
         bin_ctx = self.bin_functions_ctx[func_ea]
 
-        # record the match (also tells my followers tham I'm taken)
+        # record the match (also tells my followers that I'm taken)
         src_ctx.declareMatch(bin_ctx)
         bin_ctx.declareMatch(src_ctx)
 

@@ -17,7 +17,7 @@ LIB_IDENTIFIER_FORMAT = "%s_libraries.txt"
 
 workdir_path        = None      # path to the working directory (including the databases with the pre-compiled libraries)
 logger              = None      # elementals logger instance
-disas               = None      # disassembler lyaer handler
+disas               = None      # disassembler layer handler
 
 def writeLine(fd, line):
     """Write the result line to the file and the log simultaneously.

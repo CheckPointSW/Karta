@@ -342,7 +342,7 @@ class DisasAPI(object):
             block_to_reach[self.blockStart(block)] = set()
             for instr_pos, call_ea in self.blockFuncRefs(block):
                 # record the call
-                block_to_ref[self.blockStart(block)].add(call_ea)
+                block_to_ref[self.blockStart(block)].add(instr_pos)
                 ref_to_block[instr_pos] = block
                 ref_to_call[instr_pos] = self.funcNameEA(call_ea) if src_mode else call_ea
 
@@ -378,8 +378,8 @@ class DisasAPI(object):
                     seen_blocks.add(cur_block_ea)
                     # always mark it
                     block_to_reach[cur_block_ea].update(working_set)
-                    # if reached a starting block of a lesser reference, tell him to keep on for us
-                    if cur_block_ea in block_to_ref and max(block_to_ref[cur_block_ea]) > cur_block_ea:
+                    # if reached a starting block of an advanced reference, tell him to keep on for us
+                    if cur_block_ea in block_to_ref and ref < max(block_to_ref[cur_block_ea]):
                         # we can stop :)
                         continue
                     # learn, and keep going

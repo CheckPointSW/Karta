@@ -84,6 +84,7 @@
             
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
 </ul>
@@ -104,6 +105,11 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="matching_basics.html">Karta</a></li>
 <li class="toctree-l1"><a class="reference internal" href="scoring_tips.html">Scoring Tips</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Modularity:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="disassembler.html">Disassembler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_layer.html">File Map Logic</a></li>
 </ul>
 
             
@@ -178,7 +184,7 @@ This means that:</p>
 <li>A function can be modified (inlined) in the binary even if we didn’t inline it in our “source” compilation</li>
 <li>If a function was modified in our “source” compilation, it must be modified in the same way in our wanted binary</li>
 </ol>
-<p>Since we want to maintain this basic invariant, we usually want to compile our open source library with flag for:</p>
+<p>Since we want to maintain this basic invariant, we usually want to compile our open source library with flags for:</p>
 <ul class="simple">
 <li>No inlining</li>
 <li>No compiler optimizations</li>
@@ -186,16 +192,11 @@ This means that:</p>
 </div>
 <div class="section" id="windows-compilation">
 <span id="windows-compilation"></span><h2>Windows Compilation<a class="headerlink" href="#windows-compilation" title="Permalink to this headline">¶</a></h2>
-<p>It seems that when compiling a binary using <code class="docutils literal notranslate"><span class="pre">nmake</span></code> or <code class="docutils literal notranslate"><span class="pre">visual</span> <span class="pre">studio</span></code>, the Window’s compilation adds some linker optimizations. As we couldn’t imitate these linker optimizations when compiling with <code class="docutils literal notranslate"><span class="pre">gcc</span></code>, Karta can (and should) support 2 different configurations for the same version of a specific library:</p>
+<p>It seems that when compiling a binary using <code class="docutils literal notranslate"><span class="pre">nmake</span></code> or <code class="docutils literal notranslate"><span class="pre">visual</span> <span class="pre">studio</span></code>, the Window’s compilation adds some linker optimizations. As we couldn’t imitate these linker optimizations when compiling with <code class="docutils literal notranslate"><span class="pre">gcc</span></code>, <strong>Karta</strong> can (and should) support 2 different configurations for the same version of a specific library:</p>
 <ol class="simple">
-<li>Basic (unix) configuration - Used for Linux, Mac, of various firmwares</li>
-<li>Windows configuration
-Karta can automatically identify the type of the configuration file it was requested to create, based on the suffix of the static library file:</li>
+<li>Basic (unix) configuration - Used for Linux, Mac, of various firmware files</li>
+<li>Windows configuration</li>
 </ol>
-<ul class="simple">
-<li>.lib - Windows static library =&gt; Windows configuration</li>
-<li>.a - Linux static library =&gt; Basic configuration</li>
-</ul>
 </div>
 <div class="section" id="bitness-32-vs-64">
 <span id="bitness-32-vs-64"></span><h2>Bitness - 32 vs 64<a class="headerlink" href="#bitness-32-vs-64" title="Permalink to this headline">¶</a></h2>

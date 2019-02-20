@@ -29,7 +29,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Matching supported libraries" href="Matching supported libraries.html" />
-    <link rel="prev" title="Brief" href="index.html" /> 
+    <link rel="prev" title="Installation" href="Installation.html" /> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
@@ -84,8 +84,10 @@
             
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Open source fingerprinting</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#identifier-plugin-start">Identifier Plugin - Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#identifier-plugin">Identifier Plugin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#manual-identification">Manual Identification</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
@@ -100,6 +102,11 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="matching_basics.html">Karta</a></li>
 <li class="toctree-l1"><a class="reference internal" href="scoring_tips.html">Scoring Tips</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Modularity:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="disassembler.html">Disassembler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_layer.html">File Map Logic</a></li>
 </ul>
 
             
@@ -166,10 +173,10 @@
             
   <div class="section" id="open-source-fingerprinting">
 <span id="open-source-fingerprinting"></span><h1>Open source fingerprinting<a class="headerlink" href="#open-source-fingerprinting" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="identifier-plugin-start">
-<span id="identifier-plugin-start"></span><h2>Identifier Plugin - Start<a class="headerlink" href="#identifier-plugin-start" title="Permalink to this headline">¶</a></h2>
-<p>The <strong>karta_identifier.py</strong> script identifies the existence of supported open source projects inside the given binary, and aims to fingerprint the exact version of each located library.
-Once your binary was loaded to IDA, simply load the script <strong>karta_identifier.py</strong>, and it will output the results to the output window and to an output file.
+<div class="section" id="identifier-plugin">
+<span id="identifier-plugin"></span><h2>Identifier Plugin<a class="headerlink" href="#identifier-plugin" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">karta_identifier.py</span></code> script identifies the existence of supported open source projects inside the given binary, and aims to fingerprint the exact version of each located library.
+Once your binary was loaded to IDA, simply load the script <code class="docutils literal notranslate"><span class="pre">karta_identifier.py</span></code>, and it will output the results to the output window and to an output file.
 Here is an example output after running the script on an HP OfficeJet firmware:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Karta</span> <span class="n">Identifier</span> <span class="o">-</span> <span class="n">printer_firmware</span><span class="o">.</span><span class="n">bin</span><span class="p">:</span>
 <span class="o">========================================</span>
@@ -207,6 +214,27 @@ Here is an example output after running the script on an HP OfficeJet firmware:<
 <li>List of missing open source libraries, so that you will know what libraries are supported by the identifier at the moment</li>
 </ol>
 </div>
+<div class="section" id="manual-identification">
+<span id="manual-identification"></span><h2>Manual Identification<a class="headerlink" href="#manual-identification" title="Permalink to this headline">¶</a></h2>
+<p>Sometimes we would like to feed <strong>Karta</strong> with some knowledge we already acquired about the matched open source. When <strong>Karta</strong> locates a library, but fails to identify it’s exact version, we can manually tell it the version so the matcher could match it. For example, in the above example we could manually configure the version for the “mDNSResponder” library which we located, but failed to identify.</p>
+<p>User defined library versions can be declared by running the <code class="docutils literal notranslate"><span class="pre">karta_manual_identifier.py</span></code> in the command line, using the following arguments:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Users</span>\<span class="n">user</span>\<span class="n">Documents</span>\<span class="n">Karta</span>\<span class="n">src</span><span class="o">&gt;</span><span class="n">python</span> <span class="n">karta_manual_identifier</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">help</span>
+<span class="n">usage</span><span class="p">:</span> <span class="n">karta_manual_identifier</span><span class="o">.</span><span class="n">py</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">D</span><span class="p">]</span> <span class="nb">bin</span>
+
+<span class="n">Enables</span> <span class="n">the</span> <span class="n">user</span> <span class="n">to</span> <span class="n">manually</span> <span class="n">identify</span> <span class="n">the</span> <span class="n">versions</span> <span class="n">of</span> <span class="n">located</span> <span class="n">but</span> <span class="n">unknown</span>
+<span class="n">libraries</span><span class="p">,</span> <span class="n">later</span> <span class="n">to</span> <span class="n">be</span> <span class="n">used</span> <span class="n">by</span> <span class="n">Karta</span><span class="s1">&#39;s Matcher.</span>
+
+<span class="n">positional</span> <span class="n">arguments</span><span class="p">:</span>
+  <span class="nb">bin</span>          <span class="n">path</span> <span class="n">to</span> <span class="n">the</span> <span class="n">disassembler</span><span class="s1">&#39;s database for the wanted binary</span>
+
+<span class="n">optional</span> <span class="n">arguments</span><span class="p">:</span>
+  <span class="o">-</span><span class="n">h</span><span class="p">,</span> <span class="o">--</span><span class="n">help</span>   <span class="n">show</span> <span class="n">this</span> <span class="n">help</span> <span class="n">message</span> <span class="ow">and</span> <span class="n">exit</span>
+  <span class="o">-</span><span class="n">D</span><span class="p">,</span> <span class="o">--</span><span class="n">debug</span>  <span class="nb">set</span> <span class="n">logging</span> <span class="n">level</span> <span class="n">to</span> <span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span>
+</pre></div>
+</div>
+<p>The script will store the configurations in a <code class="docutils literal notranslate"><span class="pre">*_knowledge.json</span></code> file near the disassembler’s database file.</p>
+<p><strong>Note:</strong> After we manually identify the version of a previously located but unknown library, future calls to the identifier plugin will use our supplied version automatically.</p>
+</div>
 </div>
 
 
@@ -220,7 +248,7 @@ Here is an example output after running the script on an HP OfficeJet firmware:<
         <a href="Matching supported libraries.html" class="btn btn-neutral float-right" title="Matching supported libraries" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="index.html" class="btn btn-neutral" title="Brief" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="Installation.html" class="btn btn-neutral" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

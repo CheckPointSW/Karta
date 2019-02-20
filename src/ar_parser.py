@@ -1,5 +1,3 @@
-import os
-
 def getArchiveFiles(ar_path):
     """Return an ordered list of the files within the .ar archive.
 

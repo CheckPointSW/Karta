@@ -2,7 +2,6 @@ import idaapi
 import sark
 from config.utils   import *
 from hashlib        import md5
-from collections    import defaultdict
 
 class AnalyzerIDA(object):
     """Logic instance for the IDA disassembler API. Contains the heart of Karta's canonical representation.
@@ -65,9 +64,9 @@ class AnalyzerIDA(object):
         Return Value:
             (ordered) list of tuples: [<address of function ref (src), referenced address of the function (dest)>, ]
         """
-        func_start = sark.Function(block_ea).startEA
         function_calls = []
         try:
+            func_start = sark.Function(block_ea).startEA
             block_lines = sark.CodeBlock(block_ea).lines
         except Exception:
             return function_calls

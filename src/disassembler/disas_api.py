@@ -2,6 +2,8 @@
 ## Note: This API is an indirection point, so we could (maybe) add support for more disassemblers in the future ##
 ##################################################################################################################
 
+from collections    import defaultdict
+
 class DisasAPI(object):
     """Abstract class that represents the required API from the disassembler layer.
 
@@ -221,6 +223,61 @@ class DisasAPI(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
+    def funcNameEA(self, func_ea):
+        """Return the name of the function that was defined in the given address (including windows name fixes).
+
+        Args:
+            func_ea (int): effective address of the wanted function
+
+        Return Value:
+            The actual (wanted) name of the wanted function
+        """
+        raise NotImplementedError("Subclasses should implement this!")
+
+    def blocksAt(self, func_ctx):
+        """Return a collection of basic blocks at the given function.
+
+        Args:
+            func_ctx (func): function instance (differs between implementations)
+
+        Return Value:
+            A collection of basic block instances
+        """
+        raise NotImplementedError("Subclasses should implement this!")
+
+    def blockStart(self, block_ctx):
+        """Return the start ea of the basic block, using it's given context instance.
+
+        Args:
+            block_ctx (block): basic block instance (differs between implementations)
+
+        Return Value:
+            start address (ea) of the given basic block
+        """
+        raise NotImplementedError("Subclasses should implement this!")
+
+    def blockFuncRefs(self, block_ctx):
+        """Return pairs indicating function calls (or fptr refs) from the lines in the basic block instance.
+
+        Args:
+            block_ctx (block): basic block instance (differs between implementations)
+
+        Return Value:
+            (ordered) list of tuples: [<address of function ref (src), referenced address of the function (dest)>, ]
+        """
+        raise NotImplementedError("Subclasses should implement this!")
+
+    def nextBlocks(self, block_ctx):
+        """Return a collection of potential next blocks in the flow graph.
+
+        Args:
+            block_ctx (block): basic block instance (differs between implementations)
+
+        Return Value:
+            collection of (probably 0-2) basic block successors
+        """
+        raise NotImplementedError("Subclasses should implement this!")
+
     def findImmediate(self, range_start, range_end, value):
         """Return all of the places (in the range) in which the immediate value was found.
 
@@ -264,20 +321,6 @@ class DisasAPI(object):
     ## Analysis Logic - Karta ##
     ############################
 
-    def funcNameEA(self, func_ea):
-        """Return the name of the function that was defined in the given address (including windows name fixes).
-
-        Args:
-            func_ea (int): effective address of the wanted function
-
-        Return Value:
-            The actual (wanted) name of the wanted function
-        """
-        func = self.funcAt(func_ea)
-        if func is not None:
-            return self.funcName(func)
-        return self.logic.funcNameInner(self.nameAt(func_ea))
-
     def analyzeFunctionGraph(self, func_ea, src_mode):
         """Analyze the flow graph of a given function, generating a call-order mapping.
 
@@ -288,7 +331,78 @@ class DisasAPI(object):
         Return Value:
             A dictionary representing the the list of function calls that lead to a specific function call: call ==> list of preceding calls
         """
-        raise NotImplementedError("Subclasses should implement this!")
+        block_to_ref   = defaultdict(set)
+        ref_to_block   = {}
+        ref_to_call    = {}
+        block_to_reach = {}
+        call_to_reach  = {}
+        # 1st scan, build up the mapping - O(N) time, O(k) storage
+        func = self.funcAt(func_ea)
+        for block in self.blocksAt(func):
+            block_to_reach[self.blockStart(block)] = set()
+            for instr_pos, call_ea in self.blockFuncRefs(block):
+                # record the call
+                block_to_ref[self.blockStart(block)].add(call_ea)
+                ref_to_block[instr_pos] = block
+                ref_to_call[instr_pos] = self.funcNameEA(call_ea) if src_mode else call_ea
+
+        # 2nd scan, start from each reference, and propagate till the end - O(kN), E(N) time, O(N) storage
+        sorted_refs = ref_to_block.keys()
+        sorted_refs.sort()
+        for ref in sorted_refs:
+            start_block = ref_to_block[ref]
+            block_ea = self.blockStart(start_block)
+            working_set = set([ref])
+            # we distinguish between refs even on the same block, no need to search for them because we scan using sorted_refs
+            # mark the start block
+            block_to_reach[block_ea].add(ref)
+            # check if we can stop now
+            if len(block_to_ref[block_ea]) > 1 and ref != max(block_to_ref[block_ea]):
+                continue
+            # carry on the tasks that were leftover by previous references
+            working_set.update(block_to_reach[block_ea])
+            # build a list of BFS nodes
+            search_list = map(lambda x: (x, set(working_set)), self.nextBlocks(start_block))
+            # Sanity hook around analysis problem in r2 - TODO: remove in the future
+            search_list = filter(lambda x: self.blockStart(x[0]) in block_to_reach, search_list)
+            seen_blocks = set()
+            # BFS Scan - until the list is empty
+            while len(search_list) > 0:
+                new_search_list = []
+                for cur_block, working_set in search_list:
+                    cur_block_ea = self.blockStart(cur_block)
+                    # check for loops
+                    if cur_block_ea in seen_blocks and len(block_to_reach[cur_block_ea].difference(working_set)) == 0:
+                        continue
+                    # mark as seen
+                    seen_blocks.add(cur_block_ea)
+                    # always mark it
+                    block_to_reach[cur_block_ea].update(working_set)
+                    # if reached a starting block of a lesser reference, tell him to keep on for us
+                    if cur_block_ea in block_to_ref and max(block_to_ref[cur_block_ea]) > cur_block_ea:
+                        # we can stop :)
+                        continue
+                    # learn, and keep going
+                    else:
+                        working_set.update(block_to_reach[cur_block_ea])
+                        new_search_list += map(lambda x: (x, set(working_set)), self.nextBlocks(cur_block))
+                        # Sanity hook around analysis problem in r2 - TODO: remove in the future
+                        new_search_list = filter(lambda x: self.blockStart(x[0]) in block_to_reach, new_search_list)
+                search_list = new_search_list
+
+        # 3rd scan, sum up the results - O(k) time, O(k*k) storage
+        for ref in ref_to_block.keys():
+            reffed_block_ea = self.blockStart(ref_to_block[ref])
+            reachable_from = block_to_reach[reffed_block_ea]
+            # add a filter to prevent collisions from the same block
+            reachable_from = reachable_from.difference(filter(lambda x: x > ref, block_to_ref[reffed_block_ea]))
+            if ref_to_call[ref] not in call_to_reach:
+                call_to_reach[ref_to_call[ref]] = []
+            current_record = set(filter(lambda x: x != ref_to_call[ref], map(lambda x: ref_to_call[x], reachable_from)))
+            if current_record not in call_to_reach[ref_to_call[ref]]:
+                call_to_reach[ref_to_call[ref]].append(list(current_record))
+
+        return call_to_reach
 
     def analyzeFunction(self, func_ea, src_mode):
         """Analyze a given function, and creates a canonical representation for it.

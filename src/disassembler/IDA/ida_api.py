@@ -324,7 +324,7 @@ class IDA(DisasAPI):
         Return Value:
             collection of all of the exported symbols in the program
         """
-        return map(lambda x: x[-1], idautils.Entries())
+        return map(lambda x: self._logic.funcNameInner(x[-1]), idautils.Entries())
 
     # Overridden base function
     def numSegments(self):
@@ -471,6 +471,66 @@ class IDA(DisasAPI):
         return func_ctx.endEA
 
     # Overridden base function
+    def funcNameEA(self, func_ea):
+        """Return the name of the function that was defined in the given address (including windows name fixes).
+
+        Args:
+            func_ea (int): effective address of the wanted function
+
+        Return Value:
+            The actual (wanted) name of the wanted function
+        """
+        return self._logic.funcNameEA(func_ea)
+
+    # Overridden base function
+    def blocksAt(self, func_ctx):
+        """Return a collection of basic blocks at the given function.
+
+        Args:
+            func_ctx (func): function instance (differs between implementations)
+
+        Return Value:
+            A collection of basic block instances
+        """
+        return idaapi.FlowChart(func_ctx.func_t)
+
+    # Overridden base function
+    def blockStart(self, block_ctx):
+        """Return the start ea of the basic block, using it's given context instance.
+
+        Args:
+            block_ctx (block): basic block instance (differs between implementations)
+
+        Return Value:
+            start address (ea) of the given basic block
+        """
+        return block_ctx.startEA
+
+    # Overridden base function
+    def blockFuncRefs(self, block_ctx):
+        """Return pairs indicating function calls (or fptr refs) from the lines in the basic block instance.
+
+        Args:
+            block_ctx (block): basic block instance (differs between implementations)
+
+        Return Value:
+            (ordered) list of tuples: [<address of function ref (src), referenced address of the function (dest)>, ]
+        """
+        return self._logic.analyzeFunctionBlock(block_ctx.startEA)
+
+    # Overridden base function
+    def nextBlocks(self, block_ctx):
+        """Return a collection of potential next blocks in the flow graph.
+
+        Args:
+            block_ctx (block): basic block instance (differs between implementations)
+
+        Return Value:
+            collection of (probably 0-2) basic block successors
+        """
+        return block_ctx.succs()
+
+    # Overridden base function
     def findImmediate(self, range_start, range_end, value):
         """Return all of the places (in the range) in which the immediate value was found.
 
@@ -524,19 +584,6 @@ class IDA(DisasAPI):
     ############################
     ## Analysis Logic - Karta ##
     ############################
-
-    # Overridden base function
-    def analyzeFunctionGraph(self, func_ea, src_mode):
-        """Analyze the flow graph of a given function, generating a call-order mapping.
-
-        Args:
-            func_ea (int): effective address of the wanted function
-            src_mode (bool): True iff analyzing a self-compiled source file, otherwise analyzing a binary function
-
-        Return Value:
-            A dictionary representing the the list of function calls that lead to a specific function call: call ==> list of preceding calls
-        """
-        return self._logic.analyzeFunctionGraph(func_ea, src_mode)
 
     # Overridden base function
     def analyzeFunction(self, func_ea, src_mode):

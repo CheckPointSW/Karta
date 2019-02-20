@@ -1,5 +1,3 @@
-import os
-
 def getArchiveFiles(ar_path):
     """Return an ordered list of the files within the .ar archive.
 
@@ -26,12 +24,12 @@ def getArchiveFiles(ar_path):
             if len(ar_part) < 58:
                 continue
             # now read the metadata of the record
-            name = ar_part[-58:].split(os.path.sep)[0]
+            name = ar_part[-58:].split('/')[0]
         # .lib file format is more complex
         else:
             if ar_part.find(".obj") == -1:
                 continue
-            name = ar_part.split(".obj")[-2].split('\x00')[-1].split(os.path.sep)[-1] + ".obj"
+            name = ar_part.split(".obj")[-2].split('\x00')[-1].split('\\')[-1] + ".obj"
             name = name.strip()
         # append the new record
         if name not in names:

@@ -2,7 +2,6 @@ import idaapi
 import sark
 from config.utils   import *
 from hashlib        import md5
-from collections    import defaultdict
 
 class AnalyzerIDA(object):
     """Logic instance for the IDA disassembler API. Contains the heart of Karta's canonical representation.
@@ -56,111 +55,49 @@ class AnalyzerIDA(object):
             return self.funcNameInner(func.name)
         return self.funcNameInner(self.disas.nameAt(func_ea))
 
-    def analyzeFunctionGraph(self, func_ea, src_mode):
-        """Analyze the flow graph of a given function, generating a call-order mapping.
+    def analyzeFunctionBlock(self, block_ea):
+        """Return pairs indicating function calls (or fptr refs) from the lines in the basic block instance.
 
         Args:
-            func_ea (int): effective address of the wanted function
-            src_mode (bool): True iff analyzing a self-compiled source file, otherwise analyzing a binary function
+            block_ea (int): basic block ea
 
         Return Value:
-            A dictionary representing the the list of function calls that lead to a specific function call: call ==> list of preceding calls
+            (ordered) list of tuples: [<address of function ref (src), referenced address of the function (dest)>, ]
         """
-        block_to_ref   = defaultdict(set)
-        ref_to_block   = {}
-        ref_to_call    = {}
-        block_to_reach = {}
-        call_to_reach  = {}
-        # 1st scan, build up the mappings - O(N) time, O(k) storage
-        func = sark.Function(func_ea)
-        func_start = func.startEA
-        flow = idaapi.FlowChart(func.func_t)
-        for block in flow:
-            block_to_reach[block.startEA] = set()
-            try:
-                block_lines = sark.CodeBlock(block.startEA).lines
-            except Exception:
-                continue
-            for line in block_lines:
-                instr_pos = line.ea
-                call_candidates = set()
-                # Data Refs (strings, fptrs)
-                for ref in line.drefs_from:
-                    # Check for a string (finds un-analyzed strings too)
-                    str_const = self.disas.stringAt(ref)
-                    if str_const is not None and len(str_const) >= MIN_STR_SIZE:
-                        continue
-                    # Check for an fptr
-                    try:
-                        call_candidates.add(sark.Function(ref).startEA)
-                    except sark.exceptions.SarkNoFunction:
-                        continue
-                # Check for a function call
-                for cref in line.crefs_from:
-                    try:
-                        if (cref == func_start and line.insn.is_call) or sark.Function(cref).startEA != func_start:
-                            call_candidates.add(sark.Function(cref).startEA)
-                    except sark.exceptions.SarkNoFunction:
-                        continue
-                # handle each ref
-                for ref in call_candidates:
-                    call = sark.Function(ref)
-                    # record the call
-                    block_to_ref[block.startEA].add(instr_pos)
-                    ref_to_block[instr_pos] = block
-                    ref_to_call[instr_pos] = self.funcNameInner(call.name) if src_mode else call.startEA
-
-        # 2nd scan, start from each reference, and propagate till the end - O(kN), E(N) time, O(N) storage
-        sorted_refs = ref_to_block.keys()
-        sorted_refs.sort()
-        for ref in sorted_refs:
-            start_block = ref_to_block[ref]
-            working_set = set([ref])
-            # we distinguish between refs even on the same block, no need to search for them because we scan using sorted_refs
-            # mark the start block
-            block_to_reach[start_block.startEA].add(ref)
-            # check if we can stop now
-            if len(block_to_ref[start_block.startEA]) > 1 and ref != max(block_to_ref[start_block.startEA]):
-                continue
-            # carry on the tasks that were leftover by previous references
-            working_set.update(block_to_reach[start_block.startEA])
-            # build a list of BFS nodes
-            search_list = map(lambda x: (x, set(working_set)), start_block.succs())
-            seen_blocks = set()
-            # BFS Scan - until the list is empty
-            while len(search_list) > 0:
-                new_search_list = []
-                for cur_block, working_set in search_list:
-                    # check for loops
-                    if cur_block.startEA in seen_blocks and len(block_to_reach[cur_block.startEA].difference(working_set)) == 0:
-                        continue
-                    # mark as seen
-                    seen_blocks.add(cur_block.startEA)
-                    # always mark it
-                    block_to_reach[cur_block.startEA].update(working_set)
-                    # if reached a starting block of a lesser reference, tell him to keep on for us
-                    if cur_block.startEA in block_to_ref and max(block_to_ref[cur_block.startEA]) > cur_block.startEA:
-                        # we can stop :)
-                        continue
-                    # learn, and keep going
-                    else:
-                        working_set.update(block_to_reach[cur_block.startEA])
-                        new_search_list += map(lambda x: (x, set(working_set)), cur_block.succs())
-                search_list = new_search_list
-
-        # 3rd scan, sum up the results - O(k) time, O(k*k) storage
-        for ref in ref_to_block.keys():
-            reachable_from = block_to_reach[ref_to_block[ref].startEA]
-            # add a filter to prevent collisions from the same block
-            reachable_from = reachable_from.difference(filter(lambda x: x > ref, block_to_ref[ref_to_block[ref].startEA]))
-            if ref_to_call[ref] not in call_to_reach:
-                call_to_reach[ref_to_call[ref]] = []
-            current_record = set(filter(lambda x: x != ref_to_call[ref], map(lambda x: ref_to_call[x], reachable_from)))
-            if current_record not in call_to_reach[ref_to_call[ref]]:
-                call_to_reach[ref_to_call[ref]].append(list(current_record))
-
-        # return the results
-        return call_to_reach
+        function_calls = []
+        try:
+            func_start = sark.Function(block_ea).startEA
+            block_lines = sark.CodeBlock(block_ea).lines
+        except Exception:
+            return function_calls
+        # scan each of the lines
+        for line in block_lines:
+            instr_pos = line.ea
+            call_candidates = set()
+            # Data Refs (strings, fptrs)
+            for ref in line.drefs_from:
+                # Check for a string (finds un-analyzed strings too)
+                str_const = self.disas.stringAt(ref)
+                if str_const is not None and len(str_const) >= MIN_STR_SIZE:
+                    continue
+                # Check for an fptr
+                try:
+                    call_candidates.add(sark.Function(ref).startEA)
+                except sark.exceptions.SarkNoFunction:
+                    continue
+            # Check for a function call
+            for cref in line.crefs_from:
+                try:
+                    if (cref == func_start and line.insn.is_call) or sark.Function(cref).startEA != func_start:
+                        call_candidates.add(sark.Function(cref).startEA)
+                except sark.exceptions.SarkNoFunction:
+                    continue
+            # handle each ref
+            for ref in call_candidates:
+                # record the call
+                function_calls.append((instr_pos, sark.Function(ref).startEA))
+        # return the result
+        return function_calls
 
     def analyzeFunction(self, func_ea, src_mode):
         """Analyze a given function, and creates a canonical representation for it.
@@ -272,7 +209,7 @@ class AnalyzerIDA(object):
         context.blocks.sort(reverse=True)
 
         # Now add the flow analysis
-        context.setCallOrder(self.analyzeFunctionGraph(func_ea, src_mode))
+        context.setCallOrder(self.disas.analyzeFunctionGraph(func_ea, src_mode))
 
         return context
 

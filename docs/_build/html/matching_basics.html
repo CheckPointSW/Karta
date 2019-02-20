@@ -84,6 +84,7 @@
             
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
 </ul>
@@ -104,6 +105,11 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="scoring_tips.html">Scoring Tips</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Modularity:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="disassembler.html">Disassembler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_layer.html">File Map Logic</a></li>
 </ul>
 
             
@@ -172,7 +178,7 @@
 <span id="karta"></span><h1>Karta<a class="headerlink" href="#karta" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="motivation">
 <span id="motivation"></span><h2>Motivation<a class="headerlink" href="#motivation" title="Permalink to this headline">¶</a></h2>
-<p>The main motivation for developing “Karta” was the needed to identify open sources in large firmware files.
+<p>The main motivation for developing <strong>Karta</strong> was the need to identify open sources in large firmware files.
 My previous experience with other available tools (at the time) was that they have a memory blowup when dealing with large binaries, meaning that sometimes they will completely crash and give no results :(</p>
 <p>If we could work with a subset of functions, that will be polynomial to M (number of functions in the open source) and not in N (number of functions in the binary) we could escape the limitations that arise when M &lt;&lt; N. And this was the main idea.</p>
 </div>
@@ -189,7 +195,7 @@ My previous experience with other available tools (at the time) was that they ha
 </div>
 <div class="section" id="matching-steps">
 <span id="matching-steps"></span><h2>Matching Steps<a class="headerlink" href="#matching-steps" title="Permalink to this headline">¶</a></h2>
-<p>Using these conclusions, “Karta” matches each open source using the following steps:</p>
+<p>Using these conclusions, <strong>Karta</strong> matches each open source using the following steps:</p>
 <ol class="simple">
 <li>Fingerprint: Identify the existence of the open source, and the version that is being used</li>
 <li>Search for <strong>anchor</strong> functions: functions with unique and rare artifacts (strings or consts)</li>
@@ -199,7 +205,7 @@ My previous experience with other available tools (at the time) was that they ha
 <li>Regular score-based matching:<ul>
 <li>Scoring similarities</li>
 <li>Control Flow Graph (CFG) analysis</li>
-<li><strong>Note:</strong> give special attention for geographic location</li>
+<li><strong>Note:</strong> gives special attention for geographic location</li>
 </ul>
 </li>
 </ol>
@@ -217,7 +223,7 @@ This means that our matching and scoring logic will pay special attention to geo
 </div>
 <div class="section" id="modularity">
 <span id="modularity"></span><h2>Modularity<a class="headerlink" href="#modularity" title="Permalink to this headline">¶</a></h2>
-<p>Using these basic concepts, “Karta” was designed to be modular, to allow other matching libraries to use the basic file mapping logic.</p>
+<p>Using these basic concepts, <strong>Karta</strong> was designed to be modular, to allow other matching libraries to use the basic file mapping logic.</p>
 </div>
 </div>
 

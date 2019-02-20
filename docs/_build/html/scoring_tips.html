@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Disassembler" href="disassembler.html" />
     <link rel="prev" title="Karta" href="matching_basics.html" /> 
 
   
@@ -83,6 +84,7 @@
             
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
 </ul>
@@ -100,6 +102,11 @@
 <li class="toctree-l2"><a class="reference internal" href="#tips">Tips</a></li>
 </ul>
 </li>
+</ul>
+<p class="caption"><span class="caption-text">Modularity:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="disassembler.html">Disassembler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_layer.html">File Map Logic</a></li>
 </ul>
 
             
@@ -168,15 +175,15 @@
 <span id="scoring-tips"></span><h1>Scoring Tips<a class="headerlink" href="#scoring-tips" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="brief">
 <span id="brief"></span><h2>Brief<a class="headerlink" href="#brief" title="Permalink to this headline">¶</a></h2>
-<p>During the work on “Karta” I learned quite a few lessons about the nature of scoring algorithms for binary matching. This section will include a list of the tips I found useful, hoping they could help other researchers / developers as well.</p>
+<p>During the work on <strong>Karta</strong> I learned quite a few lessons about the nature of scoring algorithms for binary matching. This section will include a list of the tips I found useful, hoping they could help other researchers / developers as well.</p>
 </div>
 <div class="section" id="tips">
 <span id="tips"></span><h2>Tips<a class="headerlink" href="#tips" title="Permalink to this headline">¶</a></h2>
 <ol class="simple">
-<li><strong>Anchor</strong> functions can easily generate many matches later on</li>
+<li><strong>Anchor</strong> functions can easily generate many matches later on.</li>
 <li>Finding <strong>anchor</strong> functions should be done without any dependency on  the way we later on match additional functions. <strong>Anchor</strong> functions are too important to be missed by optimizations.</li>
 <li>The compiler <em>can</em> sometimes mess around with the order of the functions inside a single compiled binary file. However, it tends to keep the existing order as-is.</li>
-<li>Don’t give (non-constant) positive scoring to artifacts when there is a reasonable scenario in which tow meaningfully different functions receive a “match” score only because of this artifact. For example: number of instructions, frame size, etc.</li>
+<li>Don’t give (non-constant) positive scoring to artifacts when there is a reasonable scenario in which low meaningfully different functions receive a “match” score only because of this artifact. For example: number of instructions, frame size, etc.</li>
 <li>Don’t jump to make score-based decisions. Round up all of the possible matching candidates, and only pick the promising ones - those who receive enough score points and are way ahead of their competitors.</li>
 <li>Functions can be be complicated, store a full call order (path per ref, all paths per call), otherwise the call order will trigger a False Positive (a.k.a. <strong>FP</strong>).</li>
 <li>Try to adaptively learn the characteristics of the matched binary through the eyes of matched couples. For example: does the compiler maintained function locality (matching neighbours)? what is the ratio between the instructions in the binary and the source?</li>
@@ -201,6 +208,8 @@
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="disassembler.html" class="btn btn-neutral float-right" title="Disassembler" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="matching_basics.html" class="btn btn-neutral" title="Karta" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

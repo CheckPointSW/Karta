@@ -2,7 +2,7 @@ Karta
 =====
 Motivation
 ----------
-The main motivation for developing "Karta" was the needed to identify open sources in large firmware files.
+The main motivation for developing **Karta** was the need to identify open sources in large firmware files.
 My previous experience with other available tools (at the time) was that they have a memory blowup when dealing with large binaries, meaning that sometimes they will completely crash and give no results :(
 
 If we could work with a subset of functions, that will be polynomial to M (number of functions in the open source) and not in N (number of functions in the binary) we could escape the limitations that arise when M << N. And this was the main idea.
@@ -20,7 +20,7 @@ Matching two functions (src and dest) is usually done after converting them into
 
 Matching Steps
 -------------------
-Using these conclusions, "Karta" matches each open source using the following steps:
+Using these conclusions, **Karta** matches each open source using the following steps:
 
 0. Fingerprint: Identify the existence of the open source, and the version that is being used
 1. Search for **anchor** functions: functions with unique and rare artifacts (strings or consts)
@@ -30,7 +30,7 @@ Using these conclusions, "Karta" matches each open source using the following st
 5. Regular score-based matching:
    * Scoring similarities
    * Control Flow Graph (CFG) analysis
-   * **Note:** give special attention for geographic location
+   * **Note:** gives special attention for geographic location
 
 Geographic Location
 -------------------------
@@ -43,4 +43,4 @@ This means that our matching and scoring logic will pay special attention to geo
 
 Modularity
 -------------
-Using these basic concepts, "Karta" was designed to be modular, to allow other matching libraries to use the basic file mapping logic.
+Using these basic concepts, **Karta** was designed to be modular, to allow other matching libraries to use the basic file mapping logic.

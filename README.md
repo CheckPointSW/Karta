@@ -20,9 +20,6 @@ We believe that there are 3 main use cases for this IDA plugin:
 2. Matching the symbols of supported open sources to help reverse engineer a malware
 3. Matching the symbols of supported open sources to help reverse engineer a binary / firmware when searching for 0-Days in proprietary code
 
-## Read The Docs
-https://karta.readthedocs.io/
-
 ## Identifier
 Karta's identifier is a smaller plugin that identifies the existence, and fingerprints the versions, of the existing (supported) open source libraries within the binary. No more need to reverse engineer the same open-source library again-and-again, simply run the identifier plugin and get a detailed list of the used open sources.
 Karta currently supports more than 10 open source libraries, including:

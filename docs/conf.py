@@ -24,9 +24,9 @@ copyright = u'2018 Check Point Software Technologies LTD.'
 author = u'Eyal Itkin'
 
 # The short X.Y version
-version = u'0.9.0'
+version = u'1.0.0'
 # The full version, including alpha/beta/rc tags
-release = u'0.9.0 beta'
+release = u'1.0.0'
 
 
 # -- General configuration ---------------------------------------------------

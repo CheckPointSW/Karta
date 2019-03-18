@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name='Karta',
-      version='0.9.0',
+      version='1.0.0',
       description='IDA plugin for identifying and matching open-source libraries in (huge) binaries',
       author='Eyal Itkin',
       author_email='eyalit@checkpoint.com',

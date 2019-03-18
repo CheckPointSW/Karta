@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Brief &mdash; Karta 0.9.0 beta documentation</title>
+  <title>Brief &mdash; Karta 1.0.0 documentation</title>
   
 
   
@@ -57,7 +57,7 @@
             
             
               <div class="version">
-                0.9.0
+                1.0.0
               </div>
             
           
@@ -188,7 +188,7 @@
 <h1>Brief<a class="headerlink" href="#brief" title="Permalink to this headline">¶</a></h1>
 <p>“Karta” (Russian for “Map”) is an IDA Python plugin that identifies and matches open-sourced libraries in a given binary. The plugin uses a unique technique that enables it to support huge binaries (&gt;200,000 functions), with almost no impact over the overall performance.</p>
 <p>The matching algorithm is location-driven. This means that it’s main focus is to locate
-the different compiled files, and match each of the file’s functions based on their original order within the file. This way, the matching depends on M (number of files in the open source) instead of N (size of the binary), gaining a significant performance boost as usually M &lt;&lt; N.</p>
+the different compiled files, and match each of the file’s functions based on their original order within the file. This way, the matching depends on K (number of functions in the open source) instead of N (size of the binary), gaining a significant performance boost as usually N &gt;&gt; K.</p>
 <p>We believe that there are 3 main use cases for this IDA plugin:</p>
 <ol class="arabic simple">
 <li>Identifying a list of used open sources (and their versions) when searching for a useful 1-Day</li>
@@ -220,7 +220,6 @@ Karta currently supports more than 10 open source libraries, including:</p>
 <h2>Links<a class="headerlink" href="#links" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><a class="reference external" href="https://github.com/CheckPointSW/Karta">https://github.com/CheckPointSW/Karta</a></li>
-<li>TODO: link to a blog post</li>
 </ul>
 </div>
 <div class="section" id="contact">

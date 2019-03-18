@@ -55,7 +55,7 @@ Brief
 "Karta" (Russian for "Map") is an IDA Python plugin that identifies and matches open-sourced libraries in a given binary. The plugin uses a unique technique that enables it to support huge binaries (>200,000 functions), with almost no impact over the overall performance.
 
 The matching algorithm is location-driven. This means that it's main focus is to locate
-the different compiled files, and match each of the file's functions based on their original order within the file. This way, the matching depends on M (number of files in the open source) instead of N (size of the binary), gaining a significant performance boost as usually M << N.
+the different compiled files, and match each of the file's functions based on their original order within the file. This way, the matching depends on K (number of functions in the open source) instead of N (size of the binary), gaining a significant performance boost as usually N >> K.
 
 We believe that there are 3 main use cases for this IDA plugin:
 
@@ -86,7 +86,6 @@ This project was developed by me (see contact details below) with help and suppo
 Links
 -----
 * https://github.com/CheckPointSW/Karta
-* TODO: link to a blog post
 
 Contact
 -------

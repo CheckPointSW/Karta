@@ -1,4 +1,4 @@
-[![Docs Status](https://readthedocs.org/projects/karta/badge/?version=latest)](https://readthedocs.org/projects/karta)
+[![Build Status](https://travis-ci.com/CheckPointSW/Karta.svg?branch=master)](https://travis-ci.org/CheckPointSW/karta) [![Docs Status](https://readthedocs.org/projects/karta/badge/?version=latest)](https://readthedocs.org/projects/karta)
 
 ```
  /$$   /$$                       /$$              

@@ -86,6 +86,7 @@ This project was developed by me (see contact details below) with help and suppo
 Links
 -----
 * https://github.com/CheckPointSW/Karta
+* https://research.checkpoint.com/karta-matching-open-sources-in-binaries/
 
 Contact
 -------

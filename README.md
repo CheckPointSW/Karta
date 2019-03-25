@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/CheckPointSW/Karta.svg?branch=master)](https://travis-ci.org/CheckPointSW/karta) [![Docs Status](https://readthedocs.org/projects/karta/badge/?version=latest)](https://readthedocs.org/projects/karta)
+
 ```
  /$$   /$$                       /$$              
 | $$  /$$/                      | $$              
@@ -19,6 +21,9 @@ We believe that there are 3 main use cases for this IDA plugin:
 1. Identifying a list of used open sources (and their versions) when searching for a useful 1-Day
 2. Matching the symbols of supported open sources to help reverse engineer a malware
 3. Matching the symbols of supported open sources to help reverse engineer a binary / firmware when searching for 0-Days in proprietary code
+
+## Read The Docs
+https://karta.readthedocs.io/
 
 ## Identifier
 Karta's identifier is a smaller plugin that identifies the existence, and fingerprints the versions, of the existing (supported) open source libraries within the binary. No more need to reverse engineer the same open-source library again-and-again, simply run the identifier plugin and get a detailed list of the used open sources.

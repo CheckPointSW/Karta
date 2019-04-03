@@ -41,10 +41,11 @@ class IdaCMD(DisasCMD):
         """
         type = "elf" if not is_windows else "coff"
         suffix = ".i64" if self._path.endswith("64") else ".idb"
+        database_file = binary_file + suffix
         # execute the program
-        os.system("%s -A -B -T%s %s" % (self._path, type, binary_file))
+        os.system("%s -A -B -T%s -o%s %s" % (self._path, type, database_file, binary_file))
         # return back the (should be) created database file path
-        return binary_file + suffix
+        return database_file
 
     # Overridden base function
     def executeScript(self, database, script):

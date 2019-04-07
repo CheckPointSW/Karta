@@ -37,6 +37,8 @@ optional arguments:
   -W, --windows     signals that the binary was compiled for Windows
 ```
 
+**Note:** The script must be executed from Karta's src directory.
+
 1.  Name of the open source library (case sensitive)
 1.  Version of the library (as will be identified by the identifier script)
 1.  Path to the directory that contains the compiled (*.o / *.obj) files

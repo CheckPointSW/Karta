@@ -293,6 +293,12 @@ def main(args):
     if is_windows:
         setWindowsMode()
 
+    # Check if launched from the src directory
+    if not os.path.exists(SCRIPT_PATH):
+        prompter.error('The script should be executed from Karta\'s src directory!')
+        prompter.error('Exiting')
+        return
+
     # analyze the open source library
     analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, prompter)
 

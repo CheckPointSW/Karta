@@ -228,7 +228,7 @@ class AnalyzerIDA(object):
         func = sark.Function(func_ea)
         flow = idaapi.FlowChart(func.func_t)
         for block in flow:
-            if range_start <= block.startEA and block.end_ea <= range_end:
+            if range_start <= block.startEA and block.endEA <= range_end:
                 if island_guess is None or block.startEA < island_guess.startEA:
                     island_guess = block
         # quit if found nothing
@@ -246,7 +246,7 @@ class AnalyzerIDA(object):
                 if candidate_block in island_blocks:
                     continue
                 island_blocks.append(candidate_block)
-                new_candidate_list += filter(lambda succs: range_start <= succs.startEA and succs.end_ea <= range_end, candidate_block.succs())
+                new_candidate_list += filter(lambda succs: range_start <= succs.startEA and succs.endEA <= range_end, candidate_block.succs())
             candidate_list = new_candidate_list
         # return the results
         return island_blocks

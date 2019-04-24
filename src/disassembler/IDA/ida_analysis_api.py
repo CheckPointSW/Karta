@@ -188,7 +188,7 @@ class AnalyzerIDA(object):
                     ref_func = self.disas.nameAt(candidate)
                     risky = True
                 # check if known or unknown
-                if sark.Line(candidate).disasm.startswith("extrn "):
+                if sark.Line(candidate).disasm.split(" ")[0].lower() in ("extrn", "extern", "import"):
                     context.recordUnknown(ref_func, is_fptr=risky)
                 elif not risky:
                     context.recordCall(ref_func)

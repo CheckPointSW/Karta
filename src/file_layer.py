@@ -151,7 +151,7 @@ class FileMatcher(FileMatch):
         except ValueError:
             self._engine.logger.error("Sanity check failed in FileMatch.attemptMatchStart(): lower ctx (%s) not in bin_ctxs",
                                                 sequence.bin_lower_ctx.name)
-            self._engine.debugPrintState(error=True)
+            raise AssumptionException()
         # can't extend the binary downard
         if matched_bin_index == 0:
             return False
@@ -176,7 +176,7 @@ class FileMatcher(FileMatch):
         except ValueError:
             self._engine.logger.error("Sanity check failed in FileMatch.attemptMatchEnd(): lower ctx (%s) not in bin_ctxs",
                                                 sequence.bin_upper_ctx.name)
-            self._engine.debugPrintState(error=True)
+            raise AssumptionException()
         # can't extend the binary upward
         if matched_bin_index == len(self._bin_functions_ctx) - 1:
             return False

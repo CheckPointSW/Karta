@@ -3,7 +3,7 @@
 ######################
 
 class AssumptionException(Exception):
-    """Execption that represents a broken inner assumption."""
+    """Exception that represents a broken inner assumption."""
 
     pass
 

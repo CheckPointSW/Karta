@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name='Karta',
-      version='1.0.0',
+      version='1.2.0',
       description='IDA plugin for identifying and matching open-source libraries in (huge) binaries',
       author='Eyal Itkin',
       author_email='eyalit@checkpoint.com',
@@ -16,7 +16,7 @@ setup(name='Karta',
       url='https://github.com/CheckPointSW/Karta',
       license='MIT',
       packages=find_packages(),
-      install_requires=['elementals', 'sark', 'pydocstyle', 'flake8', 'click'],
+      install_requires=['elementals', 'sark', 'pydocstyle', 'flake8', 'click', 'sklearn'],
       classifiers=[
                     "Programming Language :: Python :: 2",
                     "License :: OSI Approved :: MIT License (MIT License)",

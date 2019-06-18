@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Matching supported libraries &mdash; Karta 1.0.0 documentation</title>
+  <title>Matching supported libraries &mdash; Karta 1.2.0 documentation</title>
   
 
   
@@ -17,34 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Compiling a configuration file" href="Compiling a configuration.html" />
     <link rel="prev" title="Open source fingerprinting" href="Open Source Fingerprinting.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -58,7 +60,7 @@
             
             
               <div class="version">
-                1.0.0
+                1.2.0
               </div>
             
           
@@ -85,6 +87,7 @@
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Thumbs Up.html">Thumbs Up</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Matching supported libraries</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
@@ -174,17 +177,18 @@
            <div itemprop="articleBody">
             
   <div class="section" id="matching-supported-libraries">
-<span id="matching-supported-libraries"></span><h1>Matching supported libraries<a class="headerlink" href="#matching-supported-libraries" title="Permalink to this headline">¶</a></h1>
+<h1>Matching supported libraries<a class="headerlink" href="#matching-supported-libraries" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="prerequisites">
-<span id="prerequisites"></span><h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
 <p><strong>Identifier</strong></p>
 <p>It is always recommended to start with the identifier script, so you would know if you already have pre-compiled configurations for all the libraries you need.
 In case it is needed, a guide for compiling a new configuration can be found in the next section.</p>
-<p><strong>Function Analysis</strong></p>
-<p><strong>Karta</strong> is highly sensitive to the quality of the function analysis that was done by IDA. It is important to make sure that the matcher plugin is invoked only <em>after</em> the binary is well analyzed. For example: even if there is an un-reffed code snippet, make sure that IDA marked it as a function if it is an un-reffed function.</p>
+<p><strong>Function Analysis - Thumbs Up</strong></p>
+<p><strong>Karta</strong> is highly sensitive to the quality of the function analysis that was done by IDA. It is important to make sure that the matcher plugin is invoked only <em>after</em> the binary is well analyzed. For example: even if there is an un-reffed code snippet, make sure that IDA marked it as a function if it is an un-reffed function.
+It is highly recommended to use <strong>Thumbs Up</strong> for automatic improvement of IDA’s analysis.</p>
 </div>
 <div class="section" id="manual-anchors">
-<span id="manual-anchors"></span><h2>Manual Anchors<a class="headerlink" href="#manual-anchors" title="Permalink to this headline">¶</a></h2>
+<h2>Manual Anchors<a class="headerlink" href="#manual-anchors" title="Permalink to this headline">¶</a></h2>
 <p>Sometimes we would like to feed <strong>Karta</strong> with some knowledge we already acquired about the matched open source. In this case we can define “manual anchors”, and <strong>Karta</strong> will use them as part of the initial anchors list.
 User defined anchors can be declared by running the <code class="docutils literal notranslate"><span class="pre">karta_manual_anchor.py</span></code> in the command line, using the following arguments:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Users</span>\<span class="n">user</span>\<span class="n">Documents</span>\<span class="n">Karta</span>\<span class="n">src</span><span class="o">&gt;</span><span class="n">python</span> <span class="n">karta_manual_anchor</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">help</span>
@@ -208,7 +212,7 @@ User defined anchors can be declared by running the <code class="docutils litera
 <p>The script will store the configurations in a <code class="docutils literal notranslate"><span class="pre">*_knowledge.json</span></code> file near the disassembler’s database file.</p>
 </div>
 <div class="section" id="matcher-plugin-start">
-<span id="matcher-plugin-start"></span><h2>Matcher Plugin - Start<a class="headerlink" href="#matcher-plugin-start" title="Permalink to this headline">¶</a></h2>
+<h2>Matcher Plugin - Start<a class="headerlink" href="#matcher-plugin-start" title="Permalink to this headline">¶</a></h2>
 <p>Assuming you are all set and ready to go, and that your binary is already open in IDA, load the <code class="docutils literal notranslate"><span class="pre">karta_matcher.py</span></code> script and set up the needed configurations:</p>
 <ul class="simple">
 <li>Full path for Karta’s configuration directory - the <code class="docutils literal notranslate"><span class="pre">configs</span></code> dir with all of the <code class="docutils literal notranslate"><span class="pre">*.json</span></code> files</li>
@@ -222,7 +226,7 @@ Every matched open source library will open 2 windows:</p>
 </ol>
 </div>
 <div class="section" id="matcher-plugin-output">
-<span id="matcher-plugin-output"></span><h2>Matcher Plugin - Output<a class="headerlink" href="#matcher-plugin-output" title="Permalink to this headline">¶</a></h2>
+<h2>Matcher Plugin - Output<a class="headerlink" href="#matcher-plugin-output" title="Permalink to this headline">¶</a></h2>
 <p>The matched library functions include the reason for the matching.
 As some matching rules are much more accurate than others, they are colored in dark-green, while the others are marked in green.
 You can now select a subset of matches, right click, and export the selected matches to be names in IDA. Or, you can simply right click and import all of the matches directly to IDA.</p>
@@ -241,7 +245,7 @@ You can now select a subset of matches, right click, and export the selected mat
         <a href="Compiling a configuration.html" class="btn btn-neutral float-right" title="Compiling a configuration file" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="Open Source Fingerprinting.html" class="btn btn-neutral" title="Open source fingerprinting" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="Open Source Fingerprinting.html" class="btn btn-neutral float-left" title="Open source fingerprinting" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -267,25 +271,16 @@ You can now select a subset of matches, right click, and export the selected mat
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

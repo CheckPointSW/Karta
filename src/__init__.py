@@ -1,3 +1,7 @@
 import karta_analyze_src
 import karta_identifier
 import karta_matcher
+import karta_manual_anchor
+import karta_manual_identifier
+import thumbs_up.thumbs_up_ELF
+import thumbs_up.thumbs_up_firmware

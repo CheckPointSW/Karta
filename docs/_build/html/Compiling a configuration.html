@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Compiling a configuration file &mdash; Karta 1.0.0 documentation</title>
+  <title>Compiling a configuration file &mdash; Karta 1.2.0 documentation</title>
   
 
   
@@ -17,34 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Compilation Guidelines" href="Compilation Guidelines.html" />
     <link rel="prev" title="Matching supported libraries" href="Matching supported libraries.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -58,7 +60,7 @@
             
             
               <div class="version">
-                1.0.0
+                1.2.0
               </div>
             
           
@@ -85,6 +87,7 @@
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Thumbs Up.html">Thumbs Up</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
 </ul>
@@ -173,9 +176,9 @@
            <div itemprop="articleBody">
             
   <div class="section" id="compiling-a-configuration-file">
-<span id="compiling-a-configuration-file"></span><h1>Compiling a configuration file<a class="headerlink" href="#compiling-a-configuration-file" title="Permalink to this headline">¶</a></h1>
+<h1>Compiling a configuration file<a class="headerlink" href="#compiling-a-configuration-file" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="compiling-the-open-source">
-<span id="compiling-the-open-source"></span><h2>Compiling the Open Source<a class="headerlink" href="#compiling-the-open-source" title="Permalink to this headline">¶</a></h2>
+<h2>Compiling the Open Source<a class="headerlink" href="#compiling-the-open-source" title="Permalink to this headline">¶</a></h2>
 <p>Adding support for a new version for an already supported library, requires only to compile a new (<code class="docutils literal notranslate"><span class="pre">*.json</span></code>) configuration file for it.
 As <strong>Karta</strong> is a source code assisted plugin, this process requires you to compile the open source library according to the guidelines of the open source project, together with the specific guidelines that can be found in the <code class="docutils literal notranslate"><span class="pre">compilations</span></code> directory.</p>
 <p><strong>Important:</strong> Karta will need two compiled parts for building the configuration</p>
@@ -186,7 +189,7 @@ As <strong>Karta</strong> is a source code assisted plugin, this process require
 <p><strong>Note:</strong> Some libraries, such as OpenSSL, are split to several static libraries. In this case you should make sure you found all of the parts for each such static library</p>
 </div>
 <div class="section" id="running-the-script">
-<span id="running-the-script"></span><h2>Running the script<a class="headerlink" href="#running-the-script" title="Permalink to this headline">¶</a></h2>
+<h2>Running the script<a class="headerlink" href="#running-the-script" title="Permalink to this headline">¶</a></h2>
 <p>Now that we have all of the parts, we should run <code class="docutils literal notranslate"><span class="pre">karta_analyze_src.py</span></code> in the command line, using the following arguments:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Users</span>\<span class="n">user</span>\<span class="n">Documents</span>\<span class="n">Karta</span>\<span class="n">src</span><span class="o">&gt;</span><span class="n">python</span> <span class="n">karta_analyze_src</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">help</span>
 <span class="n">usage</span><span class="p">:</span> <span class="n">karta_analyze_src</span><span class="o">.</span><span class="n">py</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">D</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">N</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">W</span><span class="p">]</span>
@@ -209,6 +212,7 @@ As <strong>Karta</strong> is a source code assisted plugin, this process require
   <span class="o">-</span><span class="n">W</span><span class="p">,</span> <span class="o">--</span><span class="n">windows</span>     <span class="n">signals</span> <span class="n">that</span> <span class="n">the</span> <span class="n">binary</span> <span class="n">was</span> <span class="n">compiled</span> <span class="k">for</span> <span class="n">Windows</span>
 </pre></div>
 </div>
+<p><strong>Note:</strong> The script must be executed from Karta’s src directory.</p>
 <ol class="simple">
 <li>Name of the open source library (case sensitive)</li>
 <li>Version of the library (as will be identified by the identifier script)</li>
@@ -219,7 +223,7 @@ In case there are multiple static libraries, simply extend the list of “dir ar
 <p>The script will ask you for the path to your disassembler (IDA), and will suggest a default path. Enter the path to your disassembler, press ENTER, and a progress bar will show you the progress of the script.</p>
 </div>
 <div class="section" id="storing-the-config-file">
-<span id="storing-the-config-file"></span><h2>Storing the config file<a class="headerlink" href="#storing-the-config-file" title="Permalink to this headline">¶</a></h2>
+<h2>Storing the config file<a class="headerlink" href="#storing-the-config-file" title="Permalink to this headline">¶</a></h2>
 <p>In the end, a new <code class="docutils literal notranslate"><span class="pre">*.json</span></code> file will be generated (using the library name + version), and it should be stored together with the rest of the configuration files in the <code class="docutils literal notranslate"><span class="pre">configs</span></code> directory.</p>
 </div>
 </div>
@@ -235,7 +239,7 @@ In case there are multiple static libraries, simply extend the list of “dir ar
         <a href="Compilation Guidelines.html" class="btn btn-neutral float-right" title="Compilation Guidelines" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="Matching supported libraries.html" class="btn btn-neutral" title="Matching supported libraries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="Matching supported libraries.html" class="btn btn-neutral float-left" title="Matching supported libraries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -261,25 +265,16 @@ In case there are multiple static libraries, simply extend the list of “dir ar
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

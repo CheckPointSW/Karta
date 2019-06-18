@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Compilation Guidelines &mdash; Karta 1.0.0 documentation</title>
+  <title>Compilation Guidelines &mdash; Karta 1.2.0 documentation</title>
   
 
   
@@ -17,34 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Adding support for a new open source" href="Supporting a new library.html" />
     <link rel="prev" title="Compiling a configuration file" href="Compiling a configuration.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -58,7 +60,7 @@
             
             
               <div class="version">
-                1.0.0
+                1.2.0
               </div>
             
           
@@ -85,6 +87,7 @@
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Thumbs Up.html">Thumbs Up</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
 </ul>
@@ -175,9 +178,9 @@
            <div itemprop="articleBody">
             
   <div class="section" id="compilation-guidelines">
-<span id="compilation-guidelines"></span><h1>Compilation Guidelines<a class="headerlink" href="#compilation-guidelines" title="Permalink to this headline">¶</a></h1>
+<h1>Compilation Guidelines<a class="headerlink" href="#compilation-guidelines" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="basic-invariant">
-<span id="basic-invariant"></span><h2>Basic Invariant<a class="headerlink" href="#basic-invariant" title="Permalink to this headline">¶</a></h2>
+<h2>Basic Invariant<a class="headerlink" href="#basic-invariant" title="Permalink to this headline">¶</a></h2>
 <p>Karta’s main compilation assumption is that the source compilation can’t modify (inline / split to parts) a function if the wanted binary hadn’t done the exact modification to this function.
 This means that:</p>
 <ol class="simple">
@@ -191,7 +194,7 @@ This means that:</p>
 </ul>
 </div>
 <div class="section" id="windows-compilation">
-<span id="windows-compilation"></span><h2>Windows Compilation<a class="headerlink" href="#windows-compilation" title="Permalink to this headline">¶</a></h2>
+<h2>Windows Compilation<a class="headerlink" href="#windows-compilation" title="Permalink to this headline">¶</a></h2>
 <p>It seems that when compiling a binary using <code class="docutils literal notranslate"><span class="pre">nmake</span></code> or <code class="docutils literal notranslate"><span class="pre">visual</span> <span class="pre">studio</span></code>, the Window’s compilation adds some linker optimizations. As we couldn’t imitate these linker optimizations when compiling with <code class="docutils literal notranslate"><span class="pre">gcc</span></code>, <strong>Karta</strong> can (and should) support 2 different configurations for the same version of a specific library:</p>
 <ol class="simple">
 <li>Basic (unix) configuration - Used for Linux, Mac, of various firmware files</li>
@@ -199,7 +202,7 @@ This means that:</p>
 </ol>
 </div>
 <div class="section" id="bitness-32-vs-64">
-<span id="bitness-32-vs-64"></span><h2>Bitness - 32 vs 64<a class="headerlink" href="#bitness-32-vs-64" title="Permalink to this headline">¶</a></h2>
+<h2>Bitness - 32 vs 64<a class="headerlink" href="#bitness-32-vs-64" title="Permalink to this headline">¶</a></h2>
 <p>After various testing rounds, it seems that a configuration for 32 bits can also achieve great matching results for 64 bit binaries. Therefor there is no need to maintain two different configurations files, one for each bitness mode.
 When compiling a configuration file, the rule of thumb should be:</p>
 <ul class="simple">
@@ -208,11 +211,11 @@ When compiling a configuration file, the rule of thumb should be:</p>
 </ul>
 </div>
 <div class="section" id="updating-the-compilation-notes">
-<span id="updating-the-compilation-notes"></span><h2>Updating the compilation notes<a class="headerlink" href="#updating-the-compilation-notes" title="Permalink to this headline">¶</a></h2>
+<h2>Updating the compilation notes<a class="headerlink" href="#updating-the-compilation-notes" title="Permalink to this headline">¶</a></h2>
 <p>After a successful compilation was made, a new “compilation tips” file should be created and stored under the <code class="docutils literal notranslate"><span class="pre">compilations</span></code> folder. The file’s name should be <code class="docutils literal notranslate"><span class="pre">&lt;library</span> <span class="pre">name&gt;.txt</span></code> and it should have a similar structure as the already existing files.</p>
 </div>
 <div class="section" id="adding-a-python-identifier-for-your-library">
-<span id="adding-a-python-identifier-for-your-library"></span><h2>Adding a python identifier for your library<a class="headerlink" href="#adding-a-python-identifier-for-your-library" title="Permalink to this headline">¶</a></h2>
+<h2>Adding a python identifier for your library<a class="headerlink" href="#adding-a-python-identifier-for-your-library" title="Permalink to this headline">¶</a></h2>
 <p>As most of the open source projects have unique string identifiers that hold their exact version, all of the currently supported fingerprinting plugins are based on a basic string search.</p>
 <p><strong>searchLib():</strong> Scans all of the strings in the binary (using the <code class="docutils literal notranslate"><span class="pre">self._all_strings</span></code> singleton), in search for a key string (holding the version) or a unique library string that is stored locally near a clear version string.</p>
 <p><strong>identifyVersions():</strong> Will be called only after <code class="docutils literal notranslate"><span class="pre">searchLib</span></code> had identified the existence of the library in the binary. This function is responsible for parsing the exact library version, usually using the <code class="docutils literal notranslate"><span class="pre">self._version_string</span></code> that was found by <code class="docutils literal notranslate"><span class="pre">searchLib</span></code>.</p>
@@ -230,7 +233,7 @@ When compiling a configuration file, the rule of thumb should be:</p>
         <a href="Supporting a new library.html" class="btn btn-neutral float-right" title="Adding support for a new open source" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="Compiling a configuration.html" class="btn btn-neutral" title="Compiling a configuration file" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="Compiling a configuration.html" class="btn btn-neutral float-left" title="Compiling a configuration file" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -256,25 +259,16 @@ When compiling a configuration file, the rule of thumb should be:</p>
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

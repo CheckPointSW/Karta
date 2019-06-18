@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Open source fingerprinting &mdash; Karta 1.0.0 documentation</title>
+  <title>Open source fingerprinting &mdash; Karta 1.2.0 documentation</title>
   
 
   
@@ -17,34 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Matching supported libraries" href="Matching supported libraries.html" />
-    <link rel="prev" title="Installation" href="Installation.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
+    <link rel="prev" title="Thumbs Up" href="Thumbs Up.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -58,7 +60,7 @@
             
             
               <div class="version">
-                1.0.0
+                1.2.0
               </div>
             
           
@@ -85,6 +87,7 @@
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Thumbs Up.html">Thumbs Up</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Open source fingerprinting</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#identifier-plugin">Identifier Plugin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#manual-identification">Manual Identification</a></li>
@@ -172,9 +175,9 @@
            <div itemprop="articleBody">
             
   <div class="section" id="open-source-fingerprinting">
-<span id="open-source-fingerprinting"></span><h1>Open source fingerprinting<a class="headerlink" href="#open-source-fingerprinting" title="Permalink to this headline">¶</a></h1>
+<h1>Open source fingerprinting<a class="headerlink" href="#open-source-fingerprinting" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="identifier-plugin">
-<span id="identifier-plugin"></span><h2>Identifier Plugin<a class="headerlink" href="#identifier-plugin" title="Permalink to this headline">¶</a></h2>
+<h2>Identifier Plugin<a class="headerlink" href="#identifier-plugin" title="Permalink to this headline">¶</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">karta_identifier.py</span></code> script identifies the existence of supported open source projects inside the given binary, and aims to fingerprint the exact version of each located library.
 Once your binary was loaded to IDA, simply load the script <code class="docutils literal notranslate"><span class="pre">karta_identifier.py</span></code>, and it will output the results to the output window and to an output file.
 Here is an example output after running the script on an HP OfficeJet firmware:</p>
@@ -215,7 +218,7 @@ Here is an example output after running the script on an HP OfficeJet firmware:<
 </ol>
 </div>
 <div class="section" id="manual-identification">
-<span id="manual-identification"></span><h2>Manual Identification<a class="headerlink" href="#manual-identification" title="Permalink to this headline">¶</a></h2>
+<h2>Manual Identification<a class="headerlink" href="#manual-identification" title="Permalink to this headline">¶</a></h2>
 <p>Sometimes we would like to feed <strong>Karta</strong> with some knowledge we already acquired about the matched open source. When <strong>Karta</strong> locates a library, but fails to identify it’s exact version, we can manually tell it the version so the matcher could match it. For example, in the above example we could manually configure the version for the “mDNSResponder” library which we located, but failed to identify.</p>
 <p>User defined library versions can be declared by running the <code class="docutils literal notranslate"><span class="pre">karta_manual_identifier.py</span></code> in the command line, using the following arguments:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Users</span>\<span class="n">user</span>\<span class="n">Documents</span>\<span class="n">Karta</span>\<span class="n">src</span><span class="o">&gt;</span><span class="n">python</span> <span class="n">karta_manual_identifier</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">help</span>
@@ -248,7 +251,7 @@ Here is an example output after running the script on an HP OfficeJet firmware:<
         <a href="Matching supported libraries.html" class="btn btn-neutral float-right" title="Matching supported libraries" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="Installation.html" class="btn btn-neutral" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="Thumbs Up.html" class="btn btn-neutral float-left" title="Thumbs Up" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -274,25 +277,16 @@ Here is an example output after running the script on an HP OfficeJet firmware:<
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

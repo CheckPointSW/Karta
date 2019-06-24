@@ -7,9 +7,10 @@ Prerequisites
 It is always recommended to start with the identifier script, so you would know if you already have pre-compiled configurations for all the libraries you need.
 In case it is needed, a guide for compiling a new configuration can be found in the next section.
 
-**Function Analysis**
+**Function Analysis - Thumbs Up**
 
 **Karta** is highly sensitive to the quality of the function analysis that was done by IDA. It is important to make sure that the matcher plugin is invoked only *after* the binary is well analyzed. For example: even if there is an un-reffed code snippet, make sure that IDA marked it as a function if it is an un-reffed function.
+It is highly recommended to use **Thumbs Up** for automatic improvement of IDA's analysis.
 
 Manual Anchors
 --------------

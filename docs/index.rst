@@ -9,6 +9,7 @@
    :hidden:
 
    Installation
+   Thumbs Up
    Open Source Fingerprinting
    Matching supported libraries
    
@@ -87,6 +88,7 @@ Links
 -----
 * https://github.com/CheckPointSW/Karta
 * https://research.checkpoint.com/karta-matching-open-sources-in-binaries/
+* https://research.checkpoint.com/thumbs-up-using-machine-learning-to-improve-idas-analysis
 
 Contact
 -------

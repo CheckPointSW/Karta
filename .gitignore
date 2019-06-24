@@ -16,3 +16,7 @@ src/disassembler/IDA/*.pyc
 docs/_build/*
 docs/_static/*
 docs/_templates/*
+/*.pyc
+/*/*.pyc
+/*/*/*.pyc
+/*/*/*/*.pyc

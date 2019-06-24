@@ -46,6 +46,7 @@ After identifying the used open sources, one can compile a .JSON configuration f
 
 ### Additional Reading
 https://research.checkpoint.com/karta-matching-open-sources-in-binaries/
+https://research.checkpoint.com/thumbs-up-using-machine-learning-to-improve-idas-analysis
 
 ### Credits
 This project was developed by me (see contact details below) with help and support from my research group at Check Point (Check Point Research).

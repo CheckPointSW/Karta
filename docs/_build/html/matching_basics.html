@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Karta &mdash; Karta 1.0.0 documentation</title>
+  <title>Karta &mdash; Karta 1.2.0 documentation</title>
   
 
   
@@ -17,34 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Scoring Tips" href="scoring_tips.html" />
     <link rel="prev" title="Adding support for a new open source" href="Supporting a new library.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -58,7 +60,7 @@
             
             
               <div class="version">
-                1.0.0
+                1.2.0
               </div>
             
           
@@ -85,6 +87,7 @@
               <p class="caption"><span class="caption-text">User Guide:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Thumbs Up.html">Thumbs Up</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Open Source Fingerprinting.html">Open source fingerprinting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Matching supported libraries.html">Matching supported libraries</a></li>
 </ul>
@@ -175,15 +178,15 @@
            <div itemprop="articleBody">
             
   <div class="section" id="karta">
-<span id="karta"></span><h1>Karta<a class="headerlink" href="#karta" title="Permalink to this headline">¶</a></h1>
+<h1>Karta<a class="headerlink" href="#karta" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="motivation">
-<span id="motivation"></span><h2>Motivation<a class="headerlink" href="#motivation" title="Permalink to this headline">¶</a></h2>
+<h2>Motivation<a class="headerlink" href="#motivation" title="Permalink to this headline">¶</a></h2>
 <p>The main motivation for developing <strong>Karta</strong> was the need to identify open sources in large firmware files.
 My previous experience with other available tools (at the time) was that they have a memory blowup when dealing with large binaries, meaning that sometimes they will completely crash and give no results :(</p>
 <p>If we could work with a subset of functions, that will be polynomial to M (number of functions in the open source) and not in N (number of functions in the binary) we could escape the limitations that arise when M &lt;&lt; N. And this was the main idea.</p>
 </div>
 <div class="section" id="key-idea-linker-locality">
-<span id="key-idea-linker-locality"></span><h2>Key Idea - Linker Locality<a class="headerlink" href="#key-idea-linker-locality" title="Permalink to this headline">¶</a></h2>
+<h2>Key Idea - Linker Locality<a class="headerlink" href="#key-idea-linker-locality" title="Permalink to this headline">¶</a></h2>
 <p>Matching two functions (src and dest) is usually done after converting them into some “canonical” representation. We aim to narrow our search space, and to convert only a minimal set of binary functions into their canonical representation. And here comes the linker to our rescue:</p>
 <ul class="simple">
 <li>The compiler usually compiles each source file (.c / .cpp) into a single binary file (.o or .obj depending on the compiler)</li>
@@ -194,7 +197,7 @@ My previous experience with other available tools (at the time) was that they ha
 <p><strong>conclusion #2:</strong> Once we find a single representative of that blob (a.k.a <strong>anchor</strong>), we can speculate about the lower and upper bound of this blob in the binary, according to the number of functions we know that should be in the blob</p>
 </div>
 <div class="section" id="matching-steps">
-<span id="matching-steps"></span><h2>Matching Steps<a class="headerlink" href="#matching-steps" title="Permalink to this headline">¶</a></h2>
+<h2>Matching Steps<a class="headerlink" href="#matching-steps" title="Permalink to this headline">¶</a></h2>
 <p>Using these conclusions, <strong>Karta</strong> matches each open source using the following steps:</p>
 <ol class="simple">
 <li>Fingerprint: Identify the existence of the open source, and the version that is being used</li>
@@ -211,7 +214,7 @@ My previous experience with other available tools (at the time) was that they ha
 </ol>
 </div>
 <div class="section" id="geographic-location">
-<span id="geographic-location"></span><h2>Geographic Location<a class="headerlink" href="#geographic-location" title="Permalink to this headline">¶</a></h2>
+<h2>Geographic Location<a class="headerlink" href="#geographic-location" title="Permalink to this headline">¶</a></h2>
 <p>Compilers tend (when they are nice) to preserve the order of the functions in the compiled binary. For example, if “foo()” was defined after “bar()” in the same source file, the compiled “foo” will usually be found right after the compiled “bar”.
 This means that our matching and scoring logic will pay special attention to geographic characteristics:</p>
 <ol class="simple">
@@ -222,7 +225,7 @@ This means that our matching and scoring logic will pay special attention to geo
 </ol>
 </div>
 <div class="section" id="modularity">
-<span id="modularity"></span><h2>Modularity<a class="headerlink" href="#modularity" title="Permalink to this headline">¶</a></h2>
+<h2>Modularity<a class="headerlink" href="#modularity" title="Permalink to this headline">¶</a></h2>
 <p>Using these basic concepts, <strong>Karta</strong> was designed to be modular, to allow other matching libraries to use the basic file mapping logic.</p>
 </div>
 </div>
@@ -238,7 +241,7 @@ This means that our matching and scoring logic will pay special attention to geo
         <a href="scoring_tips.html" class="btn btn-neutral float-right" title="Scoring Tips" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="Supporting a new library.html" class="btn btn-neutral" title="Adding support for a new open source" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="Supporting a new library.html" class="btn btn-neutral float-left" title="Adding support for a new open source" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -264,25 +267,16 @@ This means that our matching and scoring logic will pay special attention to geo
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

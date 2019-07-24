@@ -204,71 +204,77 @@ class FunctionClassifier():
             self._analyzer.logger.info("There are %d scoped functions for code type %d", len(scoped_functions), code_type)
             # 1st round - calibration
             # 2nd round - test
-            for training_round in xrange(2):
-                round_name = "Calibration" if training_round == 0 else "Testing"
-                # Start of function classifier
-                clf = RandomForestClassifier(n_estimators=100)
-                eas = map(lambda x: x.startEA, scoped_functions) + map(lambda x: x.startEA + self._inner_offset, scoped_functions)
-                data_set = map(lambda x: self.extractFunctionStartSample(x, code_type), eas)
-                data_results = map(lambda x: 1 if self.isFuncStart(x) else 0, eas)
-                # split to train and test (70%, 30%)
-                X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
-                # classify
-                clf.fit(X_train, Y_train)
-                # test
-                Y_pred = clf.predict(X_test)
-                accuracy = metrics.accuracy_score(Y_test, Y_pred)
-                self._analyzer.logger.info("%s: Function Prologue Accuracy: %.2f%%", round_name, accuracy * 100)
-                # Pick up the best features, and use only them (only needed in the first round)
-                if training_round == 0:
-                    start_impact = zip(self._classifiers_start_offsets[code_type], clf.feature_importances_)
-                    start_impact.sort(key=lambda x: x[1], reverse=True)
-                    self._classifiers_start_offsets[code_type] = map(lambda x: x[0], start_impact[:self._feature_size])
-                elif accuracy < CALIBRATION_LOWER_BOUND:
-                    self._analyzer.logger.error("Function Prologue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                    return False
-                # End of function classifier
-                clf = RandomForestClassifier(n_estimators=100)
-                eas = map(lambda x: x.endEA, scoped_functions) + map(lambda x: x.endEA - self._inner_offset, scoped_functions)
-                data_set = map(lambda x: self.extractFunctionEndSample(x, code_type), eas)
-                data_results = map(lambda x: 1 if self.isFuncEnd(x) else 0, eas)
-                # split to train and test (70%, 30%)
-                X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
-                # classify
-                clf.fit(X_train, Y_train)
-                # test
-                Y_pred = clf.predict(X_test)
-                accuracy = metrics.accuracy_score(Y_test, Y_pred)
-                self._analyzer.logger.info("%s: Function Epilogue Accuracy: %.2f%%", round_name, accuracy * 100)
-                # Pick up the best features, and use only them (only needed in the first round)
-                if training_round == 0:
-                    end_impact = zip(self._classifiers_end_offsets[code_type], clf.feature_importances_)
-                    end_impact.sort(key=lambda x: x[1], reverse=True)
-                    self._classifiers_end_offsets[code_type] = map(lambda x: x[0], end_impact[:self._feature_size])
-                elif accuracy < CALIBRATION_LOWER_BOUND:
-                    self._analyzer.logger.error("Function Epilogue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                    return False
-                # Start/End of function classifier
-                clf = RandomForestClassifier(n_estimators=100)
-                eas = map(lambda x: x.startEA, scoped_functions) + map(lambda x: x.startEA + self._inner_offset, scoped_functions)
-                data_set = map(lambda x: self.extractFunctionMixedSample(x, code_type), eas)
-                data_results = map(lambda x: 1 if self.isFuncStart(x) else 0, eas)
-                # split to train and test (70%, 30%)
-                X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
-                # classify
-                clf.fit(X_train, Y_train)
-                # test
-                Y_pred = clf.predict(X_test)
-                accuracy = metrics.accuracy_score(Y_test, Y_pred)
-                self._analyzer.logger.info("%s: Function Prologue/Epilogue Accuracy: %.2f%%", round_name, accuracy * 100)
-                # Pick up the best features, and use only them (only needed in the first round)
-                if training_round == 0:
-                    mixed_impact = zip(self._classifiers_mixed_offsets[code_type], clf.feature_importances_)
-                    mixed_impact.sort(key=lambda x: x[1], reverse=True)
-                    self._classifiers_mixed_offsets[code_type] = map(lambda x: x[0], mixed_impact[:self._feature_size])
-                elif accuracy < CALIBRATION_LOWER_BOUND:
-                    self._analyzer.logger.error("Function Prologue/Epilogue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                    return False
+            try:
+                for training_round in xrange(2):
+                    round_name = "Calibration" if training_round == 0 else "Testing"
+                    # Start of function classifier
+                    clf = RandomForestClassifier(n_estimators=100)
+                    eas = map(lambda x: x.startEA, scoped_functions) + map(lambda x: x.startEA + self._inner_offset, scoped_functions)
+                    data_set = map(lambda x: self.extractFunctionStartSample(x, code_type), eas)
+                    data_results = map(lambda x: 1 if self.isFuncStart(x) else 0, eas)
+                    # split to train and test (70%, 30%)
+                    X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
+                    # classify
+                    clf.fit(X_train, Y_train)
+                    # test
+                    Y_pred = clf.predict(X_test)
+                    accuracy = metrics.accuracy_score(Y_test, Y_pred)
+                    self._analyzer.logger.info("%s: Function Prologue Accuracy: %.2f%%", round_name, accuracy * 100)
+                    # Pick up the best features, and use only them (only needed in the first round)
+                    if training_round == 0:
+                        start_impact = zip(self._classifiers_start_offsets[code_type], clf.feature_importances_)
+                        start_impact.sort(key=lambda x: x[1], reverse=True)
+                        self._classifiers_start_offsets[code_type] = map(lambda x: x[0], start_impact[:self._feature_size])
+                    elif accuracy < CALIBRATION_LOWER_BOUND:
+                        self._analyzer.logger.error("Function Prologue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
+                        return False
+                    # End of function classifier
+                    clf = RandomForestClassifier(n_estimators=100)
+                    eas = map(lambda x: x.endEA, scoped_functions) + map(lambda x: x.endEA - self._inner_offset, scoped_functions)
+                    data_set = map(lambda x: self.extractFunctionEndSample(x, code_type), eas)
+                    data_results = map(lambda x: 1 if self.isFuncEnd(x) else 0, eas)
+                    # split to train and test (70%, 30%)
+                    X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
+                    # classify
+                    clf.fit(X_train, Y_train)
+                    # test
+                    Y_pred = clf.predict(X_test)
+                    accuracy = metrics.accuracy_score(Y_test, Y_pred)
+                    self._analyzer.logger.info("%s: Function Epilogue Accuracy: %.2f%%", round_name, accuracy * 100)
+                    # Pick up the best features, and use only them (only needed in the first round)
+                    if training_round == 0:
+                        end_impact = zip(self._classifiers_end_offsets[code_type], clf.feature_importances_)
+                        end_impact.sort(key=lambda x: x[1], reverse=True)
+                        self._classifiers_end_offsets[code_type] = map(lambda x: x[0], end_impact[:self._feature_size])
+                    elif accuracy < CALIBRATION_LOWER_BOUND:
+                        self._analyzer.logger.error("Function Epilogue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
+                        return False
+                    # Start/End of function classifier
+                    clf = RandomForestClassifier(n_estimators=100)
+                    eas = map(lambda x: x.startEA, scoped_functions) + map(lambda x: x.startEA + self._inner_offset, scoped_functions)
+                    data_set = map(lambda x: self.extractFunctionMixedSample(x, code_type), eas)
+                    data_results = map(lambda x: 1 if self.isFuncStart(x) else 0, eas)
+                    # split to train and test (70%, 30%)
+                    X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
+                    # classify
+                    clf.fit(X_train, Y_train)
+                    # test
+                    Y_pred = clf.predict(X_test)
+                    accuracy = metrics.accuracy_score(Y_test, Y_pred)
+                    self._analyzer.logger.info("%s: Function Prologue/Epilogue Accuracy: %.2f%%", round_name, accuracy * 100)
+                    # Pick up the best features, and use only them (only needed in the first round)
+                    if training_round == 0:
+                        mixed_impact = zip(self._classifiers_mixed_offsets[code_type], clf.feature_importances_)
+                        mixed_impact.sort(key=lambda x: x[1], reverse=True)
+                        self._classifiers_mixed_offsets[code_type] = map(lambda x: x[0], mixed_impact[:self._feature_size])
+                    elif accuracy < CALIBRATION_LOWER_BOUND:
+                        self._analyzer.logger.error("Function Prologue/Epilogue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
+                        return False
+            # ValueError when we only have a single sample and we call fit()
+            except ValueError:
+                self._analyzer.logger.error("Not enough functions to calibrate the classifier")
+                return False
+
         # If reached this point it means that all was OK
         return True
 

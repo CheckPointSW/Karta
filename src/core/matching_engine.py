@@ -562,34 +562,38 @@ class MatchEngine(object):
         self.logger.info("Linking the binary functions to their respective tentative files")
         # Can now slice it up and build the FileMatch structure
         file_class = self.fileLayer()
-        for file_index, file_name in enumerate(self._src_file_names):
-            # source indices
-            src_start_index = self._src_file_mappings[file_name][0].index
-            src_end_index   = self._src_file_mappings[file_name][-1].index
-            # check if this file wasn't located yet
-            if len(file_to_anchor_mapping[file_name]) == 0:
-                # a "floating" file that will hold the entire binary functions as possible candidates
-                if self._floating_bin_functions is None:
-                    self._floating_bin_functions = map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[bin_start_index:bin_end_index + 1])
-                file_match = file_class(file_name, src_start_index, src_end_index, None, bin_start_index, bin_end_index, remain_source_funcs, self)
-                self._floating_files.append(file_match)
-            else:
-                # binary indices
-                local_bin_start_index = file_min_bound[file_index]
-                local_bin_end_index   = file_max_bound[file_index]
-                # sanity check
-                if local_bin_start_index > local_bin_end_index:
-                    self.logger.error("File \"%s\" was found at 0x%x, but contains negative amount of functions. Please improve the function analysis",
-                                                    file_name, all_bin_functions[local_bin_start_index])
-                    raise KartaException
-                # scoped binary functions
-                local_bins_ctx = map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[local_bin_start_index:local_bin_end_index + 1])
-                file_match = file_class(file_name, src_start_index, src_end_index, local_bins_ctx, local_bin_start_index, local_bin_end_index, src_end_index - src_start_index + 1, self)
-            # add this file instance to the list
-            self._match_files.append(file_match)
-            # connect the source functions to the file too
-            for src_ctx in self._src_file_mappings[file_name]:
-                src_ctx.file = self._match_files[file_index]
+        try:
+            for file_index, file_name in enumerate(self._src_file_names):
+                # source indices
+                src_start_index = self._src_file_mappings[file_name][0].index
+                src_end_index   = self._src_file_mappings[file_name][-1].index
+                # check if this file wasn't located yet
+                if len(file_to_anchor_mapping[file_name]) == 0:
+                    # a "floating" file that will hold the entire binary functions as possible candidates
+                    if self._floating_bin_functions is None:
+                        self._floating_bin_functions = map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[bin_start_index:bin_end_index + 1])
+                    file_match = file_class(file_name, src_start_index, src_end_index, None, bin_start_index, bin_end_index, remain_source_funcs, self)
+                    self._floating_files.append(file_match)
+                else:
+                    # binary indices
+                    local_bin_start_index = file_min_bound[file_index]
+                    local_bin_end_index   = file_max_bound[file_index]
+                    # sanity check
+                    if local_bin_start_index > local_bin_end_index:
+                        self.logger.error("File \"%s\" was found at 0x%x, but contains negative amount of functions. Please improve the function analysis",
+                                                        file_name, all_bin_functions[local_bin_start_index])
+                        raise KartaException
+                    # scoped binary functions
+                    local_bins_ctx = map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[local_bin_start_index:local_bin_end_index + 1])
+                    file_match = file_class(file_name, src_start_index, src_end_index, local_bins_ctx, local_bin_start_index, local_bin_end_index, src_end_index - src_start_index + 1, self)
+                # add this file instance to the list
+                self._match_files.append(file_match)
+                # connect the source functions to the file too
+                for src_ctx in self._src_file_mappings[file_name]:
+                    src_ctx.file = self._match_files[file_index]
+        except AssumptionException:
+            self.logger.error("Please improve the function analysis")
+            raise KartaException
 
     def fileLayer(self):
         """Return the basic class used for the file layer (FileMatch by default)."""

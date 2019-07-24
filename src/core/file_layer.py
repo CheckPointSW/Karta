@@ -134,6 +134,11 @@ class FileMatch(object):
                 if self.located:
                     self.cleanupMatches(bin_ctx)
 
+        # Sanity Check - make sure we saw at least one bin match if located an anchor in this file
+        if self.located and self._lower_match_ctx is None:
+            self._engine.logger.error("Sanity check failed in FileMatch.__init__(): failed to find the matched anchor inside file %s", self.name)
+            raise AssumptionException()
+
         # take full ownership of functions between the two match indices (if they are indeed mine)
         self._locked_eas = set()
         self._lower_locked_eas = set()

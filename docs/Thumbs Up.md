@@ -6,7 +6,8 @@ Introduction
 1. Drastic improvement of the disassembler's analysis
 2. For ARM binaries - clear seperation between ARM and THUMB code regions
 
-More information about the script and it's Machine-Learning-based analysis, can be found in this detailed blog post: https://research.checkpoint.com/thumbs-up-using-machine-learning-to-improve-idas-analysis.
+More information about the script and it's Machine-Learning-based analysis, can be found in this detailed blog post:
+[Thumbs Up - Using Machine Learning to improve IDA's Analysis](https://research.checkpoint.com/thumbs-up-using-machine-learning-to-improve-idas-analysis).
 
 **Important Note**
 Thumbs Up performs a series of major changes to the binary on which it was invoked. We highly recommend that you **backup** your original binary **before** executing the script. Better safe than sorry.

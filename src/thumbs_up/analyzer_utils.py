@@ -22,7 +22,7 @@ def gatherIntel(analyzer, scs, sds):
     # Observe function features from identified functions
     analyzer.func_classifier.trainFunctionClassifier(scs)
     # calibrate the features needed for the function type classifier
-    if analyzer.hasCodeTypes():
+    if analyzer.hasActiveCodeTypes():
         if not analyzer.func_classifier.calibrateFunctionTypeClassifier(scs):
             return False
         # Observe function features from identified functions
@@ -125,6 +125,7 @@ def functionScan(analyzer, scs):
         2. Unknown after a previous function - and it looks like the beginning of a function of the estimated code type
     """
     for sc in scs:
+        analyzer.logger.debug("Function scanning code segment: 0x%x - 0x%x", sc.startEA, sc.endEA)
         search_func = False
         just_started = True
         line = sark.Line(sc.startEA)
@@ -170,7 +171,8 @@ def functionScan(analyzer, scs):
                     if original_code_type != guess_code_type:
                         analyzer.setCodeType(line.startEA, line.startEA + 1, guess_code_type)
                     if not idc.MakeFunction(line.startEA):
-                        analyzer.setCodeType(line.startEA, line.startEA + 1, original_code_type)
+                        if original_code_type != guess_code_type:
+                            analyzer.setCodeType(line.startEA, line.startEA + 1, original_code_type)
                         line = line.next
                     else:
                         analyzer.logger.debug("Declared a function at: 0x%x (Type %d, Local type %d)", line.startEA, guess_code_type, original_code_type)
@@ -187,6 +189,7 @@ def aggressiveFunctionScan(analyzer, scs):
         scs (list): list of (sark) code segments
     """
     for sc in scs:
+        analyzer.logger.debug("Aggressively scanning code segment: 0x%x - 0x%x", sc.startEA, sc.endEA)
         search_func = False
         just_started = True
         line = sark.Line(sc.startEA)

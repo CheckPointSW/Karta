@@ -52,22 +52,22 @@ class StringIdentifier:
         self._global_pad         = None
         self._analyzer           = analyzer
 
-    def setLocalAlignment(self, alignment, pad=0):
+    def setLocalAlignment(self, alignment, pad=None):
         """Define the local alignment characteristics.
 
         Args:
             alignment (int): byte alignment that should be used for the local strings
-            pad (int, optional): padding byte value to be used when alignment > 1 (0 by default)
+            pad (int, optional): padding byte value to be used when alignment > 1 (None by default)
         """
         self._local_alignment = alignment
         self._local_pad = pad
 
-    def setGlobalAlignment(self, alignment, pad=0):
+    def setGlobalAlignment(self, alignment, pad=None):
         """Define the global alignment characteristics.
 
         Args:
             alignment (int): byte alignment that should be used for the global strings
-            pad (int, optional): padding byte value to be used when alignment > 1 (0 by default)
+            pad (int, optional): padding byte value to be used when alignment > 1 (None by default)
         """
         self._global_alignment = alignment
         self._global_pad = pad
@@ -111,8 +111,8 @@ class StringIdentifier:
         if idc.Byte(ea + len(str_content)) != ord('\0'):
             return False
         # check for the correct padding
-        end_address = ea + len(str_content) + 1
         if self._global_pad is not None:
+            end_address = ea + len(str_content) + 1
             for offset in xrange(padSize(end_address, self._global_alignment)):
                 if idc.Byte(end_address + offset) != self._global_pad:
                     return False
@@ -152,8 +152,8 @@ class StringIdentifier:
         if idc.Byte(ea + len(str_content)) != ord('\0'):
             return False
         # check for the correct padding
-        end_address = ea + len(str_content) + 1
         if self._local_pad is not None:
+            end_address = ea + len(str_content) + 1
             for offset in xrange(padSize(end_address, self._local_alignment)):
                 if idc.Byte(end_address + offset) != self._local_pad:
                     return False

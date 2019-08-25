@@ -17,6 +17,7 @@ class Analyzer:
         _address_parse_fn (function): IDA function for parsing an address, stored for efficiency
         _address_make_fn (function): IDA function for serializing an address, stored for efficiency
         address_pack_format (string): struct.pack format letter for packing an address, stored efficiently
+        _active_code_types (list): collection of active code types (supported & existings)
     """
 
     def __init__(self, logger, num_bits, data_fptr_alignment=4):
@@ -48,6 +49,8 @@ class Analyzer:
         self.str_identifier = None
         self.locals_identifier = None
         self.switch_identifier = None
+        # code types
+        self._active_code_types = list(self.codeTypes())
 
     def linkFunctionClassifier(self):
         """Link a function classifier to our analyzer."""
@@ -222,7 +225,8 @@ class Analyzer:
         Return Value:
             True iff the code pointer is valid
         """
-        return self.isCodeAligned(self.cleanPtr(ptr_ea), self.ptrCodeType(ptr_ea))
+        ptr_type = self.ptrCodeType(ptr_ea)
+        return self.isCodeAligned(self.cleanPtr(ptr_ea), ptr_type) and ptr_type in self.activeCodeTypes()
 
     def hasCodeTypes(self):
         """Check if the given CPU has multiple code types.
@@ -233,6 +237,14 @@ class Analyzer:
         # By default, there is only the default code type
         return False
 
+    def hasActiveCodeTypes(self):
+        """Check if the given CPU has multiple *active* code types.
+
+        Return Value:
+            True iff the CPU, and our binary, supports multiple code types
+        """
+        return self.hasCodeTypes() and len(self.activeCodeTypes()) > 1
+
     def codeTypes(self):
         """Return a tuple of the CPU supported code types.
 
@@ -241,6 +253,23 @@ class Analyzer:
         """
         # By default, there is only the default code type
         return (0,)
+
+    def activeCodeTypes(self):
+        """Return a tuple of the CPU supported code types there we found in the binary.
+
+        Return Value:
+            collection of supported & existing code types
+        """
+        return self._active_code_types
+
+    def disableCodeType(self, code_type):
+        """Mark a given code type as "disabled" - we didn't see it in our binary.
+
+        Args:
+            code_type (int): code type to be disabled
+        """
+        if code_type in self._active_code_types:
+            self._active_code_types.remove(code_type)
 
     def ptrCodeType(self, ptr_ea):
         """Extract the code type of the annotated pointer.

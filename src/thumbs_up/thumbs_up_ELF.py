@@ -30,7 +30,6 @@ def analysisStart(analyzer, scs, sds):
     Return Value:
         True iff the analysis was finished successfully
     """
-    has_code_types = analyzer.hasCodeTypes()
     phase_counter = 1
 
     ##############################################
@@ -59,7 +58,7 @@ def analysisStart(analyzer, scs, sds):
     # 2. Start handling the code types #
     ####################################
 
-    if has_code_types:
+    if analyzer.hasActiveCodeTypes():
         analyzer.logger.info("Phase #%d", phase_counter)
         phase_counter += 1
         analyzer.logger.info("Help IDA figure out the transition point between the different code types")
@@ -77,7 +76,7 @@ def analysisStart(analyzer, scs, sds):
 
     analyzer.logger.info("Phase #%d", phase_counter)
     phase_counter += 1
-    if has_code_types:
+    if analyzer.hasActiveCodeTypes():
         analyzer.logger.info("Observe all code patterns from the improved analysis")
         if not gatherIntel(analyzer, scs, sds):
             analyzer.logger.error("Failed during intelligence gathering, exiting")
@@ -89,7 +88,7 @@ def analysisStart(analyzer, scs, sds):
     # 4. Finish handling the code types #
     #####################################
 
-    if has_code_types:
+    if analyzer.hasActiveCodeTypes():
         analyzer.logger.info("Phase #%d", phase_counter)
         phase_counter += 1
         analyzer.logger.info("Aggressively help IDA figure out the transition point between the different code types")
@@ -150,7 +149,7 @@ def main():
     logger.linkHandler(IdaLogHandler())
     # Locate the segments
     code_segments = filter(lambda x: x.type == 2, sark.segments())
-    data_segments = filter(lambda x: x.type == 0, sark.segments())
+    data_segments = filter(lambda x: x.type in (0, 3), sark.segments())
     # Sanity checks
     if len(code_segments) == 0:
         logger.error("Failed to find any code segment, can't continue...")

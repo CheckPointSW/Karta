@@ -156,7 +156,7 @@ class FunctionClassifier():
         for sc in scs:
             functions += filter(lambda func: not self._analyzer.fptr_identifier.isPointedFunction(func.startEA), sc.functions)
         # Each code type is trained on it's own
-        for code_type in self._analyzer.codeTypes():
+        for code_type in self._analyzer.activeCodeTypes():
             scoped_functions = filter(lambda x: self._analyzer.codeType(x.startEA) == code_type, functions)
             # Start of function classifier
             clf = RandomForestClassifier(n_estimators=100)
@@ -192,6 +192,12 @@ class FunctionClassifier():
         Args:
             scs (list): list of all known (sark) code segments
 
+        Notes
+        -----
+            1. Each code type most include enough samples, if exists
+            2. If the code type wasn't found, we will ignore it for the rest of the execution
+            3. If not even a single code type was (we have 0 functions), we will raise an error
+
         Return Value:
             True iff the calibration passed and the accuracy is above the minimal threshold
         """
@@ -199,7 +205,7 @@ class FunctionClassifier():
         # TODO: check if the loss of samples is worth the risk of training on questionable fptr data
         for sc in scs:
             functions += filter(lambda func: not self._analyzer.fptr_identifier.isPointedFunction(func.startEA), sc.functions)
-        for code_type in self._analyzer.codeTypes():
+        for code_type in self._analyzer.activeCodeTypes():
             scoped_functions = filter(lambda x: self._analyzer.codeType(x.startEA) == code_type, functions)
             self._analyzer.logger.info("There are %d scoped functions for code type %d", len(scoped_functions), code_type)
             # 1st round - calibration
@@ -272,11 +278,11 @@ class FunctionClassifier():
                         return False
             # ValueError when we only have a single sample and we call fit()
             except ValueError:
-                self._analyzer.logger.error("Not enough functions to calibrate the classifier")
-                return False
+                self._analyzer.logger.warning("Not enough functions to calibrate the classifier for code type %d", code_type)
+                self._analyzer.disableCodeType(code_type)
 
-        # If reached this point it means that all was OK
-        return True
+        # If reached this point it means that all was OK, if we have some code types left
+        return len(self._analyzer.activeCodeTypes()) > 0
 
     def trainFunctionTypeClassifier(self, scs):
         """Train the type classifier, according to all known code segments.
@@ -403,7 +409,7 @@ class FunctionClassifier():
             Classifier determined code type
         """
         # Nothing to check if there is only one type
-        if not self._analyzer.hasCodeTypes():
+        if not self._analyzer.hasActiveCodeTypes():
             return self._analyzer.codeTypes()[0]
         # Multiple types, now predict the right one
         sample = self.extractFunctionTypeSample(ea)

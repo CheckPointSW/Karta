@@ -2,11 +2,12 @@ import idaapi
 
 analyzers_factory = {}      # Mapping from CPU name (according to IDA) to the init function
 
-def createAnalyzer(logger):
+def createAnalyzer(logger, is_elf):
     """Create a CPU-based analyzer to be used by the program.
 
     Args:
         logger (logger): logger instance
+        is_elf (bool): True iff analysing an ELF file
 
     Return Value:
         Created analyzer instance (None if CPU isn't supported yet)
@@ -32,7 +33,7 @@ def createAnalyzer(logger):
         logger.error("Processor %s is NOT supported yet :(", proc_name)
         return None
     # Can now create the analyzer instance
-    return analyzers_factory[proc_name](logger, bits)
+    return analyzers_factory[proc_name](logger, bits, is_elf)
 
 def registerAnalyzer(cpu, init_fn):
     """Register the analyzer in the overall factory.

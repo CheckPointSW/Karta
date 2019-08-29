@@ -13,24 +13,29 @@ class Analyzer:
         locals_identifier (instance): local constants identifier instance
         switch_identifier (instance): switch tables identifier instance
         _num_bits (int): the bitness of the CPU
+        _is_elf (bool): True iff analyzing an ELF binary
         data_fptr_alignment (int): the basic alignment in which data fptrs are stored
+        _mixed_code_and_data (bool): True iff the main code section contain RO data globals
         _address_parse_fn (function): IDA function for parsing an address, stored for efficiency
         _address_make_fn (function): IDA function for serializing an address, stored for efficiency
         address_pack_format (string): struct.pack format letter for packing an address, stored efficiently
         _active_code_types (list): collection of active code types (supported & existings)
     """
 
-    def __init__(self, logger, num_bits, data_fptr_alignment=4):
+    def __init__(self, logger, num_bits, is_elf, data_fptr_alignment=4, mixed_code_and_data=False):
         """Create the analyzer's base class instance.
 
         Args:
             logger (logger): logger instance
             num_bits (int): bitness of the CPU (32 bits by default)
             data_fptr_alignment (int, optional): byte alignment needed for global fptrs (4 by default)
+            mixed_code_and_data (bool, optional): True iff the main code section includes RO data constants (False by default)
         """
         self.logger = logger
         self._num_bits = num_bits
+        self._is_elf = is_elf
         self.data_fptr_alignment = data_fptr_alignment
+        self._mixed_code_and_data = mixed_code_and_data
         if num_bits == 64:
             self._address_parse_fn = idc.Qword
             self._address_make_fn = idc.MakeQword
@@ -108,8 +113,23 @@ class Analyzer:
         Notes
         -----
             False by default (for most architectures)
+
+        Return Value:
+            True iff data immediates will be douns in the code section (between functions)
         """
         return False
+
+    def isCodeMixedWithData(self):
+        """Check if the code contains Read-Only data constants.
+
+        Notes
+        -----
+            False by default (for most architectures)
+
+        Return Value:
+            True iff Read-Only data constants will be contained in the text section
+        """
+        return self._mixed_code_and_data
 
     def isCodeAligned(self, ea, code_type=None):
         """Check if the code is aligned according to the given code type.

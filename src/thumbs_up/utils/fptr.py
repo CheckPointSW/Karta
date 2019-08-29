@@ -254,7 +254,8 @@ class FptrIdentifier:
         chosen_threshold = 7
         cur_window = []
         window_index = 0
-        while window_index < len(seen_list):
+        # NOTE: this step is too risky if there are Read-Only data constants inside the text section
+        while window_index < len(seen_list) and not self._analyzer.isCodeMixedWithData():
             # If we didn't reach the end, and
             # 1. The window doesn't have enough "True" pointers
             # 2. The windows contains only "True" pointers

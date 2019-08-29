@@ -17,14 +17,16 @@ class LocalsIdentifier:
         the local strings as representatives of the alignment pattern for the numeric constants as well.
     """
 
-    def __init__(self, analyzer):
+    def __init__(self, analyzer, local_alignment=None, local_pad=None):
         """Create the locals identifier instance.
 
         Args:
             analyzer (instance): analyzer instance that we are going to link against
+            local_alignment (int, optional): local constant alignment (None by default)
+            local_pad (int, optional): local constant alignment padding byte (None by default)
         """
-        self._local_alignment = None
-        self._local_pad = None
+        self._local_alignment = local_alignment
+        self._local_pad = local_pad
         self._analyzer = analyzer
 
     def observeLocalConstants(self, scs):

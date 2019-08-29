@@ -30,14 +30,15 @@ classifiers_mixed_offsets = {                   # Start / End function classifie
 class IntelAnalyzer(Analyzer):
     """Intel-based program analyzer."""
 
-    def __init__(self, logger, num_bits):
+    def __init__(self, logger, num_bits, is_elf):
         """Create the Intel Analyzer instance.
 
         Args:
             logger (logger): logger instance
             num_bits (int): bitness of the CPU (32 bits by default)
+            is_elf (bool): True iff analyzing an ELF binary
         """
-        Analyzer.__init__(self, logger, num_bits, data_fptr_alignment=(4 if num_bits <= 32 else 8))
+        Analyzer.__init__(self, logger, num_bits, is_elf, data_fptr_alignment=(4 if num_bits <= 32 else 8))
 
     # Overridden base function
     def linkFunctionClassifier(self):

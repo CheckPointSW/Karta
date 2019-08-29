@@ -146,7 +146,7 @@ def analysisStart(analyzer, scs, sds):
     # 8. Finish defining data constants #
     #####################################
 
-    if analyzer.isCodeContainsData():
+    if analyzer.isCodeContainsData() and not analyzer.isCodeMixedWithData():
         analyzer.logger.info("Phase #%d", phase_counter)
         phase_counter += 1
         analyzer.logger.info("Locate all in-code constants & strings")
@@ -201,7 +201,7 @@ def main():
         logger.info("Data Segment: 0x%x - 0x%x", sd.startEA, sd.endEA)
 
     # Build up the analyzer
-    analyzer = createAnalyzer(logger)
+    analyzer = createAnalyzer(logger, False)
     # Sanity check
     if analyzer is None:
         logger.error("Exiting")

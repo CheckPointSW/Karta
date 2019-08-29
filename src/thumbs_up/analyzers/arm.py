@@ -32,14 +32,15 @@ classifier_type_offsets   = range(0, 8)         # Code type classifier - used fo
 class ArmAnalyzer(Analyzer):
     """ARM-based program analyzer."""
 
-    def __init__(self, logger, num_bits):
+    def __init__(self, logger, num_bits, is_elf):
         """Create the Arm Analyzer instance.
 
         Args:
             logger (logger): logger instance
             num_bits (int): bitness of the CPU (32 bits by default)
+            is_elf (bool): True iff analyzing an ELF binary
         """
-        Analyzer.__init__(self, logger, num_bits, data_fptr_alignment=(4 if num_bits <= 32 else 8))
+        Analyzer.__init__(self, logger, num_bits, is_elf, data_fptr_alignment=(4 if num_bits <= 32 else 8))
 
     # Overridden base function
     def linkFunctionClassifier(self):
@@ -59,7 +60,7 @@ class ArmAnalyzer(Analyzer):
     # Overridden base function
     def linkLocalsIdentifier(self):
         """Link a local constants identifier to our analyzer."""
-        self.locals_identifier = LocalsIdentifier(self)
+        self.locals_identifier = LocalsIdentifier(self, 4, 0)
 
     # Overridden base function
     def linkSwitchIdentifier(self):

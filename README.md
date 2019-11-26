@@ -25,7 +25,7 @@ We believe that there are 3 main use cases for this IDA plugin:
 ## Read The Docs
 https://karta.readthedocs.io/
 
-## Installation (Python 3 & IDA >= 7.4)
+## Installation (Python 3 & IDA >= 7.4) - Currently Under Development
 For the latest versions, using Python 3, simply git clone the repository and run the ```setup.py install``` script.
 
 ## Installation (Python 2 & IDA < 7.4)

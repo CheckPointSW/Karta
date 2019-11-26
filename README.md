@@ -26,7 +26,7 @@ We believe that there are 3 main use cases for this IDA plugin:
 https://karta.readthedocs.io/
 
 ## Installation (Python 3 & IDA >= 7.4)
-For the latest versions, using Python 3, simply git clone the repository and run the ```setup.py --install``` script.
+For the latest versions, using Python 3, simply git clone the repository and run the ```setup.py install``` script.
 
 ## Installation (Python 2 & IDA < 7.4)
 As of the release of IDA 7.4, Karta is only actively developed for IDA 7.4 or newer, and Python 3.

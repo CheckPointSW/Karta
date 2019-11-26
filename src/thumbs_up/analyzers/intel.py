@@ -16,15 +16,12 @@ function_inner_offset     = 64                  # Offset in bytes into what we h
 # These are the byte offsets we are going to use for calibrating the classifier, before picking the final offsets
 classifiers_start_offsets = {                   # Start of function classifier - used for functions after a code transition
                              0: range(0, 12),
-                             1: range(0, 12),
                             }
 classifiers_end_offsets   = {                   # End of function classifier - used for functions before a code transition
                              0: range(-12, 0),
-                             1: range(-12, 0),
                             }
 classifiers_mixed_offsets = {                   # Start / End function classifier - used for start of functions when we don't fear code transitions
                              0: range(-4, 12),
-                             1: range(-4, 12),
                             }
 
 class IntelAnalyzer(Analyzer):

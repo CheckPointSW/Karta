@@ -12,7 +12,7 @@ class CodeRegion:
 
     Notes
     -----
-        1. Code regions only live during a single thumb's up scan, during all of it's iterations
+        1. Code regions only live during a single Thumbs Up scan, during all of it's iterations
         2. Code regions will be changed if merged together with other regions / got resized
     """
 
@@ -57,7 +57,7 @@ class CodeRegion:
         self.changed = True
 
 class CodeRegions:
-    """A class that describes the overall set of seen code regions during a thumb's up scan.
+    """A class that describes the overall set of seen code regions during a Thumbs Up scan.
 
     Attributes
     ----------

@@ -25,6 +25,13 @@ We believe that there are 3 main use cases for this IDA plugin:
 ## Read The Docs
 https://karta.readthedocs.io/
 
+## Installation (Python 3 & IDA >= 7.4) - Currently Under Development
+For the latest versions, using Python 3, simply git clone the repository and run the ```setup.py install``` script.
+
+## Installation (Python 2 & IDA < 7.4)
+As of the release of IDA 7.4, Karta is only actively developed for IDA 7.4 or newer, and Python 3.
+Python 2 and older IDA versions are still supported using the release version v.1.2.0, which is most probably going to be the last supported version due to python 2.X end of life.
+
 ## Identifier
 Karta's identifier is a smaller plugin that identifies the existence, and fingerprints the versions, of the existing (supported) open source libraries within the binary. No more need to reverse engineer the same open-source library again-and-again, simply run the identifier plugin and get a detailed list of the used open sources.
 Karta currently supports more than 10 open source libraries, including:

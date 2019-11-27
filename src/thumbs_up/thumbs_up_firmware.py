@@ -17,7 +17,7 @@ class IdaLogHandler(logging.Handler):
         Args:
             record (LogRecord): a logging.LogRecord instance
         """
-        idc.Message("%s\n" % (super(IdaLogHandler, self).format(record)))
+        idc.msg("%s\n" % (super(IdaLogHandler, self).format(record)))
 
 def analysisStart(analyzer, scs, sds):
     """Start all of the analysis steps for the binary.
@@ -40,7 +40,7 @@ def analysisStart(analyzer, scs, sds):
     phase_counter += 1
     analyzer.logger.info("Tell IDA to analyze all of the code segments")
     cleanStart(analyzer, scs)
-    idaapi.autoWait()
+    idaapi.auto_wait()
 
     ##############################################
     # 2. Observe and Locate the program features #
@@ -62,7 +62,7 @@ def analysisStart(analyzer, scs, sds):
         analyzer.switch_identifier.locateSwitchTables(scs)
     else:
         analyzer.logger.error("Failed in finding a switch table pattern")
-    idaapi.autoWait()
+    idaapi.auto_wait()
 
     ##########################
     # 3. Re-Analyze the code #
@@ -72,7 +72,7 @@ def analysisStart(analyzer, scs, sds):
     phase_counter += 1
     analyzer.logger.info("Tell IDA to re-analyze all of the code segments, using the added features")
     cleanStart(analyzer, scs, undef=True)
-    idaapi.autoWait()
+    idaapi.auto_wait()
 
     ####################################
     # 4. Start handling the code types #
@@ -89,7 +89,7 @@ def analysisStart(analyzer, scs, sds):
         # easy phase
         for sc in scs:
             thumbsUp(analyzer, sc, aggressive=False)
-        idaapi.autoWait()
+        idaapi.auto_wait()
         # aggressive phase
         for sc in scs:
             thumbsUp(analyzer, sc, aggressive=True)
@@ -185,8 +185,8 @@ def main():
     logger = Logger("Thumbs Up Logger", [("thumbs_up.log", "w", logging.DEBUG)], use_stdout=False, min_log_level=logging.INFO)
     logger.linkHandler(IdaLogHandler())
     # Locate the segments
-    code_segments = filter(lambda x: x.type == 2, sark.segments())
-    data_segments = filter(lambda x: x.type in [0, 3], sark.segments())
+    code_segments = list(filter(lambda x: x.type == 2, sark.segments()))
+    data_segments = list(filter(lambda x: x.type in [0, 3], sark.segments()))
     # Sanity checks
     if len(code_segments) == 0:
         logger.error("Failed to find any code segment, can't continue...")
@@ -196,9 +196,9 @@ def main():
         return
     # Notify the user about our segment decisions
     for sc in code_segments:
-        logger.info("Code Segment: 0x%x - 0x%x", sc.startEA, sc.endEA)
+        logger.info("Code Segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
     for sd in data_segments:
-        logger.info("Data Segment: 0x%x - 0x%x", sd.startEA, sd.endEA)
+        logger.info("Data Segment: 0x%x - 0x%x", sd.start_ea, sd.end_ea)
 
     # Build up the analyzer
     analyzer = createAnalyzer(logger, False)

@@ -166,4 +166,4 @@ class CodeRegions:
         Return value:
             list of all modified code regions since initialization
         """
-        return filter(lambda x: x.changed, self._regions)
+        return list(filter(lambda x: x.changed, self._regions))

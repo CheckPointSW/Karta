@@ -49,7 +49,7 @@ class CodeMetric:
             line (line): (sark) code line
         """
         try:
-            self._starting_function = sark.Function(line.startEA)
+            self._starting_function = sark.Function(line.start_ea)
         except Exception:
             self._starting_function = None
         # now record this line
@@ -67,12 +67,12 @@ class CodeMetric:
         # don't count functions that contain illegal instructions
         if (not is_illegal) and (not line.is_unknown):
             try:
-                self._current_function = sark.Function(line.startEA)
-                if line.startEA == self._current_function.startEA:
-                    self._seen_function_start = line.startEA
+                self._current_function = sark.Function(line.start_ea)
+                if line.start_ea == self._current_function.start_ea:
+                    self._seen_function_start = line.start_ea
                 # Time to check if this is a contained function.
                 # Note: could be one liner functions, so use "if" and not "elif"
-                if line.endEA == self._current_function.endEA and self._current_function.startEA == self._seen_function_start:
+                if line.end_ea == self._current_function.end_ea and self._current_function.start_ea == self._seen_function_start:
                     self._contains_functions = True
             except Exception:
                 self._current_function = None
@@ -83,7 +83,7 @@ class CodeMetric:
             if self._analyzer.isAlignment(line):
                 self._align_start = True
             elif self._align_start:
-                self._align_metric = CodeMetric(self._analyzer, line.startEA)
+                self._align_metric = CodeMetric(self._analyzer, line.start_ea)
                 self._align_metric.start(line)
                 self._align_start = False
             elif self._align_metric is not None:

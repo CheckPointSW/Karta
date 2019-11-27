@@ -1,8 +1,9 @@
 import pickle
 import idc
+import ida_bytes
 import idaapi
 import sark
-from pattern_observer import AlignmentPattern, CodePattern, pad
+from .pattern_observer import AlignmentPattern, CodePattern, pad
 
 ###########################
 ## Static Configurations ##
@@ -20,7 +21,7 @@ class SwitchIdentifier():
         _table_alignment (int): byte-alignment of the switch tables inside our functions
         _code_pattern (pattern): CodePattern instance of the observed code pattern before each switch table
         _record_size (int): default record size for a switch table entry to be identified
-        _switch_case_entries (list): list of features from observed switch cases: (line.startEA, table_start ea, table_end ea)
+        _switch_case_entries (list): list of features from observed switch cases: (line.start_ea, table_start ea, table_end ea)
         _switch_case_cases (list): list of all observed switch table entries, from all tables (cleaned code addresses)
 
     Notes
@@ -58,7 +59,7 @@ class SwitchIdentifier():
         try:
             switch_case_entries = pickle.load(open(switch_case_entries_path, "rb"))
             for switch_instr, table_start, table_end in switch_case_entries:
-                for ea in xrange(table_start, table_end, self._analyzer.addressSize()):
+                for ea in range(table_start, table_end, self._analyzer.addressSize()):
                     self._switch_case_cases.append(self._analyzer.cleanPtr(self._analyzer.parseAdderss(ea)))
             return True
         except Exception:
@@ -80,12 +81,12 @@ class SwitchIdentifier():
             3. (Aggressive) Make sure each switch table entry is a proper code pointer to it's matching case
             4. (Aggressive) Enforce the correct code type over the entire gap between the minimal and maximal case
         """
-        for switch_instr, table_start, table_end in filter(lambda x: sc.startEA <= x[0] and x[1] < sc.endEA, self._switch_case_entries):
+        for switch_instr, table_start, table_end in filter(lambda x: sc.start_ea <= x[0] and x[1] < sc.end_ea, self._switch_case_entries):
             cases = []
             if not sark.Line(switch_instr).is_code:
-                idc.MakeUnknown(switch_instr, self._analyzer.addressSize(), 0)
-                idc.MakeCode(switch_instr)
-            for ea in xrange(table_start, table_end, self._analyzer.addressSize()):
+                ida_bytes.del_items(switch_instr, 0, self._analyzer.addressSize())
+                idc.create_insn(switch_instr)
+            for ea in range(table_start, table_end, self._analyzer.addressSize()):
                 entry = self._analyzer.parseAdderss(ea)
                 if aggressive:
                     self._analyzer.markCodePtr(ea, entry)
@@ -104,7 +105,7 @@ class SwitchIdentifier():
         Return Value:
             True iff the given address is contained inside a seen switch table
         """
-        return len(filter(lambda x: x[0] <= ea and ea < x[1], self._switch_case_entries)) != 0
+        return len(list(filter(lambda x: x[0] <= ea and ea < x[1], self._switch_case_entries))) != 0
 
     def isSwitchCase(self, ea):
         """Check if the given address is the beginning of a seen switch case.
@@ -137,13 +138,13 @@ class SwitchIdentifier():
             # scan for known switch cases, and only from our desired record size
             for line in filter(lambda x: x.is_code, sc.lines):
                 try:
-                    sw = idaapi.get_switch_info_ex(line.startEA)
+                    sw = idaapi.get_switch_info_ex(line.start_ea)
                     if sw is None:
                         continue
                     if sw.get_jtable_element_size() != self._record_size:
                         continue
                     # The table should be near our code (otherwise we don't care about it)
-                    if abs(line.startEA - sw.jumps) > 0x100:
+                    if abs(line.start_ea - sw.jumps) > 0x100:
                         continue
                 except Exception:
                     continue
@@ -156,7 +157,7 @@ class SwitchIdentifier():
                 # 3. Assume the table is right after this command, padded to alignment
                 # 4. Count the cases as long as they point to code near us
                 # 5. Don't define it as a switch table using IDA's structures (too complex)
-                self._analyzer.logger.debug("Located a switch table at: 0x%x", line.startEA)
+                self._analyzer.logger.debug("Located a switch table at: 0x%x", line.start_ea)
                 self._analyzer.logger.debug("\tStart EA: 0x%x", sw.startea)
                 self._analyzer.logger.debug("\tJump Table: 0x%x", sw.jumps)
                 self._analyzer.logger.debug("\t%s", str(line))
@@ -210,7 +211,7 @@ class SwitchIdentifier():
                 except Exception:
                     continue
                 # Sadly, it seems that we need to fix even some of the known switch tables
-                table_candidates.append((line, pad(line.endEA, self._table_alignment)))
+                table_candidates.append((line, pad(line.end_ea, self._table_alignment)))
 
         # now check all of the candidates
         counter = 0
@@ -220,7 +221,7 @@ class SwitchIdentifier():
             code_type = None
             cases = []
             # table could contain entries that have our 2 MSBs + [0,1,2,3]
-            entry_options = map(lambda x: ((0xFFFF0000 & table_start) >> 16) + x, range(4))
+            entry_options = list(map(lambda x: ((0xFFFF0000 & table_start) >> 16) + x, range(4)))
             while is_table:
                 entry = self._analyzer.parseAdderss(cur_ea)
                 cur_ea += self._analyzer.addressSize()
@@ -240,7 +241,7 @@ class SwitchIdentifier():
             self._analyzer.logger.debug("Found a Switch Table at: 0x%x - 0x%x (0x%x entries) - (%d code type)", table_start, table_end, len(cases), code_type)
             counter += 1
             # record the info
-            self._switch_case_entries.append((line.startEA, table_start, table_end))
+            self._switch_case_entries.append((line.start_ea, table_start, table_end))
 
         # mark all of the tables
         self.markSwitchTables(sc, aggressive=True)
@@ -253,11 +254,11 @@ class SwitchIdentifier():
 # switch_info = idaapi.switch_info_ex_t()
 # # # find the exact start
 # line = start_line
-# start_ea = line.startEA
+# start_ea = line.start_ea
 # defjump = None
-# for i in xrange(10):
+# for i in range(10):
 #     if line.is_code and line.insn.mnem == 'CMP' and list(line.insn.operands)[1].value + 1 == len(cases):
-#         start_ea = line.startEA
+#         start_ea = line.start_ea
 #         defjump = list(line.next.insn.operands)[0].offset
 #         print 'Switch details: start_ea = 0x%x, default jump = 0x%x' % (start_ea, defjump)
 #         break
@@ -274,8 +275,8 @@ class SwitchIdentifier():
 #     except:
 #         pass
 # # Make sure IDA had no problems with it
-# idc.MakeUnknown(table_start, cur_offset - table_start, 0)
-# for addr in xrange(table_start / 4, cur_offset / 4):
+# ida_bytes.del_items(table_start, 0, cur_offset - table_start)
+# for addr in range(table_start / 4, cur_offset / 4):
 #     addr = addr * 4
 #     ida_offset.op_offset(addr, 0, idc.REF_OFF32)
 #     switch_offset_entries.add(addr)

@@ -4,6 +4,8 @@ import pickle
 import struct
 import string
 import idc
+import ida_bytes
+import ida_funcs
 import sark
 
 ###########################
@@ -90,7 +92,7 @@ class FptrIdentifier:
         Return Value:
             True iff the given address contains only printable chars
         """
-        return len(filter(lambda x: x in string.printable, struct.pack("!%s" % (self._analyzer.address_pack_format), ea))) == self._analyzer.addressSize()
+        return len(list(filter(lambda x: chr(x) in string.printable, struct.pack("!%s" % (self._analyzer.address_pack_format), ea)))) == self._analyzer.addressSize()
 
     def makePointedFunctions(self):
         """Modify the code and tell IDA that our code fptrs should point to the beginning of functions."""
@@ -100,7 +102,7 @@ class FptrIdentifier:
         # Now we can iterate it
         for func_ea, code_type in fptrs_couples:
             self._analyzer.setCodeType(func_ea, func_ea + 1, code_type)
-            idc.MakeFunction(func_ea)
+            ida_funcs.add_func(func_ea)
 
     def checkPointedFunctions(self):
         """Delete all of the function pointers that don't point at a valid function at this state of the analysis.
@@ -155,7 +157,7 @@ class FptrIdentifier:
         if ea % self._analyzer.data_fptr_alignment != 0:
             return False
         for sd in sds:
-            if sd.startEA <= ea and ea <= sd.endEA:
+            if sd.start_ea <= ea and ea <= sd.end_ea:
                 return True
         return False
 
@@ -172,7 +174,7 @@ class FptrIdentifier:
         if not self._analyzer.isValidCodePtr(ea):
             return False
         for sc in scs:
-            if sc.startEA <= ea and ea < sc.endEA:
+            if sc.start_ea <= ea and ea < sc.end_ea:
                 return True
         return False
 
@@ -190,8 +192,8 @@ class FptrIdentifier:
         ptrs_mappings = defaultdict(set)
         marked_artifacts = []
         for sd in sds:
-            cur_ea = pad(sd.startEA, self._analyzer.data_fptr_alignment)
-            while cur_ea < sd.endEA:
+            cur_ea = pad(sd.start_ea, self._analyzer.data_fptr_alignment)
+            while cur_ea < sd.end_ea:
                 line = sark.Line(cur_ea)
                 if line.is_string:
                     cur_ea += pad(line.size, self._analyzer.data_fptr_alignment)
@@ -237,7 +239,7 @@ class FptrIdentifier:
                     else:
                         seen_list.append((cur_ea, False))
                         # check for an analysis problem
-                        if list(line.drefs_from) > 0:
+                        if len(list(line.drefs_from)) > 0:
                             idc.del_dref(cur_ea, value)
                             idc.del_dref(cur_ea, func_value)
                 # Check for a valid data pointer
@@ -260,30 +262,30 @@ class FptrIdentifier:
             # 1. The window doesn't have enough "True" pointers
             # 2. The windows contains only "True" pointers
             # Slide the window onward
-            while window_index < len(seen_list) and (len(filter(lambda x: x[1], cur_window)) < chosen_threshold or len(filter(lambda x: not x[1], cur_window)) == 0):
+            while window_index < len(seen_list) and (len(list(filter(lambda x: x[1], cur_window))) < chosen_threshold or len(list(filter(lambda x: not x[1], cur_window))) == 0):
                 # If we are above the threshold (meaning that cond #2 applies), kick out the first ptr (which is a "True" ptr)
-                if chosen_threshold < len(filter(lambda x: x[1], cur_window)):
+                if chosen_threshold < len(list(filter(lambda x: x[1], cur_window))):
                     cur_window = cur_window[1:]
                 # Add a new pointer at the end of our window
                 cur_window.append(seen_list[window_index])
                 window_index += 1
             # Sanity check: check if we have a candidate
-            if window_index == len(seen_list) and len(filter(lambda x: not x[1], cur_window)) == 0:
+            if window_index == len(seen_list) and len(list(filter(lambda x: not x[1], cur_window))) == 0:
                 break
             # measure the deltas
-            chosen_window = filter(lambda x: x[1], cur_window)
+            chosen_window = list(filter(lambda x: x[1], cur_window))
             # deltas between the "True" pointers
             chosen_deltas = set()
-            for i in xrange(len(chosen_window) - 1):
+            for i in range(len(chosen_window) - 1):
                 chosen_deltas.add(chosen_window[i + 1][0] - chosen_window[i][0])
             # All possible deltas between adjacent pointers
             seen_deltas = set()
-            for i in xrange(len(cur_window) - 1):
+            for i in range(len(cur_window) - 1):
                 seen_deltas.add(cur_window[i + 1][0] - cur_window[i][0])
             new_chosen = None
             # check for a pattern
             if len(seen_deltas) <= len(chosen_deltas):
-                new_chosen = filter(lambda x: not x[1], cur_window)[0]
+                new_chosen = list(filter(lambda x: not x[1], cur_window))[0]
             # check if the window starts with a candidate, that is right near a "True" pointer
             elif not cur_window[0][1]:
                 first_seen = cur_window[0]
@@ -326,13 +328,13 @@ class FptrIdentifier:
             else:
                 wanted_code_type = list(local_ref_ptrs[fixed_address])[0]
                 orig_code_type = self._analyzer.codeType(fixed_address)
-                idc.MakeUnknown(fixed_address, self._analyzer.addressSize(), 0)
+                idc.ida_bytes.del_items(fixed_address, 0, self._analyzer.addressSize())
                 if orig_code_type != wanted_code_type:
                     self._analyzer.setCodeType(fixed_address, fixed_address + 4, wanted_code_type)
-                if idc.MakeCode(fixed_address) == 0:
+                if idc.create_insn(fixed_address) == 0:
                     disqualified = True
                 # Always clean after ourselves
-                idc.MakeUnknown(fixed_address, self._analyzer.addressSize(), 0)
+                ida_bytes.del_items(fixed_address, 0, self._analyzer.addressSize())
                 if orig_code_type != wanted_code_type:
                     self._analyzer.setCodeType(fixed_address, fixed_address + self._analyzer.addressSize(), orig_code_type)
             # We are OK, can continue

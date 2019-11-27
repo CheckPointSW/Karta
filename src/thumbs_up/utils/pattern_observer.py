@@ -1,6 +1,8 @@
 import idc
 import random
 import idautils
+import ida_nalt
+import struct
 
 def gcd(x, y):
     """Find the Greatest Common Devisor (GCD) of the two given integers.
@@ -79,15 +81,15 @@ class AlignmentPattern:
         if len(self._records) < 2:
             return None
         # Now check for a basic alignment rule
-        seen_eas = map(lambda x: x[0], self._records)
+        seen_eas = list(map(lambda x: x[0], self._records))
         # Deterministic results per binary, but still random
-        random.seed(int(idautils.GetInputFileMD5(), 16) & 0xFFFFFFFF)
+        random.seed(struct.unpack("L", ida_nalt.retrieve_input_file_md5()[:4])[0])
         while True:
             # Check against two random candidates, and always make sure the representative isn't rare
             measure_candidate = seen_eas[random.randint(0, len(seen_eas) - 1)]
             measure_candidate_alt = seen_eas[random.randint(0, len(seen_eas) - 1)]
-            gcds = map(lambda x: gcd(measure_candidate, x), seen_eas)
-            gcds_alt = map(lambda x: gcd(measure_candidate_alt, x), seen_eas)
+            gcds = list(map(lambda x: gcd(measure_candidate, x), seen_eas))
+            gcds_alt = list(map(lambda x: gcd(measure_candidate_alt, x), seen_eas))
             alignment = min(gcds)
             alignment_alt = min(gcds_alt)
             if alignment > alignment_alt:
@@ -101,7 +103,7 @@ class AlignmentPattern:
             # Try to check if removing outliers will improve the alignment
             if try_again or gcds.count(alignment) <= len(gcds) * 0.01:
                 # pick the next element, and try to improve the result
-                seen_eas = filter(lambda x: gcd(measure_candidate, x) != alignment, seen_eas)
+                seen_eas = list(filter(lambda x: gcd(measure_candidate, x) != alignment, seen_eas))
             # we can't improve the results
             else:
                 break
@@ -114,8 +116,8 @@ class AlignmentPattern:
         # Check if there is a common padding byte (skip the outliers)
         pad_byte = None
         for ea, size in filter(lambda x: x[0] % alignment == 0, self._records):
-            for offset in xrange((alignment - ((ea + size) % alignment)) % alignment):
-                test_byte = idc.Byte(ea + size + offset)
+            for offset in range((alignment - ((ea + size) % alignment)) % alignment):
+                test_byte = idc.get_wide_byte(ea + size + offset)
                 if pad_byte is None:
                     pad_byte = test_byte
                 # Failed to find a single padding byte...
@@ -153,7 +155,7 @@ class CodePattern:
         Note:
             The record features are extracted from the given code line
         """
-        self._records.append((instr.insn.mnem, map(str, instr.insn.operands)))
+        self._records.append((instr.insn.mnem, list(map(str, instr.insn.operands))))
 
     def size(self):
         """Return the number of observed records.
@@ -215,7 +217,7 @@ class CodePattern:
         if len(self._records[0][1]) == 0:
             return True
         self._operands = {}
-        for i in xrange(len(self._records[0][1])):
+        for i in range(len(self._records[0][1])):
             self._operands[i] = self._records[0][1][i]
         # now gradually narrow them down
         for record in self._records[1:]:
@@ -245,6 +247,6 @@ class CodePattern:
         """
         values = []
         if len(self._operands) > 0:
-            for ind in xrange(max(self._operands.keys()) + 1):
+            for ind in range(max(self._operands.keys()) + 1):
                 values.append(self._operands[ind] if ind in self._operands else "_")
         return self._instr + " " + ", ".join(values)

@@ -1,5 +1,6 @@
 from .pattern_observer import AlignmentPattern, pad, padSize
 import idc
+import ida_bytes
 import idautils
 import idaapi
 import string
@@ -10,7 +11,7 @@ import sark
 #######################
 
 # Probable Alpha-Bet for ascii strings
-valid_ascii_string_chars = filter(lambda x: x not in "\x0B\x0C", string.printable) + "\x1B"
+valid_ascii_string_chars = list(filter(lambda x: x not in "\x0B\x0C", string.printable + "\x1B"))
 # Minimal string length for global strings (Going to be on the Safe Side)
 minimal_string_length = 6
 
@@ -81,7 +82,7 @@ class StringIdentifier:
         Return Value:
             IDA's best ascii string that starts at the given address
         """
-        return idc.GetString(ea, -1, -1)
+        return idc.get_strlit_contents(ea, -1, -1)
 
     def isGlobalAsciiString(self, ea):
         r"""Check if the given address is the beginning of a valid global string.
@@ -105,16 +106,16 @@ class StringIdentifier:
             return False
         str_content = self.getAsciiString(ea)
         # check each of the chars
-        if str_content is None or len(filter(lambda x: x in self._valid_alphabet, str_content)) != len(str_content):
+        if str_content is None or len(list(filter(lambda x: chr(x) in self._valid_alphabet, str_content))) != len(str_content):
             return False
         # check for a '\0' terminator
-        if idc.Byte(ea + len(str_content)) != ord('\0'):
+        if idc.get_wide_byte(ea + len(str_content)) != ord('\0'):
             return False
         # check for the correct padding
         if self._global_pad is not None:
             end_address = ea + len(str_content) + 1
-            for offset in xrange(padSize(end_address, self._global_alignment)):
-                if idc.Byte(end_address + offset) != self._global_pad:
+            for offset in range(padSize(end_address, self._global_alignment)):
+                if idc.get_wide_byte(end_address + offset) != self._global_pad:
                     return False
         # basic length
         return len(str_content) >= self._min_global_length
@@ -146,23 +147,23 @@ class StringIdentifier:
             return False
         str_content = self.getAsciiString(ea)
         # check each of the chars
-        if str_content is None or len(filter(lambda x: x in self._valid_alphabet, str_content)) != len(str_content):
+        if str_content is None or len(list(filter(lambda x: chr(x) in self._valid_alphabet, str_content))) != len(str_content):
             return False
         # check for a '\0' terminator
-        if idc.Byte(ea + len(str_content)) != ord('\0'):
+        if idc.get_wide_byte(ea + len(str_content)) != ord('\0'):
             return False
         # check for the correct padding
         if self._local_pad is not None:
             end_address = ea + len(str_content) + 1
-            for offset in xrange(padSize(end_address, self._local_alignment)):
-                if idc.Byte(end_address + offset) != self._local_pad:
+            for offset in range(padSize(end_address, self._local_alignment)):
+                if idc.get_wide_byte(end_address + offset) != self._local_pad:
                     return False
         # filtering heuristic
         if len(str_content) > self._local_alignment:
             return True
-        elif len(str_content) > 1 and str_content[0] == '%':
+        elif len(str_content) > 1 and chr(str_content[0]) == '%':
             return True
-        elif len(str_content) == 1 and str_content[0] in string.punctuation:
+        elif len(str_content) == 1 and chr(str_content[0]) in string.punctuation:
             return True
         else:
             return len(str_content) > 2
@@ -176,12 +177,12 @@ class StringIdentifier:
         """
         pattern = AlignmentPattern()
         for sd in sds:
-            self._analzyer.logger.debug("Data Segment: 0x%x - 0x%x", sd.startEA, sd.endEA)
+            self._analzyer.logger.debug("Data Segment: 0x%x - 0x%x", sd.start_ea, sd.end_ea)
         # collect the data from all of the global strings
         for cur_string in idautils.Strings():
             string_ea = cur_string.ea
             for sd in sds:
-                if sd.startEA <= string_ea and string_ea < sd.endEA:
+                if sd.start_ea <= string_ea and string_ea < sd.end_ea:
                     if self.isGlobalAsciiString(string_ea):
                         pattern.add(string_ea, len(self.getAsciiString(string_ea)))
                     break
@@ -198,9 +199,9 @@ class StringIdentifier:
             sds (list): List of (sark) Data segments.
         """
         for sd in sds:
-            self._analyzer.logger.info("Locating global strings in the data segment: 0x%x - 0x%x", sd.startEA, sd.endEA)
-            cur_ea = pad(sd.startEA, self._global_alignment)
-            while cur_ea < sd.endEA:
+            self._analyzer.logger.info("Locating global strings in the data segment: 0x%x - 0x%x", sd.start_ea, sd.end_ea)
+            cur_ea = pad(sd.start_ea, self._global_alignment)
+            while cur_ea < sd.end_ea:
                 # check for a string
                 if self.isGlobalAsciiString(cur_ea):
                     length = self.defineAsciiString(cur_ea)
@@ -220,11 +221,11 @@ class StringIdentifier:
         str_content = self.getAsciiString(ea)
         if str_content is None:
             return ea + self._global_alignment
-        elif idc.Byte(ea + len(str_content)) != ord('\0'):
+        elif idc.get_wide_byte(ea + len(str_content)) != ord('\0'):
             return ea + max(self._global_alignment, pad(len(str_content), self._global_alignment))
         else:
-            for offset in xrange(len(str_content) - 1, -1, -1):
-                if str_content[offset] not in string.printable:
+            for offset in range(len(str_content) - 1, -1, -1):
+                if chr(str_content[offset]) not in string.printable:
                     return ea + max(self._global_alignment, pad(offset, self._global_alignment))
         return ea + self._global_alignment
 
@@ -241,8 +242,8 @@ class StringIdentifier:
         for sc in scs:
             # collect the data
             for line in sc.lines:
-                if line.is_string and self.isLocalAsciiString(line.startEA):
-                    pattern.add(line.startEA, len(line.bytes))
+                if line.is_string and self.isLocalAsciiString(line.start_ea):
+                    pattern.add(line.start_ea, len(line.bytes))
         # find the pattern
         alignment, pad = pattern.decide()
         self._analyzer.logger.info("String byte alignment is: %d", alignment)
@@ -262,13 +263,9 @@ class StringIdentifier:
         Return Value:
             The length of the defined string + 1 for the '\0' terminator
         """
-        content = idc.GetString(ea, -1, -1)
+        content = idc.get_strlit_contents(ea, -1, -1)
         if not sark.Line(ea).is_string:
             self._analyzer.logger.debug("Defined a unique ascii string at: 0x%x (Length of %d)", ea, len(content) + 1)
-        idc.MakeUnknown(ea, len(content) + 1, 0)
-        # Backward compatibility is always fun
-        if idaapi.IDA_SDK_VERSION <= 700:
-            idaapi.make_ascii_string(ea, len(content) + 1, idc.ASCSTR_C)
-        else:
-            idc.MakeStr(ea, ea + len(content) + 1)
+        ida_bytes.del_items(ea, 0, len(content) + 1)
+        idc.create_strlit(ea, ea + len(content) + 1)
         return len(content) + 1

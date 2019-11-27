@@ -20,3 +20,6 @@ docs/_templates/*
 /*/*.pyc
 /*/*/*.pyc
 /*/*/*/*.pyc
+/src/thumbs_up/analyzers/__pycache__/*.pyc
+/src/*/*/__pycache__/*.pyc
+/src/*/*/__pycache__/*.pyc

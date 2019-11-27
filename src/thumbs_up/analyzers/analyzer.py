@@ -1,4 +1,5 @@
 import idc
+import ida_bytes
 import ida_offset
 
 class Analyzer:
@@ -37,16 +38,16 @@ class Analyzer:
         self.data_fptr_alignment = data_fptr_alignment
         self._mixed_code_and_data = mixed_code_and_data
         if num_bits == 64:
-            self._address_parse_fn = idc.Qword
-            self._address_make_fn = idc.MakeQword
+            self._address_parse_fn = idc.get_qword
+            self._address_make_fn = lambda x: ida_bytes.create_data(x, idc.FF_QWORD, 8, idc.BADADDR)
             self.address_pack_format = "Q"
         elif num_bits == 32:
-            self._address_parse_fn = idc.Dword
-            self._address_make_fn = idc.MakeDword
+            self._address_parse_fn = idc.get_wide_dword
+            self._address_make_fn = lambda x: ida_bytes.create_data(x, idc.FF_DWORD, 4, idc.BADADDR)
             self.address_pack_format = "L"
         else:
-            self._address_parse_fn = idc.Word
-            self._address_make_fn = idc.MakeWord
+            self._address_parse_fn = idc.get_wide_word
+            self._address_make_fn = lambda x: ida_bytes.create_data(x, idc.FF_WORD, 2, idc.BADADDR)
             self.address_pack_format = "H"
         # fields to be linked later on
         self.func_classifier = None
@@ -83,7 +84,7 @@ class Analyzer:
         Return Value:
             Number of bytes in an address (The CPU's "Word" size)
         """
-        return self._num_bits / 8
+        return self._num_bits // 8
 
     def parseAdderss(self, ea):
         """Parse the stored address from it's byte representation.
@@ -177,14 +178,14 @@ class Analyzer:
         """
         clean_dest = self.cleanPtr(dest)
         if aggressive:
-            idc.MakeUnknown(src, self.addressSize(), 0)
+            ida_bytes.del_items(src, 0, self.addressSize())
         if self.makeAddress(src):
             idc.add_dref(src, clean_dest, idc.XREF_USER | idc.dr_O)
             idc.add_cref(src, clean_dest, idc.XREF_USER | idc.dr_O)
             ida_offset.op_offset(src, 0, idc.REF_OFF32)
             if aggressive:
-                idc.MakeUnknown(dest, self.addressSize(), 0)
-                idc.MakeCode(self.cleanPtr(dest))
+                ida_bytes.del_items(dest, 0, self.addressSize())
+                idc.create_insn(self.cleanPtr(dest))
 
     def markDataPtr(self, src, dest, aggressive=True):
         """Mark a data pointer from src to dest.
@@ -195,7 +196,7 @@ class Analyzer:
             aggressive (bool, optional): True iff should redefine the src (True by default)
         """
         if aggressive:
-            idc.MakeUnknown(src, self.addressSize(), 0)
+            ida_bytes.del_items(src, 0, self.addressSize())
         if self.makeAddress(src):
             idc.add_dref(src, dest, idc.XREF_USER | idc.dr_O)
             ida_offset.op_offset(src, 0, idc.REF_OFF32)
@@ -209,7 +210,7 @@ class Analyzer:
         """
         idc.del_dref(src, dest)
         idc.del_cref(src, dest, 0)
-        idc.MakeUnknown(src, self.addressSize(), 0)
+        ida_bytes.del_items(src, 0, self.addressSize())
 
     def cleanPtr(self, ptr_ea):
         """Clean a pointer from the code type metadata.

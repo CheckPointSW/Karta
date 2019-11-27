@@ -185,7 +185,7 @@ class ArmAnalyzer(Analyzer):
         Return Value:
             The current code type at the given address
         """
-        return idc.GetReg(ea, 'T')
+        return idc.get_sreg(ea, 'T')
 
     # Overridden base function
     def setCodeType(self, ea_start, ea_end, code_type):
@@ -196,8 +196,8 @@ class ArmAnalyzer(Analyzer):
             ea_end (int): effective address for the end of the range
             code_type (int): wanted code type for the code range
         """
-        for offset in xrange(ea_end - ea_start):
-            idc.SetReg(ea_start + offset, 'T', code_type)
+        for offset in range(ea_end - ea_start):
+            idc.split_sreg_range(ea_start + offset, 'T', code_type, idc.SR_user)
 
     # Overridden base function
     def isLegalInsn(self, line):

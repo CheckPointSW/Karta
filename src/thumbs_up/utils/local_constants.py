@@ -1,5 +1,6 @@
 from .pattern_observer import pad
 import idc
+import ida_bytes
 import sark
 
 class LocalsIdentifier:
@@ -102,8 +103,8 @@ class LocalsIdentifier:
         """
         self._analyzer.logger.info("Locating local strings / constants in the code sections")
         for sc in scs:
-            cur_ea = pad(sc.startEA, self._local_alignment)
-            while cur_ea < sc.endEA:
+            cur_ea = pad(sc.start_ea, self._local_alignment)
+            while cur_ea < sc.end_ea:
                 # check for a data constant
                 if self.isDataConstant(cur_ea):
                     # check for a string (refs already checked)
@@ -111,43 +112,43 @@ class LocalsIdentifier:
                         length = self._analyzer.str_identifier.defineAsciiString(cur_ea)
                         padded_length = pad(length, self._local_alignment)
                         if padded_length != length:
-                            idc.MakeUnknown(cur_ea + length, padded_length - length, 0)
-                            idc.MakeData(cur_ea + length, 0, padded_length - length, 0)
+                            ida_bytes.del_items(cur_ea + length, 0, padded_length - length)
+                            ida_bytes.create_data(cur_ea + length, 0, padded_length - length, 0)
                         cur_ea += padded_length
                     # This means it is a constant
                     else:
                         if self._local_pad is None:
-                            idc.MakeData(cur_ea, 0, self._local_alignment, 0)
+                            ida_bytes.create_data(cur_ea, 0, self._local_alignment, 0)
                         else:
                             # check the size of the constant using the byte padding
-                            for offset in xrange(self._local_alignment - 1, -1, -1):
-                                if idc.Byte(cur_ea + offset) != self._local_pad:
+                            for offset in range(self._local_alignment - 1, -1, -1):
+                                if idc.get_wide_byte(cur_ea + offset) != self._local_pad:
                                     break
                             # prepare the bytes
-                            idc.MakeUnknown(cur_ea, self._local_alignment, 0)
+                            ida_bytes.del_items(cur_ea, 0, self._local_alignment)
                             # the data constant - try to make it pretty
                             if offset + 1 == 2:
-                                idc.MakeWord(cur_ea)
+                                ida_bytes.create_data(cur_ea, idc.FF_WORD, 2, idc.BADADDR)
                             elif offset + 1 == 4:
-                                idc.MakeDword(cur_ea)
+                                ida_bytes.create_data(cur_ea, idc.FF_DWORD, 4, idc.BADADDR)
                             elif offset + 1 == 8:
-                                idc.MakeQword(cur_ea)
+                                ida_bytes.create_data(cur_ea, idc.FF_QWORD, 8, idc.BADADDR)
                             else:
-                                idc.MakeData(cur_ea, 0, offset + 1, 0)
+                                ida_bytes.create_data(cur_ea, 0, offset + 1, 0)
                             # the padding
-                            idc.MakeData(cur_ea + offset + 1, 0, self._local_alignment - offset + 1, 0)
+                            ida_bytes.create_data(cur_ea + offset + 1, 0, self._local_alignment - offset + 1, 0)
                             # Now check for a pointer (only supports code pointers for now)
                             if offset + 1 == self._analyzer.addressSize():
                                 value = self._analyzer.parseAdderss(cur_ea)
                                 # only support pointers inside our local segment (more probable)
-                                if sc.startEA <= value and value < sc.endEA:
+                                if sc.start_ea <= value and value < sc.end_ea:
                                     self._analyzer.markCodePtr(cur_ea, value, aggressive=False)
                                 # try a pointer to a declared string
                                 else:
                                     for sd in sds:
-                                        if sd.startEA <= value and value <= sd.endEA:
+                                        if sd.start_ea <= value and value <= sd.end_ea:
                                             line = sark.Line(value)
-                                            if line.is_string and line.startEA == value:
+                                            if line.is_string and line.start_ea == value:
                                                 self._analyzer.markDataPtr(cur_ea, value, aggressive=False)
                                             break
                         # now move onward

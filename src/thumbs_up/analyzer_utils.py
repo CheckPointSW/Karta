@@ -1,5 +1,7 @@
 import sark
 import idc
+import ida_bytes
+import ida_funcs
 import idaapi
 from collections            import defaultdict
 from utils.code_metric      import CodeMetric
@@ -43,16 +45,16 @@ def cleanStart(analyzer, scs, undef=False):
     """
     for sc in scs:
         if undef:
-            analyzer.logger.info("Undefining code segment: 0x%x - 0x%x", sc.startEA, sc.endEA)
-            sark.data.undefine(sc.startEA, sc.endEA)
+            analyzer.logger.info("Undefining code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+            sark.data.undefine(sc.start_ea, sc.end_ea)
             analyzer.logger.info("Marking all known switch tables in the segment")
             analyzer.switch_identifier.markSwitchTables(sc)
     analyzer.logger.info("Marking all known fptr functions")
     analyzer.fptr_identifier.makePointedFunctions()
     for sc in scs:
-        analyzer.logger.info("Re-Analyzing code segment: 0x%x - 0x%x", sc.startEA, sc.endEA)
-        idaapi.analyze_area(sc.startEA, sc.endEA)
-        idaapi.autoWait()
+        analyzer.logger.info("Re-Analyzing code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+        idc.plan_and_wait(sc.start_ea, sc.end_ea)
+        idaapi.auto_wait()
 
 def convertRegion(analyzer, start_ea, end_ea):
     """Convert (Cancel) a given code region (change it's code type).
@@ -65,11 +67,11 @@ def convertRegion(analyzer, start_ea, end_ea):
     wanted_code_type = analyzer.codeType(end_ea)
     analyzer.logger.info("Converting code region of type %d to %d: 0x%x - 0x%x (%d)", analyzer.codeType(start_ea), wanted_code_type, start_ea, end_ea, end_ea - start_ea)
     # Make sure it will be treated as code
-    idc.MakeUnknown(start_ea, end_ea - start_ea, 0)
+    ida_bytes.del_items(start_ea, 0, end_ea - start_ea)
     # manually set the wanted value over the entire region
     analyzer.setCodeType(start_ea, end_ea, wanted_code_type)
     # now reanalyze the new section
-    idaapi.analyze_area(analyzer.alignTransitionAddress(start_ea, wanted_code_type), end_ea)
+    idc.plan_and_wait(analyzer.alignTransitionAddress(start_ea, wanted_code_type), end_ea)
 
 def resizeRegion(analyzer, start_ea, end_ea, new_start_ea, new_end_ea):
     """Resize a given code region, according to the new dimensions.
@@ -97,7 +99,7 @@ def resizeRegion(analyzer, start_ea, end_ea, new_start_ea, new_end_ea):
         fix_regions.append((new_end_ea, end_ea))
     # Make the changed parts unknown, before re-analyzing them
     for region_start, region_end in fix_regions:
-        idc.MakeUnknown(region_start, region_end - region_start, 0)
+        ida_bytes.del_items(region_start, 0, region_end - region_start)
     # manually set the wanted value over the entire region
     if start_ea < new_start_ea:
         analyzer.setCodeType(start_ea, new_start_ea, code_type_before)
@@ -109,7 +111,7 @@ def resizeRegion(analyzer, start_ea, end_ea, new_start_ea, new_end_ea):
         analyzer.setCodeType(new_end_ea, end_ea, code_type_after)
     # now reanalyze the new section
     for region_start, region_end in fix_regions:
-        idaapi.analyze_area(region_start, region_end)
+        idc.plan_and_wait(region_start, region_end)
 
 def functionScan(analyzer, scs):
     """Scan the code segment and try to define functions.
@@ -125,11 +127,11 @@ def functionScan(analyzer, scs):
         2. Unknown after a previous function - and it looks like the beginning of a function of the estimated code type
     """
     for sc in scs:
-        analyzer.logger.debug("Function scanning code segment: 0x%x - 0x%x", sc.startEA, sc.endEA)
+        analyzer.logger.debug("Function scanning code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
         search_func = False
         just_started = True
-        line = sark.Line(sc.startEA)
-        while line.startEA < sc.endEA:
+        line = sark.Line(sc.start_ea)
+        while line.start_ea < sc.end_ea:
             # we don't care about data lines
             if line.is_data:
                 line = line.next
@@ -137,7 +139,7 @@ def functionScan(analyzer, scs):
             # check for code lines
             if line.is_code:
                 try:
-                    sark.Function(line.startEA)
+                    sark.Function(line.start_ea)
                     search_func = False
                     just_started = True
                     line = line.next
@@ -148,15 +150,15 @@ def functionScan(analyzer, scs):
                     else:
                         search_func = True
             # If we are searching for a function, simply continue
-            if search_func or analyzer.switch_identifier.isSwitchCase(line.startEA):
+            if search_func or analyzer.switch_identifier.isSwitchCase(line.start_ea):
                 line = line.next
                 continue
             # If this is code, check that it matches the start of a function, and make it a function
-            if line.is_code and analyzer.func_classifier.predictFunctionStartMixed(line.startEA):
-                if not idc.MakeFunction(line.startEA):
+            if line.is_code and analyzer.func_classifier.predictFunctionStartMixed(line.start_ea):
+                if not ida_funcs.add_func(line.start_ea):
                     line = line.next
                 else:
-                    analyzer.logger.debug("Declared a function at: 0x%x", line.startEA)
+                    analyzer.logger.debug("Declared a function at: 0x%x", line.start_ea)
                 continue
             # Code, and doesn't look like a function's start
             if line.is_code:
@@ -165,17 +167,17 @@ def functionScan(analyzer, scs):
                 continue
             # If unknown, check if a function and don't try to keep the same code type
             if line.is_unknown:
-                guess_code_type = analyzer.func_classifier.predictFunctionStartType(line.startEA)
-                original_code_type = analyzer.codeType(line.startEA)
-                if analyzer.func_classifier.predictFunctionStart(line.startEA, guess_code_type):
+                guess_code_type = analyzer.func_classifier.predictFunctionStartType(line.start_ea)
+                original_code_type = analyzer.codeType(line.start_ea)
+                if analyzer.func_classifier.predictFunctionStart(line.start_ea, guess_code_type):
                     if original_code_type != guess_code_type:
-                        analyzer.setCodeType(line.startEA, line.startEA + 1, guess_code_type)
-                    if not idc.MakeFunction(line.startEA):
+                        analyzer.setCodeType(line.start_ea, line.start_ea + 1, guess_code_type)
+                    if not ida_funcs.add_func(line.start_ea):
                         if original_code_type != guess_code_type:
-                            analyzer.setCodeType(line.startEA, line.startEA + 1, original_code_type)
+                            analyzer.setCodeType(line.start_ea, line.start_ea + 1, original_code_type)
                         line = line.next
                     else:
-                        analyzer.logger.debug("Declared a function at: 0x%x (Type %d, Local type %d)", line.startEA, guess_code_type, original_code_type)
+                        analyzer.logger.debug("Declared a function at: 0x%x (Type %d, Local type %d)", line.start_ea, guess_code_type, original_code_type)
                     continue
                 # otherwise, do nothing
                 line = line.next
@@ -189,11 +191,11 @@ def aggressiveFunctionScan(analyzer, scs):
         scs (list): list of (sark) code segments
     """
     for sc in scs:
-        analyzer.logger.debug("Aggressively scanning code segment: 0x%x - 0x%x", sc.startEA, sc.endEA)
+        analyzer.logger.debug("Aggressively scanning code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
         search_func = False
         just_started = True
-        line = sark.Line(sc.startEA)
-        while line.startEA < sc.endEA:
+        line = sark.Line(sc.start_ea)
+        while line.start_ea < sc.end_ea:
             # we don't care about non-code lines
             if not line.is_code:
                 line = line.next
@@ -201,7 +203,7 @@ def aggressiveFunctionScan(analyzer, scs):
             # check for code lines
             if line.is_code:
                 try:
-                    sark.Function(line.startEA)
+                    sark.Function(line.start_ea)
                     search_func = False
                     just_started = True
                     line = line.next
@@ -212,14 +214,14 @@ def aggressiveFunctionScan(analyzer, scs):
                     else:
                         search_func = True
             # If we are searching for a function, simply continue
-            if search_func or analyzer.switch_identifier.isSwitchCase(line.startEA):
+            if search_func or analyzer.switch_identifier.isSwitchCase(line.start_ea):
                 line = line.next
                 continue
             # This is code, make it a function
-            if not idc.MakeFunction(line.startEA):
+            if not ida_funcs.add_func(line.start_ea):
                 line = line.next
             else:
-                analyzer.logger.debug("Declared a function at: 0x%x", line.startEA)
+                analyzer.logger.debug("Declared a function at: 0x%x", line.start_ea)
 
 def dataScan(analyzer, scs):
     """Scan the code segments for orphan data blobs that represent analysis errors.
@@ -240,7 +242,7 @@ def dataScan(analyzer, scs):
             elif first_line is None and ((not line.is_data) or len(list(line.drefs_to)) > 0 or len(list(line.crefs_to)) != 1 or sark.Line(list(line.crefs_to)[0]).next != line):
                 end_line = line
             # don't mark switch entries
-            elif analyzer.switch_identifier.isSwitchEntry(line.startEA):
+            elif analyzer.switch_identifier.isSwitchEntry(line.start_ea):
                 end_line = line
             # Finally, check if it could be a function of some type
             elif first_line is None:
@@ -251,8 +253,8 @@ def dataScan(analyzer, scs):
                 continue
             # Now check if we found something (end_line is always != None at this point)
             if first_line is not None and end_line is not None:
-                chunk_start = first_line.startEA
-                chunk_end   = end_line.startEA
+                chunk_start = first_line.start_ea
+                chunk_end   = end_line.start_ea
                 # check that the chunk before us is not the end of a function
                 if analyzer.func_classifier.predictFunctionEnd(chunk_start):
                     # shouldn't really happen, do nothing in this case
@@ -260,8 +262,8 @@ def dataScan(analyzer, scs):
                 # data chunk in the middle of a function, and not at it's end - convert it to code
                 else:
                     analyzer.logger.debug("In-Function data chunk at: 0x%x - 0x%x (%d)", chunk_start, chunk_end, chunk_end - chunk_start)
-                    idc.MakeUnknown(chunk_start, chunk_end - chunk_start, 0)
-                    idc.MakeCode(chunk_start)
+                    ida_bytes.del_items(chunk_start, 0, chunk_end - chunk_start)
+                    idc.create_insn(chunk_start)
                 # reset the vars
                 first_line = None
                 end_line   = None
@@ -282,11 +284,11 @@ def dataScan(analyzer, scs):
             elif line.size < size_limit:
                 end_line = line
             # check if it looks like a string
-            elif analyzer.str_identifier.isLocalAsciiString(line.startEA, check_refs=False):
-                analyzer.str_identifier.defineAsciiString(line.startEA)
+            elif analyzer.str_identifier.isLocalAsciiString(line.start_ea, check_refs=False):
+                analyzer.str_identifier.defineAsciiString(line.start_ea)
                 end_line = line
             # make sure it isn't a switch entry
-            elif analyzer.switch_identifier.isSwitchEntry(line.startEA):
+            elif analyzer.switch_identifier.isSwitchEntry(line.start_ea):
                 end_line = line
             # Finally, check if it could be a function of some type
             elif first_line is None:
@@ -297,8 +299,8 @@ def dataScan(analyzer, scs):
                 continue
             # Now check if we found something (end_line is always != None at this point)
             if first_line is not None and end_line is not None:
-                chunk_start = first_line.startEA
-                chunk_end   = end_line.startEA
+                chunk_start = first_line.start_ea
+                chunk_end   = end_line.start_ea
                 guess_code_type = analyzer.func_classifier.predictFunctionStartType(chunk_start)
                 original_code_type = analyzer.codeType(chunk_start)
                 analyzer.logger.debug("Found a data chunk at: 0x%x - 0x%x (%d), (Type %d, Local type %d)", chunk_start, chunk_end, chunk_end - chunk_start, guess_code_type, original_code_type)
@@ -311,11 +313,11 @@ def dataScan(analyzer, scs):
     # conversion pass
     for chunk_start, chunk_end, guess_code_type, original_code_type in conversion_candidates:
         analyzer.logger.info("Found an isolated data chunk at: 0x%x - 0x%x (%d), (Type %d, Local type %d)", chunk_start, chunk_end, chunk_end - chunk_start, guess_code_type, original_code_type)
-        idc.MakeUnknown(chunk_start, chunk_end - chunk_start, 0)
+        ida_bytes.del_items(chunk_start, 0, chunk_end - chunk_start)
         if original_code_type != guess_code_type:
             analyzer.setCodeType(chunk_start, chunk_end, guess_code_type)
-        idaapi.analyze_area(chunk_start, chunk_end)
-        idc.MakeFunction(chunk_start)
+        idc.plan_and_wait(chunk_start, chunk_end)
+        ida_funcs.add_func(chunk_start)
 
 def thumbsUp(analyzer, sc, aggressive=False, align=False):
     """Use various metrics in order to locate / fix code type transitions.
@@ -338,7 +340,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
         8. In all of the heuristics, if the code region before us was OK and we merged with him, there is no need to check it again.
     """
     regions_fixed = 1
-    line = sark.Line(sc.startEA)
+    line = sark.Line(sc.start_ea)
     regions = CodeRegions()
     first_round = True
     is_fptr_pointed = False
@@ -362,10 +364,10 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
             line = sark.Line(interesting_regions[0].start)
             region_offset = -1
         # iterate the current region
-        while line.startEA < sc.endEA:
+        while line.start_ea < sc.end_ea:
             if not starting_new_region:
                 # check if we found a transitions
-                new_code_type = analyzer.codeType(line.startEA)
+                new_code_type = analyzer.codeType(line.start_ea)
                 # no change, just keep on
                 if region_code_type == new_code_type:
                     if not dummy_mode:
@@ -373,7 +375,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
                     line = line.next
                     continue
                 # we found a transition
-                region_end = line.startEA
+                region_end = line.start_ea
                 region_converted = False
                 if first_round:
                     region = CodeRegion(region_start, region_end, region_code_type)
@@ -416,7 +418,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
                         analyzer.logger.debug("Illegals %d / %d Overall size = %f%%", illegal_count, metric_region_size, illegal_ratio * 100)
                     # Check if we can flip this region
                     # 1. The entire code region is contained inside the same function, and contains unexplored bytes (not a Chunk, and contains no functions)
-                    if containing_function is not None and containing_function.startEA < metric_region_start and metric_region_end <= containing_function.endEA and\
+                    if containing_function is not None and containing_function.start_ea < metric_region_start and metric_region_end <= containing_function.end_ea and\
                        has_unknown_or_illegal and not contains_functions:
                         analyzer.logger.info("Code region is contained inside a single function - cancel it")
                         convertRegion(analyzer, metric_region_start, metric_region_end)
@@ -469,7 +471,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
                     # 6. Aggressive - region on function start, that could be misinterpreted + no functions
                     elif aggressive and\
                          not aligned_region and\
-                         start_function is not None and metric_region_start == start_function.startEA and\
+                         start_function is not None and metric_region_start == start_function.start_ea and\
                          analyzer.func_classifier.predictFunctionStart(metric_region_start, new_code_type) and\
                          not contains_functions:
                         analyzer.logger.info("Code region is a function start, classifier prefers a different code type, and it has no functions - cancel it")
@@ -492,7 +494,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
                             first_metric_region_fixed = False
                     # Aligned region should start with a function
                     if aligned_region and aligned_region_fixed:
-                        idc.MakeFunction(metric_region_start)
+                        ida_funcs.add_func(metric_region_start)
                     # Break the loop and start the new region
                     if first_metric_region_fixed:
                         break
@@ -510,7 +512,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
                         break
                 region = interesting_regions[region_offset]
                 line = sark.Line(region.start)
-                region_start = line.startEA
+                region_start = line.start_ea
                 if region.prev is not None:
                     prev_code_type = region.prev.code_type
                 else:
@@ -520,9 +522,9 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
                 # the code type could have changed, so we re-sample it
                 if region_code_type is not None:
                     prev_code_type = analyzer.codeType(region_start)
-                region_start = line.startEA
+                region_start = line.start_ea
             # get the current code type (even in dummy mode)
-            region_code_type = analyzer.codeType(line.startEA)
+            region_code_type = analyzer.codeType(line.start_ea)
             if not dummy_mode:
                 code_aligned = analyzer.isCodeTransitionAligned(region_start)
                 starting_new_region = False
@@ -551,21 +553,21 @@ def negotiateRegions(analyzer, sc):
     for line in sc.lines:
         if not starting_new_region:
             # check if we found a transitions
-            new_code_type = analyzer.codeType(line.startEA)
+            new_code_type = analyzer.codeType(line.start_ea)
             # no change, just keep on
             if region_code_type == new_code_type:
                 continue
             # we found a transition
-            region_end = line.startEA
+            region_end = line.start_ea
             # check if we can shorten our region (expand the newly found region)
             fixed_region_end = region_end
             # Case #1 - Previous line has no xrefs, and isn't code (must be aligned, and must not be a switch table entry)
             prev_line = line.prev
             crefs_to_prev = list(prev_line.crefs_to)
             drefs_to_prev = list(prev_line.drefs_to)
-            if not analyzer.switch_identifier.isSwitchEntry(prev_line.startEA) and\
-               not prev_line.is_code and len(crefs_to_prev) + len(drefs_to_prev) == 0 and analyzer.isCodeTransitionAligned(prev_line.startEA):
-                fixed_region_end = prev_line.startEA
+            if not analyzer.switch_identifier.isSwitchEntry(prev_line.start_ea) and\
+               not prev_line.is_code and len(crefs_to_prev) + len(drefs_to_prev) == 0 and analyzer.isCodeTransitionAligned(prev_line.start_ea):
+                fixed_region_end = prev_line.start_ea
             # The region start case was fixed during the function scan :)
             # preform the action
             if fixed_region_end < region_end:
@@ -573,8 +575,8 @@ def negotiateRegions(analyzer, sc):
             # Fall through - we started a new region
 
         # mark that we started a new region
-        region_start = line.startEA
-        region_code_type = analyzer.codeType(line.startEA)
+        region_start = line.start_ea
+        region_code_type = analyzer.codeType(line.start_ea)
         starting_new_region = False
 
 def resolveFunctionChunks(analyzer, scs):
@@ -589,42 +591,42 @@ def resolveFunctionChunks(analyzer, scs):
         for function in sc.functions:
             outer_blocks = []
             for block in idaapi.FlowChart(function.func_t):
-                if block.endEA < function.startEA or function.endEA <= block.startEA:
+                if block.end_ea < function.start_ea or function.end_ea <= block.start_ea:
                     try:
-                        block_function = sark.Function(block.startEA)
+                        block_function = sark.Function(block.start_ea)
                     except sark.exceptions.SarkNoFunction:
                         block_function = None
                     # Only interested in chunks which are not already functions
-                    if block_function is None or block_function.startEA != block.startEA:
+                    if block_function is None or block_function.start_ea != block.start_ea:
                         outer_blocks.append(block)
                     # Function chunks which are switch cases, should be fixed
-                    elif block_function is not None and analyzer.switch_identifier.isSwitchCase(block.startEA):
-                        analyzer.logger.debug("Deleted switch case function: 0x%x", block.startEA)
-                        idc.del_func(block.startEA)
+                    elif block_function is not None and analyzer.switch_identifier.isSwitchCase(block.start_ea):
+                        analyzer.logger.debug("Deleted switch case function: 0x%x", block.start_ea)
+                        idc.del_func(block.start_ea)
                         outer_blocks.append(block)
             # check if there is something to scan
             if len(outer_blocks) == 0:
                 continue
             # start by resetting the function
-            idc.del_func(function.startEA)
-            idc.MakeFunction(function.startEA)
+            idc.del_func(function.start_ea)
+            ida_funcs.add_func(function.start_ea)
     # Now try to check for chunks
     for sc in scs:
         for function in sc.functions:
             outer_blocks = []
             for block in idaapi.FlowChart(function.func_t):
-                if block.endEA < function.startEA or function.endEA <= block.startEA:
+                if block.end_ea < function.start_ea or function.end_ea <= block.start_ea:
                     try:
-                        block_function = sark.Function(block.startEA)
+                        block_function = sark.Function(block.start_ea)
                     except sark.exceptions.SarkNoFunction:
                         block_function = None
                     # Only interested in chunks which are not already functions
-                    if block_function is None or block_function.startEA != block.startEA:
+                    if block_function is None or block_function.start_ea != block.start_ea:
                         outer_blocks.append(block)
                     # Function chunks which are switch cases, should be fixed
-                    elif block_function is not None and analyzer.switch_identifier.isSwitchCase(block.startEA):
-                        analyzer.logger.debug("Deleted switch case function: 0x%x", block.startEA)
-                        idc.del_func(block.startEA)
+                    elif block_function is not None and analyzer.switch_identifier.isSwitchCase(block.start_ea):
+                        analyzer.logger.debug("Deleted switch case function: 0x%x", block.start_ea)
+                        idc.del_func(block.start_ea)
                         outer_blocks.append(block)
             # check if there is something to scan
             if len(outer_blocks) == 0:
@@ -634,29 +636,29 @@ def resolveFunctionChunks(analyzer, scs):
             connectivity_id = 0
             id_mappings = {}
             for block in outer_blocks:
-                if block.startEA not in connectivity_mapping:
-                    connectivity_mapping[block.startEA] = connectivity_id
+                if block.start_ea not in connectivity_mapping:
+                    connectivity_mapping[block.start_ea] = connectivity_id
                     id_mappings[connectivity_id] = connectivity_id
                     connectivity_id += 1
-                cur_id = connectivity_mapping[block.startEA]
+                cur_id = connectivity_mapping[block.start_ea]
                 for succs in block.succs():
                     # if unmarked, add him to our group
-                    if succs.startEA not in connectivity_mapping:
-                        connectivity_mapping[succs.startEA] = cur_id
+                    if succs.start_ea not in connectivity_mapping:
+                        connectivity_mapping[succs.start_ea] = cur_id
                     # if marked, set our group ID to match his group ID (effectively using the minimal ID)
                     else:
-                        id_mappings[cur_id] = id_mappings[connectivity_mapping[succs.startEA]]
+                        id_mappings[cur_id] = id_mappings[connectivity_mapping[succs.start_ea]]
             # Now pick the minimal candidate of each connectivity group
             group_candidate_mapping = {}
             for block in outer_blocks:
-                cur_id = id_mappings[connectivity_mapping[block.startEA]]
+                cur_id = id_mappings[connectivity_mapping[block.start_ea]]
                 if cur_id not in group_candidate_mapping:
-                    group_candidate_mapping[cur_id] = block.startEA
+                    group_candidate_mapping[cur_id] = block.start_ea
                 else:
-                    group_candidate_mapping[cur_id] = min(block.startEA, group_candidate_mapping[cur_id])
+                    group_candidate_mapping[cur_id] = min(block.start_ea, group_candidate_mapping[cur_id])
             # Now fix mis-analysed switch cases
-            original_start = function.startEA
-            original_end = function.endEA
+            original_start = function.start_ea
+            original_end = function.end_ea
             tentative_func_end = original_end
             for cur_id, candidate in group_candidate_mapping.items():
                 seen_candidates[candidate] += 1
@@ -666,18 +668,18 @@ def resolveFunctionChunks(analyzer, scs):
             # check if we had a switch case outside of our function
             if tentative_func_end > original_end:
                 # scan the range and delete each function in it
-                for offset in xrange(tentative_func_end - original_end):
+                for offset in range(tentative_func_end - original_end):
                     try:
                         func = sark.Function(original_end + offset)
-                        if func.endEA != original_end:
-                            idc.del_func(func.startEA)
-                            analyzer.logger.debug("Deleted function at: 0x%x", func.endEA)
+                        if func.end_ea != original_end:
+                            idc.del_func(func.start_ea)
+                            analyzer.logger.debug("Deleted function at: 0x%x", func.end_ea)
                     except sark.exceptions.SarkNoFunction:
                         pass
                 # now re-define the original function
                 analyzer.logger.debug("Re-defined the (switch) function at: 0x%x", original_start)
                 idc.del_func(original_start)
-                idc.MakeFunction(original_start)
+                ida_funcs.add_func(original_start)
                 # can move on to the next function
                 continue
             # Each candidate should be a function on it's own (unless it is already contained in another function)
@@ -694,18 +696,18 @@ def resolveFunctionChunks(analyzer, scs):
                     try:
                         func = sark.Function(candidate)
                         # If our chunk is the legit ending of a given function, don't ruin it
-                        contained_chunk = func.startEA <= candidate and candidate < func.endEA
-                        if func.startEA != original_start and not contained_chunk:
-                            external_func = func.startEA
-                            idc.del_func(func.startEA)
+                        contained_chunk = func.start_ea <= candidate and candidate < func.end_ea
+                        if func.start_ea != original_start and not contained_chunk:
+                            external_func = func.start_ea
+                            idc.del_func(func.start_ea)
                     except sark.exceptions.SarkNoFunction:
                         pass
                 # Should the chunk be a standalone function?
                 if not contained_chunk:
-                    idc.MakeFunction(candidate)
+                    ida_funcs.add_func(candidate)
                 # Restore the original function
-                idc.MakeFunction(original_start)
+                ida_funcs.add_func(original_start)
                 # If needed, restore the external (container) function
                 if external_func is not None:
-                    idc.MakeFunction(external_func)
+                    ida_funcs.add_func(external_func)
                 analyzer.logger.debug("Re-defined the function at: 0x%x, candidate at: 0x%x", original_start, candidate)

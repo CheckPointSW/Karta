@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class OpensshSeeker(Seeker):
     """Seeker (Identifier) for the OpenSSH open source library."""

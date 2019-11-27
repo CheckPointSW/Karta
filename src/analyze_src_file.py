@@ -16,7 +16,7 @@ def analyzeFile():
         setWindowsMode()
     # build the list of exported (non-static) functions
     exported = disas.exports()
-    for segment_idx in xrange(disas.numSegments()):
+    for segment_idx in range(disas.numSegments()):
         if ".text" not in disas.segmentName(segment_idx):
             continue
         for function_ea in disas.segmentFunctions(segment_idx):

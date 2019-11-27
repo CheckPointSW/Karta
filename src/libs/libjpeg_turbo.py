@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class LibJPEGTurboSeeker(Seeker):
     """Seeker (Identifier) for the (optimized) libjpeg open source library."""

@@ -60,20 +60,20 @@ class FileMatcher(FileMatch):
         if not self.located:
             return match_result
         # sanity check
-        src_index_options = filter(lambda x: x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1))
+        src_index_options = list(filter(lambda x: x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1)))
         if self._remain_size != len(src_index_options):
             self._engine.logger.error("File \"%s\" in attemptMatches(): remain_size (%d) != remaining unmatched src functions (%d)",
                                                     self.name, self._remain_size, len(src_index_options))
             raise AssumptionException()
         # check for a full (src + bin) singleton
-        active_bins = filter(lambda ctx: ctx.active(), self._bin_functions_ctx)
+        active_bins = list(filter(lambda ctx: ctx.active(), self._bin_functions_ctx))
         if self._remain_size == 1 and len(active_bins) == 1:
             # we have a singleton - check if it has hints / is it locked
             singleton_ctx = active_bins[0]
             singleton_bin_index = self._bin_functions_ctx.index(singleton_ctx)
             # if used, just match it
             if singleton_ctx.isHinted() or (0 < singleton_bin_index and singleton_bin_index < len(self._bin_functions_ctx) - 1):
-                singleton_index = filter(lambda x: x not in self._engine.function_matches, xrange(self._src_index_start, self._src_index_end + 1))[0]
+                singleton_index = list(filter(lambda x: x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1)))[0]
                 # check for validity first
                 if self._engine.src_functions_ctx[singleton_index].isValidCandidate(singleton_ctx):
                     match_result = self._engine.declareMatch(singleton_index, singleton_ctx.ea, REASON_FILE_SINGLETON) or match_result
@@ -83,7 +83,7 @@ class FileMatcher(FileMatch):
             singleton_bin_index = self._bin_functions_ctx.index(singleton_ctx)
             # indeed locked
             if 0 < singleton_bin_index and singleton_bin_index < len(self._bin_functions_ctx) - 1:
-                singleton_index_options = filter(lambda x: x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1))
+                singleton_index_options = list(filter(lambda x: x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1)))
                 if len(singleton_index_options) > 0:
                     singleton_index = singleton_index_options[0]
                     # try to match it to all remaining source options, and pick the best one
@@ -201,7 +201,7 @@ class FileMatcher(FileMatch):
         if our_str_hint is None:
             return
         # now try to match every hinted source function, with every hinted binary functions
-        for src_index in xrange(self._src_index_start, self._src_index_end + 1):
+        for src_index in range(self._src_index_start, self._src_index_end + 1):
             src_ctx = self._engine.src_functions_ctx[src_index]
             # skip matched / unhinted functions
             if not src_ctx.active() or src_ctx.file_hint is None:
@@ -225,7 +225,7 @@ class FileMatcher(FileMatch):
         if not self.active():
             return
         # scan all of the src functions, in search for an agent
-        for src_index in xrange(self._src_index_start, self._src_index_end + 1):
+        for src_index in range(self._src_index_start, self._src_index_end + 1):
             # skip matched functions
             if src_index in self._engine.function_matches:
                 continue
@@ -251,7 +251,7 @@ class FileMatcher(FileMatch):
                     effective_unique_strings = effective_unique_strings.difference(file_options._unique_strings)
                     effective_unique_consts  = effective_unique_consts.difference(file_options._unique_consts)
                 double_is_string, double_threshold, double_agent_criteria = anchor.isAgent(src_candidate, effective_unique_strings, effective_unique_consts, self._engine.logger)
-                if double_agent_criteria is None or set(agent_criteria).intersection(double_agent_criteria) < double_threshold:
+                if double_agent_criteria is None or len(set(agent_criteria).intersection(double_agent_criteria)) < double_threshold:
                     score_boost = 0
                 else:
                     score_boost = AGENT_BOOST_SCORE
@@ -322,7 +322,7 @@ class FileMatcher(FileMatch):
         if gap_size <= 0:
             return False
         # check all of the options in the source gap
-        for src_index in xrange(src_index_start, src_index_end + 1):
+        for src_index in range(src_index_start, src_index_end + 1):
             # check for a single xref source function
             src_candidate_ctx = self._engine.src_functions_ctx[src_index]
             if len(src_candidate_ctx.xrefs) != 1:

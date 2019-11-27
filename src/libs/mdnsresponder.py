@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class mDNSSeeker(Seeker):
     """Seeker (Identifier) for the mDNSResponder open source library."""

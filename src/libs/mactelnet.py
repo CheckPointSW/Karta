@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class MACTelnetSeeker(Seeker):
     """Seeker (Identifier) for the MAC-Telnet open source library."""

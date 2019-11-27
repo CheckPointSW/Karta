@@ -1,4 +1,4 @@
-from lib_factory import registerLibrary
+from .lib_factory import registerLibrary
 import string
 
 class Seeker(object):

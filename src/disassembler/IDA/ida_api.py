@@ -1,11 +1,14 @@
 import idautils
 import idaapi
 import idc
+import ida_pro
+import ida_search
+import ida_nalt
 import sark
 from config.utils           import *
 from disassembler.disas_api import DisasAPI
 from disassembler.factory   import registerDisassembler
-from ida_analysis_api       import AnalyzerIDA
+from .ida_analysis_api      import AnalyzerIDA
 import logging
 
 class IdaLogHandler(logging.Handler):
@@ -17,7 +20,7 @@ class IdaLogHandler(logging.Handler):
         Args:
             record (LogRecord): a logging.LogRecord instance
         """
-        idc.Message("%s\n" % (super(IdaLogHandler, self).format(record)))
+        idc.msg("%s\n" % (super(IdaLogHandler, self).format(record)))
 
 class MessageBox(idaapi.Form):
     """Wrapper class that represents a GUI MessageBox.
@@ -69,7 +72,7 @@ class ConfigForm(idaapi.Form):
                }
         idaapi.Form.__init__(self, dialog_content, args)
 
-class ChooseForm(idaapi.Choose2):
+class ChooseForm(idaapi.Choose):
     """Choose Form (view) implementation, responsible for showing and handling the matching results.
 
     Note
@@ -96,7 +99,7 @@ class ChooseForm(idaapi.Choose2):
         """
         # Using tuples causes this to crash...
         columns = [['Line', 4], ['File Name', 20], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \\ Information', 35]]
-        idaapi.Choose2.__init__(self, "%s Matching Results" % (libraryName()), columns, idaapi.Choose2.CH_MULTI)
+        idaapi.Choose.__init__(self, "%s Matching Results" % (libraryName()), columns, idaapi.Choose.CH_MULTI)
         self.deflt = 0
         self.icon = -1
         self.selcount = 0
@@ -177,10 +180,10 @@ class ChooseForm(idaapi.Choose2):
             imports = filter(lambda x: self._entries[x][4] in GUI_MATCH_REASONS, self._selected)
         # import all of the matched functions
         elif cmd_id == self._import_matched:
-            imports = filter(lambda x: self._entries[x][4] in GUI_MATCH_REASONS, xrange(len(self.items)))
+            imports = filter(lambda x: self._entries[x][4] in GUI_MATCH_REASONS, range(len(self.items)))
         # check if there is something to be done
         if imports is not None:
-            self._rename_handler(map(lambda x: self._entries[x][2], imports), self._names)
+            self._rename_handler(list(map(lambda x: self._entries[x][2], imports)), self._names)
         # always return true
         return True
 
@@ -193,7 +196,7 @@ class ChooseForm(idaapi.Choose2):
         """
         self._selected = sel_list
 
-class ExternalsChooseForm(idaapi.Choose2):
+class ExternalsChooseForm(idaapi.Choose):
     """Choose Form (view) implementation, responsible for showing and handling the external matching results.
 
     Note
@@ -213,7 +216,7 @@ class ExternalsChooseForm(idaapi.Choose2):
         """
         # Using tuples causes this to crash...
         columns = [['Line', 4], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \\ Information', 35]]
-        idaapi.Choose2.__init__(self, "%s Matched Externals (LibC)" % (libraryName()), columns, idaapi.Choose2.CH_MULTI)
+        idaapi.Choose.__init__(self, "%s Matched Externals (LibC)" % (libraryName()), columns, idaapi.Choose.CH_MULTI)
         self.deflt = 0
         self.icon = -1
         self.selcount = 0
@@ -324,7 +327,7 @@ class IDA(DisasAPI):
         Return Value:
             collection of all of the exported symbols in the program
         """
-        return map(lambda x: self._logic.funcNameInner(x[-1]), idautils.Entries())
+        return list(map(lambda x: self._logic.funcNameInner(x[-1]), idautils.Entries()))
 
     # Overridden base function
     def numSegments(self):
@@ -357,7 +360,7 @@ class IDA(DisasAPI):
         Return Value:
             collection of function addresses
         """
-        return map(lambda x: x.ea, sark.Segment(index=idx).functions)
+        return list(map(lambda x: x.ea, sark.Segment(index=idx).functions))
 
     # Overridden base function
     def inputFile(self):
@@ -366,7 +369,7 @@ class IDA(DisasAPI):
         Return Value:
             Path to the input file
         """
-        return idc.GetInputFile()
+        return ida_nalt.get_root_filename()
 
     # Overridden base function
     def databaseFile(self):
@@ -375,7 +378,7 @@ class IDA(DisasAPI):
         Return Value:
             Path to the database file
         """
-        return idc.GetIdbPath()
+        return idc.get_idb_path()
 
     # Overridden base function
     def renameFunction(self, ea, name):
@@ -385,7 +388,7 @@ class IDA(DisasAPI):
             ea (int): effective address of the wanted function
             name (str): new name for the function
         """
-        idc.MakeName(ea, name.encode("ascii"))
+        idc.set_name(ea, name, idc.SN_CHECK)
 
     # Overridden base function
     def stringAt(self, ea):
@@ -397,10 +400,10 @@ class IDA(DisasAPI):
         Return Value:
             A python string that contains the found string (or None on error)
         """
-        str_type = idc.GetStringType(ea)
+        str_type = idc.get_str_type(ea)
         if str_type is None:
             return None
-        return idc.GetString(ea, -1, str_type)
+        return idc.get_strlit_contents(ea, -1, str_type).decode("utf-8")
 
     # Overridden base function
     def nameAt(self, ea):
@@ -456,7 +459,7 @@ class IDA(DisasAPI):
         Return Value:
             start address (ea) of the given function
         """
-        return func_ctx.startEA
+        return func_ctx.start_ea
 
     # Overridden base function
     def funcEnd(self, func_ctx):
@@ -468,7 +471,7 @@ class IDA(DisasAPI):
         Return Value:
             end address (ea) of the given function
         """
-        return func_ctx.endEA
+        return func_ctx.end_ea
 
     # Overridden base function
     def funcNameEA(self, func_ea):
@@ -504,7 +507,7 @@ class IDA(DisasAPI):
         Return Value:
             start address (ea) of the given basic block
         """
-        return block_ctx.startEA
+        return block_ctx.start_ea
 
     # Overridden base function
     def blockFuncRefs(self, block_ctx):
@@ -516,7 +519,7 @@ class IDA(DisasAPI):
         Return Value:
             (ordered) list of tuples: [<address of function ref (src), referenced address of the function (dest)>, ]
         """
-        return self._logic.analyzeFunctionBlock(block_ctx.startEA)
+        return self._logic.analyzeFunctionBlock(block_ctx.start_ea)
 
     # Overridden base function
     def nextBlocks(self, block_ctx):
@@ -544,7 +547,7 @@ class IDA(DisasAPI):
         """
         search_pos = range_start
         while search_pos < range_end:
-            match_ea, garbage = idc.FindImmediate(search_pos, idc.SEARCH_DOWN, value)
+            match_ea, garbage = ida_search.find_imm(search_pos, idc.SEARCH_DOWN, value)
             search_pos = match_ea + 1
             # Filter out mismatches
             if match_ea == idc.BADADDR:
@@ -579,7 +582,7 @@ class IDA(DisasAPI):
     # Overridden base function
     def exit(self):
         """Exit the disassembler (cleanly)."""
-        idc.Exit(0)
+        ida_pro.qexit(0)
 
     ############################
     ## Analysis Logic - Karta ##

@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class NetSNMPSeeker(Seeker):
     """Seeker (Identifier) for the net-snmp open source library."""

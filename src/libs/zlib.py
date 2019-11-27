@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 from collections  import defaultdict
 
 class ZlibSeeker(Seeker):
@@ -44,7 +44,7 @@ class ZlibSeeker(Seeker):
                 matched_error_strings[str(bin_str)].append(bin_str)
 
         # check if we need the backup
-        if len(self._version_strings) == 0 and len(matched_error_strings.keys()) == len(key_error_strings):
+        if len(self._version_strings) == 0 and len(list(matched_error_strings.keys())) == len(key_error_strings):
             logger.debug("We found the library, however we can't resolve its version :(")
             self._version_strings = [self.VERSION_UNKNOWN]
 

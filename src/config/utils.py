@@ -1,4 +1,4 @@
-from score_config import *
+from .score_config import *
 import json
 import collections
 import os
@@ -7,7 +7,7 @@ import os
 ## Basic Global Configurations ##
 #################################
 
-DISASSEMBLER_PATH = '/opt/ida-7.2/ida'
+DISASSEMBLER_PATH = '/opt/ida-7.4/ida'
 SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
 
 LIBRARY_NAME            = "Karta"
@@ -158,7 +158,7 @@ def functionsToFile(file_name, contexts):
     """
     # Temporary JSON (later will be merged to a single JSON)
     fd = open(file_name + STATE_FILE_SUFFIX, "w")
-    json.dump(map(lambda c: c.serialize(), contexts), fd)
+    json.dump(list(map(lambda c: c.serialize(), contexts)), fd)
     fd.close()
 
 def parseFileStats(file_name, functions_config):
@@ -301,7 +301,7 @@ def getNeighbourScore():
     # start safely
     safe_score = 1 if num_matched >= 10 else 0.5
     # calculate the ratio
-    ratio = (num_neighbours_matched * 1.0 / num_matched) * safe_score
+    ratio = (num_neighbours_matched / num_matched) * safe_score
     if ratio > LOCATION_BOOST_LOW_THRESHOLD:
         ratio = 1
     return LOCATION_BOOST_SCORE * ratio
@@ -369,7 +369,7 @@ def measureBitsEntropy(const):
     if const < 0:
         const += 2 ** NUM_BITS_IN_CONST
     # variance score (embeds inside it the number of bits)
-    return measureBitsVariance(const) * 1.0 / (NUM_BITS_IN_CONST / 2)
+    return measureBitsVariance(const) / (NUM_BITS_IN_CONST / 2)
 
 def rankConst(const, context):
     """Score a given constant, in the context of its function.

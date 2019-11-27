@@ -93,23 +93,25 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
     # We could have 2 iteration rounds here
     while not finished_scan:
         # Prepare & load the stats from each file
-        for index, compiled_ar in enumerate(compiled_ars):
+        for ind, compiled_ar in enumerate(compiled_ars):
             # check if this is a windows archive
             is_windows = isWindows()
-            bin_dir = bin_dirs[index]
+            bin_dir = bin_dirs[ind]
             bin_suffix = "o" if not is_windows else "obj"
             if not ignore_archive:
                 prompter.info("Analyzing each of the files in the archive - %s", compiled_ar)
             else:
                 prompter.info("Analyzing each of the *.%s files in the bin directory" % (bin_suffix))
             prompter.addIndent()
-            archive_files = list(locateFiles(bin_dir, filter(lambda x: x.endswith("." + bin_suffix), getArchiveFiles(compiled_ar)) if not ignore_archive else None, bin_suffix))
+            archive_files = list(locateFiles(bin_dir, list(filter(lambda x: x.endswith("." + bin_suffix), getArchiveFiles(compiled_ar))) if not ignore_archive else None, bin_suffix))
             # check if we need a progress bar
             if len(archive_files) >= PROGRESS_BAR_THRESHOLD and prompter._min_level > logging.DEBUG:
                 progress_bar = ProgressBar('Analyzed %d/%d files - %d%% Completed', len(archive_files), 20, True, time_format="Elapsed %M:%S -")
                 progress_bar.start()
             else:
                 progress_bar = None
+            # it makes more sense to have a sorted list
+            archive_files.sort()
             # start the work itself
             for full_file_path, compiled_file in archive_files:
                 # ida has severe bugs, make sure to warn the user in advance
@@ -162,7 +164,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
 
     # Remove empty files
     prompter.info("Filtering out empty files")
-    for file_name in filter(lambda x: len(src_file_mappings[x]) == 0, src_file_mappings):
+    for file_name in list(filter(lambda x: len(src_file_mappings[x]) == 0, src_file_mappings)):
         src_file_mappings.pop(file_name)
 
     # Create the list of anchors
@@ -213,9 +215,9 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
     file_dict = collections.OrderedDict()
     # find a common file prefix, and remove it form the file path
     if len(src_file_mappings) > 1:
-        base_value = src_file_mappings.keys()[0].split(os.path.sep)
-        comparison_value = src_file_mappings.keys()[-1].split(os.path.sep)
-        for index in xrange(min(len(comparison_value), len(base_value))):
+        base_value = list(src_file_mappings.keys())[0].split(os.path.sep)
+        comparison_value = list(src_file_mappings.keys())[-1].split(os.path.sep)
+        for index in range(min(len(comparison_value), len(base_value))):
             if base_value[index] != comparison_value[index]:
                 break
         common_path_len = len(os.path.sep.join(base_value[:index])) + 1
@@ -223,7 +225,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
         common_path_len = len(bin_dirs[0]) + 1
 
     for src_file_name in src_file_mappings:
-        file_dict[src_file_name[common_path_len:]] = map(lambda c: c.serialize(), src_file_mappings[src_file_name])
+        file_dict[src_file_name[common_path_len:]] = list(map(lambda c: c.serialize(), src_file_mappings[src_file_name]))
     full_json[JSON_TAG_FILES] = file_dict
 
     # actually dump it
@@ -270,7 +272,7 @@ def main(args):
     if using_archives:
         if len(couples) % 2 != 0:
             parser.error("Odd length in list of dir,archive couples, should be: [(directory, archive name), ...]")
-        for i in xrange(0, len(couples), 2):
+        for i in range(0, len(couples), 2):
             bin_dirs.append(couples[i])
             archive_paths.append(couples[i + 1])
     else:

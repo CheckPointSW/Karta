@@ -211,7 +211,7 @@ class KartaMatcher(MatchEngine):
                 if len(func_indices[call]) == 1:
                     call_src_ctx = self.src_functions_ctx[func_indices[call][0]]
                 else:
-                    candidates = filter(lambda idx: self.src_functions_ctx[idx].file == src_func_ctx.file, func_indices[call])
+                    candidates = list(filter(lambda idx: self.src_functions_ctx[idx].file == src_func_ctx.file, func_indices[call]))
                     # duplicate symbol in *other* files, we won't know what to pick up :(
                     if len(candidates) == 0:
                         self.logger.error("Found duplicate implementations of function \"%s\" in files: %s, can't pick one to use :(",
@@ -320,10 +320,10 @@ class KartaMatcher(MatchEngine):
         """
         # How many functions we've matched?
         num_src_functions  = len(self._src_functions_list) - len(self._src_unused_functions)
-        num_act_functions  = num_src_functions - len(filter(lambda x: x.active() and (not x.used()), self.src_functions_ctx))
+        num_act_functions  = num_src_functions - len(list(filter(lambda x: x.active() and (not x.used()), self.src_functions_ctx)))
         num_ext_functions  = len(self._src_external_functions) - len(self._ext_unused_functions)
         self.logger.info("Matched Functions: %d/%d(/%d) (%d/%d)",
-                                len(self.function_matches), num_src_functions, num_act_functions, len(filter(lambda x: x.matched(), self._src_external_functions.values())), num_ext_functions)
+                                len(self.function_matches), num_src_functions, num_act_functions, len(list(filter(lambda x: x.matched(), self._src_external_functions.values()))), num_ext_functions)
         num_files = 0
         num_ref_files = 0
         located_files = 0
@@ -335,7 +335,7 @@ class KartaMatcher(MatchEngine):
             filled_files  += (1 if match_file.matched() else 0)
             reffed_file = False
             missed_ref_func = False
-            for src_index in xrange(match_file._src_index_start, match_file._src_index_end + 1):
+            for src_index in range(match_file._src_index_start, match_file._src_index_end + 1):
                 src_ctx = self.src_functions_ctx[src_index]
                 if src_ctx.used():
                     reffed_file = True
@@ -352,7 +352,7 @@ class KartaMatcher(MatchEngine):
                                 match_file.name, match_file._remain_size, len(match_file._locked_eas), len(match_file._lower_locked_eas), len(match_file._upper_locked_eas))
             self.logger.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             self.logger.info("Src map:")
-            for src_index in xrange(match_file._src_index_start, match_file._src_index_end + 1):
+            for src_index in range(match_file._src_index_start, match_file._src_index_end + 1):
                 candidate_string = ', '.join(map(lambda x: "0x%x" % x.ea, self.src_functions_ctx[src_index].followers))
                 if src_index in self._src_anchor_list:
                     self.logger.info("%03d: * (0x%x) - %s",
@@ -451,8 +451,8 @@ class KartaMatcher(MatchEngine):
                 recordNeighbourMatch(is_neighbour=(self.src_functions_ctx[src_neighbour].match.index + (1 if lower else -1)) == bin_ctx.index)
 
         # function calls
-        bin_calls = filter(lambda x: x.active(), bin_ctx.calls)
-        src_calls = filter(lambda x: x.active(), src_ctx.calls)
+        bin_calls = list(filter(lambda x: x.active(), bin_ctx.calls))
+        src_calls = list(filter(lambda x: x.active(), src_ctx.calls))
         if len(bin_calls) > 0 and len(src_calls) > 0:
             # can only continue if this condition does NOT apply because it will cause duplicate "single call" matches
             if not (len(bin_calls) > 1 and len(src_calls) == 1):
@@ -460,20 +460,20 @@ class KartaMatcher(MatchEngine):
                 for call_bin_ctx in bin_calls:
                     call_bin_ctx.addHints(src_calls, True)
             for call_src_ctx in src_calls:
-                self._changed_functions[call_src_ctx.index].update(filter(lambda x: call_src_ctx.isValidCandidate(x), bin_calls))
+                self._changed_functions[call_src_ctx.index].update(list(filter(lambda x: call_src_ctx.isValidCandidate(x), bin_calls)))
         # function xrefs
-        bin_xrefs = filter(lambda x: x.active(), bin_ctx.xrefs)
-        src_xrefs = filter(lambda x: x.active(), src_ctx.xrefs)
+        bin_xrefs = list(filter(lambda x: x.active(), bin_ctx.xrefs))
+        src_xrefs = list(filter(lambda x: x.active(), src_ctx.xrefs))
         if len(bin_xrefs) > 0 and len(src_xrefs) > 0:
             # can only continue if this condition does NOT apply because it will cause duplicate "single call" matches
             if not (len(bin_xrefs) > 1 and len(src_xrefs) == 1):
                 for xref_bin_ctx in bin_xrefs:
                     xref_bin_ctx.addHints(src_xrefs, False)
             for xref_src_ctx in src_xrefs:
-                self._changed_functions[xref_src_ctx.index].update(filter(lambda x: xref_src_ctx.isValidCandidate(x), bin_xrefs))
+                self._changed_functions[xref_src_ctx.index].update(list(filter(lambda x: xref_src_ctx.isValidCandidate(x), bin_xrefs)))
         # external functions
-        bin_exts = filter(lambda ea: ea not in self._bin_matched_ea, bin_ctx.externals)
-        src_exts = filter(lambda x: x.active(), src_ctx.externals)
+        bin_exts = list(filter(lambda ea: ea not in self._bin_matched_ea, bin_ctx.externals))
+        src_exts = list(filter(lambda x: x.active(), src_ctx.externals))
         if len(bin_exts) > 0 and len(src_exts) > 0:
             self._call_hints_records.append((src_exts, bin_exts, src_ctx, bin_ctx, True))
             # can't continue because it will cause duplicate matches for the same binary
@@ -558,13 +558,13 @@ class KartaMatcher(MatchEngine):
             for src_candidate in matching_couples:
                 bin_candidate = matching_couples[src_candidate]
                 # Check the followers hints
-                if len(filter(lambda x: x not in matching_bin_candidates, src_candidate.followers)) > 0:
+                if len(list(filter(lambda x: x not in matching_bin_candidates, src_candidate.followers))) > 0:
                     continue
                 # Check the xrefs hints
-                if len(filter(lambda x: x not in matching_src_candidates, bin_candidate.xref_hints)) > 0:
+                if len(list(filter(lambda x: x not in matching_src_candidates, bin_candidate.xref_hints))) > 0:
                     continue
                 # Check the call hints (if have any)
-                if bin_candidate.call_hints is not None and len(filter(lambda x: x not in matching_src_candidates, bin_candidate.call_hints)) > 0:
+                if bin_candidate.call_hints is not None and len(list(filter(lambda x: x not in matching_src_candidates, bin_candidate.call_hints))) > 0:
                     continue
                 # We found a match couple
                 self.logger.debug("Matching in a round match using the last matching step")
@@ -949,11 +949,11 @@ class KartaMatcher(MatchEngine):
                     for src_calls, bin_calls, src_parent, bin_parent, is_ext in self._call_hints_records:
                         # start with a filter
                         if is_ext:
-                            src_calls = filter(lambda x: self._src_external_functions[x.name].active() and self._src_external_functions[x.name].used(), src_calls)
-                            bin_calls = filter(lambda ea: ea not in self._bin_matched_ea, bin_calls)
+                            src_calls = list(filter(lambda x: self._src_external_functions[x.name].active() and self._src_external_functions[x.name].used(), src_calls))
+                            bin_calls = list(filter(lambda ea: ea not in self._bin_matched_ea, bin_calls))
                         else:
-                            src_calls = filter(lambda x: x.active() and x in src_parent.call_order, src_calls)
-                            bin_calls = filter(lambda x: x.active() and x in bin_parent.call_order, bin_calls)
+                            src_calls = list(filter(lambda x: x.active() and x in src_parent.call_order, src_calls))
+                            bin_calls = list(filter(lambda x: x.active() and x in bin_parent.call_order, bin_calls))
                         if len(src_calls) > 0 and len(bin_calls) > 0:
                             new_call_hints_records.append((src_calls, bin_calls, src_parent, bin_parent, is_ext))
                         # now continue to the actual logic
@@ -978,7 +978,7 @@ class KartaMatcher(MatchEngine):
                         agreed_order_index = -1
                         order_intersection = set(order_bins.keys()).intersection(set(order_srcs.keys()))
                         if len(order_intersection) > 0:
-                            for order in xrange(max(order_intersection) + 1):
+                            for order in range(max(order_intersection) + 1):
                                 if order not in order_srcs and order not in order_bins:
                                     continue
                                 if order not in order_srcs or order not in order_bins:
@@ -1050,8 +1050,8 @@ class KartaMatcher(MatchEngine):
             return
 
         # check if we actually finished
-        success_finish = len(filter(lambda x: x.active(), self._match_files)) == 0
-        success_finish = success_finish and len(filter(lambda x: x.active(), self._src_external_functions)) == 0
+        success_finish = len(list(filter(lambda x: x.active(), self._match_files))) == 0
+        success_finish = success_finish and len(list(filter(lambda x: x.active(), self._src_external_functions))) == 0
         if not success_finish:
             # If matched nothing, debug and exit
             self.logger.warning("Completed a full scan without any improvement")
@@ -1070,12 +1070,12 @@ class KartaMatcher(MatchEngine):
             (list of source contexts - according to the wanted GUI presentation order, list of similar external contexts)
         """
         # Start with perfect files (sorted by name)
-        perfect_files = filter(lambda x: x.matched(), self._match_files)
+        perfect_files = list(filter(lambda x: x.matched(), self._match_files))
         perfect_files.sort(key=lambda x: x.name)
 
         # Now sort the rest according to the number of unmatched "used" source functions
-        non_perfect_files = filter(lambda x: x.located and not x.matched(), self._match_files)
-        non_perfect_files.sort(key=lambda x: len(filter(lambda c: c.used() and not c.matched(), self.src_functions_ctx[x._src_index_start:x._src_index_end + 1])))
+        non_perfect_files = list(filter(lambda x: x.located and not x.matched(), self._match_files))
+        non_perfect_files.sort(key=lambda x: len(list(filter(lambda c: c.used() and not c.matched(), self.src_functions_ctx[x._src_index_start:x._src_index_end + 1]))))
 
         # now extract the functions, according to their order
         entries = []
@@ -1083,7 +1083,7 @@ class KartaMatcher(MatchEngine):
             entries += self.src_functions_ctx[match_file._src_index_start:match_file._src_index_end + 1]
 
         # now the external functions
-        external_entries = filter(lambda x: x.matched(), map(lambda x: self._src_external_functions[x], self._src_external_functions))
+        external_entries = list(filter(lambda x: x.matched(), map(lambda x: self._src_external_functions[x], self._src_external_functions)))
 
         return entries, external_entries
 
@@ -1100,8 +1100,8 @@ class KartaMatcher(MatchEngine):
 
         # 1. check which (matched) functions share the same name
         matched_src_ctxs = filter(lambda x: x.matched(), self.src_functions_ctx)
-        all_match_name = map(lambda x: x.name, matched_src_ctxs)
-        duplicate_match_names = filter(lambda x: all_match_name.count(x) > 1, all_match_name)
+        all_match_name = list(map(lambda x: x.name, matched_src_ctxs))
+        duplicate_match_names = list(filter(lambda x: all_match_name.count(x) > 1, all_match_name))
 
         # 2. Now rename them if necessary
         for src_ctx in filter(lambda x: x.name in duplicate_match_names, matched_src_ctxs):

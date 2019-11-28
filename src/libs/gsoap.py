@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class gSOAPSeeker(Seeker):
     """Seeker (Identifier) for the gSOAP open source library."""

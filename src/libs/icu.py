@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 import string
 
 class icuSeeker(Seeker):

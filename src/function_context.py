@@ -171,7 +171,7 @@ class ComparableContext(object):
         score = 0
         # start with a bonus score in case the string is contained in the source function's name
         try:
-            score += STRING_NAME_SCORE * len(filter(lambda s: s in src_ctx.name, bin_ctx.strings))
+            score += STRING_NAME_SCORE * len(list(filter(lambda s: s in src_ctx.name, bin_ctx.strings)))
         except UnicodeDecodeError:
             pass
         # now actually match the strings (intersection and symmetric difference)
@@ -201,12 +201,12 @@ class ComparableContext(object):
         """
         score = -1 * abs(len(src_ctx.calls) - len(bin_ctx.calls)) * CALL_COUNT_SCORE
         # penalty for missing matched calls
-        src_matched = filter(lambda x: x.matched(), src_ctx.calls)
-        bin_matched = filter(lambda x: x.matched(), bin_ctx.calls)
+        src_matched = list(filter(lambda x: x.matched(), src_ctx.calls))
+        bin_matched = list(filter(lambda x: x.matched(), bin_ctx.calls))
         mismatching  = []
-        mismatching += filter(lambda x: x.match not in bin_ctx.calls, src_matched)
-        mismatching += filter(lambda x: x.match not in src_ctx.calls, bin_matched)
-        matching = filter(lambda x: x.match in bin_ctx.calls, src_matched)
+        mismatching += list(filter(lambda x: x.match not in bin_ctx.calls, src_matched))
+        mismatching += list(filter(lambda x: x.match not in src_ctx.calls, bin_matched))
+        matching = list(filter(lambda x: x.match in bin_ctx.calls, src_matched))
         # the penalty is halved because we the list will most probably contain duplicates
         score -= CALL_COUNT_SCORE * len(mismatching) * 1.0 / 2
         score += MATCHED_CALL_SCORE * len(matching)
@@ -630,7 +630,7 @@ class SourceContext(SrcFileFunction, FunctionContext):
         code_blocks_score = 0
         for index, block in enumerate(self.blocks):
             code_blocks_score -= abs(self.blocks[index] - ((bin_ctx.blocks[index] * instr_ratio) if index < len(bin_ctx.blocks) else 0)) * BLOCK_MATCH_SCORE
-        for j in xrange(index + 1, len(bin_ctx.blocks)):
+        for j in range(index + 1, len(bin_ctx.blocks)):
             code_blocks_score -= bin_ctx.blocks[j] * BLOCK_MISMATCH_SCORE * instr_ratio
         # check for a probable match
         if abs(code_blocks_score) <= INSTR_COUNT_THRESHOLD * INSTR_COUNT_SCORE:
@@ -641,7 +641,7 @@ class SourceContext(SrcFileFunction, FunctionContext):
         call_hints_score = 0
         merged_hints = 0
         if bin_ctx.call_hints is not None and len(bin_ctx.call_hints) > 0 and self in bin_ctx.call_hints:
-            merged_hints = len(filter(lambda x: x.hash == self.hash, bin_ctx.call_hints))
+            merged_hints = len(list(filter(lambda x: x.hash == self.hash, bin_ctx.call_hints)))
             # prioritize merged hints
             call_hints_score += FUNC_HINT_SCORE * 1.0 * (merged_hints ** 1.5) / len(bin_ctx.call_hints)
         logger.debug("Call hints score: %f", call_hints_score)
@@ -710,14 +710,14 @@ class SourceContext(SrcFileFunction, FunctionContext):
         """
         context = SourceContext(serialized_ctx['Function Name'], source_index)
         # Numeric Consts
-        map(lambda x: context.recordConst(x), serialized_ctx['Numeric Consts'])
+        list(map(lambda x: context.recordConst(int(x)), serialized_ctx['Numeric Consts']))
         # Strings
-        map(lambda x: context.recordString(x), serialized_ctx['Strings'])
+        list(map(lambda x: context.recordString(x), serialized_ctx['Strings']))
         # Function Calls
-        map(lambda x: context.recordCall(x), serialized_ctx['Calls'])
+        list(map(lambda x: context.recordCall(x), serialized_ctx['Calls']))
         # Unknowns
-        map(lambda x: context.recordUnknown(x, False), serialized_ctx['Unknown Functions'])
-        map(lambda x: context.recordUnknown(x, True), serialized_ctx['Unknown Globals'])
+        list(map(lambda x: context.recordUnknown(x, False), serialized_ctx['Unknown Functions']))
+        list(map(lambda x: context.recordUnknown(x, True), serialized_ctx['Unknown Globals']))
         # Hash
         context.setHash(serialized_ctx['Hash'])
         # Frame size
@@ -725,7 +725,7 @@ class SourceContext(SrcFileFunction, FunctionContext):
         # Function size
         context.setInstrCount(serialized_ctx['Instruction Count'])
         # Function Blocks
-        map(lambda x: context.recordBlock(x), serialized_ctx['Code Block Sizes'])
+        list(map(lambda x: context.recordBlock(x), serialized_ctx['Code Block Sizes']))
         # Call order
         context.setCallOrder(serialized_ctx['Call Order'])
         # Is static
@@ -873,7 +873,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
         Return value:
             True iff this is a merged function with growth potential
         """
-        return self.matched() and (not self.match.isPartial()) and len(filter(lambda x: not x.matched(), self.match.collision_candidates)) > 0
+        return self.matched() and (not self.match.isPartial()) and len(list(filter(lambda x: not x.matched(), self.match.collision_candidates))) > 0
 
     def isHinted(self):
         """Check if our function was hinted at sometimes - meaning we should suspect it is a valid function.
@@ -890,7 +890,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
             hint (collection): a collection of (source) function potential matches (containing FunctionContext instances)
             is_call (bool): True iff call hints, otherwise xref hints
         """
-        new_hints = filter(lambda x: x.isValidCandidate(self), hints)
+        new_hints = list(filter(lambda x: x.isValidCandidate(self), hints))
 
         # Saw a collision candidate, after was already matched to one of his friends
         if self.matched():
@@ -909,19 +909,19 @@ class BinaryContext(BinFileFunction, FunctionContext):
                     hint.addFollower(self)
             else:
                 # linker optimizations edge case
-                new_hashes = map(lambda x: x.hash, new_hints)
-                cur_hashes = map(lambda x: x.hash, self.call_hints)
+                new_hashes = list(map(lambda x: x.hash, new_hints))
+                cur_hashes = set(map(lambda x: x.hash, self.call_hints))
                 for dropped in filter(lambda x: x.hash not in new_hashes, self.call_hints):
                     dropped.removeFollower(self)
                 # check for a possibile collision option
                 context_intersection = self.call_hints.intersection(new_hints)
                 context_union        = self.call_hints.union(new_hints)
-                hashes_intersection  = set(cur_hashes).intersection(new_hashes)
-                remaining_hashes     = map(lambda x: x.hash, context_intersection)
+                hashes_intersection  = cur_hashes.intersection(new_hashes)
+                remaining_hashes     = list(map(lambda x: x.hash, context_intersection))
                 if len(hashes_intersection) > len(remaining_hashes):
                     collision_candidates = []
                     for collision_hash in set(hashes_intersection).difference(remaining_hashes):
-                        cur_collision_candidates = filter(lambda x: x.hash == collision_hash, context_union)
+                        cur_collision_candidates = list(filter(lambda x: x.hash == collision_hash, context_union))
                         self.collision_map[collision_hash].update(cur_collision_candidates)
                         collision_candidates += cur_collision_candidates
                     self.call_hints = context_intersection.union(collision_candidates)

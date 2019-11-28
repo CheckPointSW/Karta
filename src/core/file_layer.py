@@ -284,7 +284,7 @@ class FileMatch(object):
 
     def checkFinished(self):
         """Check if we finished matching the binary functions, and handles the cleanups needed."""
-        if len(filter(lambda ctx: not ctx.matched(), self._bin_functions_ctx)) == 0:
+        if len(list(filter(lambda ctx: not ctx.matched(), self._bin_functions_ctx))) == 0:
             unused_funcs = set(range(self._src_index_start, self._src_index_end + 1)).difference(self._engine.matchedSrcIndices())
             if len(unused_funcs) > 0:
                 self.disableSources(unused_funcs)
@@ -348,7 +348,7 @@ class FileMatch(object):
                 self._bin_functions_ctx = self._bin_functions_ctx[bin_index + 1:]
                 self._lower_leftovers -= len(removed_funcs)
             # Now update all of the relevant functions that they are expelled from our file
-            map(lambda x: x.expel(self), removed_funcs)
+            list(map(lambda x: x.expel(self), removed_funcs))
             # check if we matched all of our binaries
             self.checkFinished()
 
@@ -432,11 +432,11 @@ class FileMatch(object):
             self.located = True
             self._remain_size = self._src_index_end - self._src_index_start + 1 + self._disabled
             # now adjust the leftovers (and bin functions) according to (potential) prior matches
-            for lower_leftovers in xrange(1, self._lower_leftovers):
+            for lower_leftovers in range(1, self._lower_leftovers):
                 if self._engine.binMatched(self._bin_functions_ctx[bin_index - lower_leftovers].ea):
                     self._lower_leftovers = lower_leftovers - 1
                     break
-            for upper_leftovers in xrange(1, self._upper_leftovers):
+            for upper_leftovers in range(1, self._upper_leftovers):
                 if self._engine.binMatched(self._bin_functions_ctx[bin_index + upper_leftovers].ea):
                     self._upper_leftovers = upper_leftovers - 1
                     break
@@ -449,13 +449,13 @@ class FileMatch(object):
         # case #1
         elif bin_index < lower_match_index:
             self._lower_leftovers -= lower_match_index - bin_index
-            self._lower_locked_eas.update(map(lambda ctx: ctx.ea, self._bin_functions_ctx[bin_index + 1:lower_match_index]))
+            self._lower_locked_eas.update(list(map(lambda ctx: ctx.ea, self._bin_functions_ctx[bin_index + 1:lower_match_index])))
             link_files.update(self._bin_functions_ctx[bin_index:lower_match_index])
             self._lower_match_ctx = bin_ctx
         # case #2
         elif bin_index > upper_match_index:
             self._upper_leftovers -= bin_index - upper_match_index
-            self._upper_locked_eas.update(map(lambda ctx: ctx.ea, self._bin_functions_ctx[upper_match_index + 1:bin_index]))
+            self._upper_locked_eas.update(list(map(lambda ctx: ctx.ea, self._bin_functions_ctx[upper_match_index + 1:bin_index])))
             link_files.update(self._bin_functions_ctx[upper_match_index + 1:bin_index + 1])
             self._upper_match_ctx = bin_ctx
         # case #3

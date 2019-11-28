@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class libvpxSeeker(Seeker):
     """Seeker (Identifier) for the libvpx (codec) open source library."""

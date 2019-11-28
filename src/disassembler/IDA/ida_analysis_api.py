@@ -66,7 +66,7 @@ class AnalyzerIDA(object):
         """
         function_calls = []
         try:
-            func_start = sark.Function(block_ea).startEA
+            func_start = sark.Function(block_ea).start_ea
             block_lines = sark.CodeBlock(block_ea).lines
         except Exception:
             return function_calls
@@ -82,20 +82,20 @@ class AnalyzerIDA(object):
                     continue
                 # Check for an fptr
                 try:
-                    call_candidates.add(sark.Function(ref).startEA)
+                    call_candidates.add(sark.Function(ref).start_ea)
                 except sark.exceptions.SarkNoFunction:
                     continue
             # Check for a function call
             for cref in line.crefs_from:
                 try:
-                    if (cref == func_start and line.insn.is_call) or sark.Function(cref).startEA != func_start:
-                        call_candidates.add(sark.Function(cref).startEA)
+                    if (cref == func_start and line.insn.is_call) or sark.Function(cref).start_ea != func_start:
+                        call_candidates.add(sark.Function(cref).start_ea)
                 except sark.exceptions.SarkNoFunction:
                     continue
             # handle each ref
             for ref in call_candidates:
                 # record the call
-                function_calls.append((instr_pos, sark.Function(ref).startEA))
+                function_calls.append((instr_pos, sark.Function(ref).start_ea))
         # return the result
         return function_calls
 
@@ -115,7 +115,7 @@ class AnalyzerIDA(object):
         else:
             context = binaryContext()(func_ea, self.funcNameInner(func.name), 0)  # The index will be adjusted later, manually
 
-        func_start = func.startEA
+        func_start = func.start_ea
         instr_count = 0
         call_candidates = set()
         code_hash = md5()
@@ -150,7 +150,7 @@ class AnalyzerIDA(object):
                     call_candidates.add(called_func_start)
             # in binary mode don't let the call_candidates expand too much
             if not src_mode:
-                map(lambda x: context.recordCall(x), call_candidates)
+                list(map(lambda x: context.recordCall(x), call_candidates))
                 call_candidates = set()
             # hash the instruction (only in source mode)
             else:
@@ -171,7 +171,7 @@ class AnalyzerIDA(object):
                             break
                 # case #2
                 if has_fixups:
-                    code_hash.update(line.disasm)
+                    code_hash.update(line.disasm.encode("utf-8"))
                 # case #1
                 else:
                     code_hash.update(line.bytes)
@@ -202,7 +202,7 @@ class AnalyzerIDA(object):
         flow = idaapi.FlowChart(func.func_t)
         for block in flow:
             try:
-                context.recordBlock(len(list(sark.CodeBlock(block.startEA).lines)))
+                context.recordBlock(len(list(sark.CodeBlock(block.start_ea).lines)))
             except Exception:
                 # happens with code outside of a function
                 continue
@@ -228,14 +228,14 @@ class AnalyzerIDA(object):
         func = sark.Function(func_ea)
         flow = idaapi.FlowChart(func.func_t)
         for block in flow:
-            if range_start <= block.startEA and block.endEA <= range_end:
-                if island_guess is None or block.startEA < island_guess.startEA:
+            if range_start <= block.start_ea and block.end_ea <= range_end:
+                if island_guess is None or block.start_ea < island_guess.start_ea:
                     island_guess = block
         # quit if found nothing
         if island_guess is None:
             return None
         # make sure that the island is indeed an island, and not a well known function
-        if sark.Function(island_guess.startEA).startEA == island_guess.startEA:
+        if sark.Function(island_guess.start_ea).start_ea == island_guess.start_ea:
             return None
         # find the contained flow, that island_guess is the start of
         island_blocks = []
@@ -246,7 +246,7 @@ class AnalyzerIDA(object):
                 if candidate_block in island_blocks:
                     continue
                 island_blocks.append(candidate_block)
-                new_candidate_list += filter(lambda succs: range_start <= succs.startEA and succs.endEA <= range_end, candidate_block.succs())
+                new_candidate_list += list(filter(lambda succs: range_start <= succs.start_ea and succs.end_ea <= range_end, candidate_block.succs()))
             candidate_list = new_candidate_list
         # return the results
         return island_blocks
@@ -260,12 +260,12 @@ class AnalyzerIDA(object):
         Return Value:
             IslandContext object representing the analyzed island
         """
-        island_start = blocks[0].startEA
+        island_start = blocks[0].start_ea
         func = sark.Function(island_start)
-        func_start = func.startEA
+        func_start = func.start_ea
         context = islandContext()(self.funcNameInner(func.name), island_start)
         for block in blocks:
-            for line in sark.CodeBlock(block.startEA).lines:
+            for line in sark.CodeBlock(block.start_ea).lines:
                 # Numeric Constants
                 data_refs = list(line.drefs_from)
                 for oper in filter(lambda x: x.type.is_imm, line.insn.operands):

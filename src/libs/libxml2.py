@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class Libxml2Seeker(Seeker):
     """Seeker (Identifier) for the libxml(2) open source library."""

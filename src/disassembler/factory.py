@@ -46,7 +46,7 @@ def createDisassemblerHandler(logger):
         try:
             handler = disassembler_factory[disas_name]
             if logger is not None and len(logger.handlers) > 0:
-                logger.debug("Chose the %s handler" % (disas_name))
+                logger.debug("Chose the %s handler", disas_name)
             return handler()
         except Exception:
             continue
@@ -67,7 +67,7 @@ def identifyDisassemblerHandler(program_path, logger):
     for identifier, init in disassembler_cmd_factory:
         if identifier(program_path):
             disas = init(program_path)
-            logger.debug("Chose the %s handler" % (disas.name()))
+            logger.debug("Chose the %s handler", disas.name())
             return disas
 
     logger.error("Failed to create a disassembler handler!")

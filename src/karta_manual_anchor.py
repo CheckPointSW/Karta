@@ -59,7 +59,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
             # check uniqueness
             if src_functions_list.count(function_name) > 1:
                 file_name = prompter.input("File Name (case sensitive): ")
-                src_indices = filter(lambda x: src_functions_ctx[x].file == file_name, func_indices[function_name])
+                src_indices = list(filter(lambda x: src_functions_ctx[x].file == file_name, func_indices[function_name]))
                 if len(src_indices) == 0:
                     prompter.error("Function \"%s\" does not exist in file \"%s\"", file_name)
                     parsed_correctly = False

@@ -64,7 +64,7 @@ class MatchEngine(object):
         Return Value:
             list of source indices for matched functions
         """
-        return self.function_matches.keys()
+        return list(self.function_matches.keys())
 
     def floatingBinFunctions(self):
         """Return an ordered list of all scoped (floating) binary contexts.
@@ -269,15 +269,15 @@ class MatchEngine(object):
                     for candidate_set in candidate_sets:
                         for candidate in candidate_set:
                             candidate_attempt[candidate] += 1
-                    candidates = filter(lambda x: candidate_attempt[x] >= threshold, candidate_attempt.keys())
-                    future_candidates = filter(lambda x: candidate_attempt[x] >= threshold - (len(anchor_clues) - (clue_idx + 1)), candidate_attempt.keys())
+                    candidates = list(filter(lambda x: candidate_attempt[x] >= threshold, candidate_attempt.keys()))
+                    future_candidates = list(filter(lambda x: candidate_attempt[x] >= threshold - (len(anchor_clues) - (clue_idx + 1)), candidate_attempt.keys()))
                     # stop condition
                     if len(candidates) == 1 and len(future_candidates) == 0:
                         break
 
             # check if needs to decide between multiple options
             if candidates is not None and len(candidates) > 1:
-                sorted_candidates = candidate_attempt.keys()
+                sorted_candidates = list(candidate_attempt.keys())
                 sorted_candidates.sort(key=lambda x: candidate_attempt[x], reverse=True)
                 # if we have an absolute winner, than pick it (safe to access both cells because len() > 1)
                 if candidate_attempt[sorted_candidates[0]] > candidate_attempt[sorted_candidates[1]]:
@@ -406,7 +406,7 @@ class MatchEngine(object):
                 # check if the manual definitions already defined this one
                 if src_anchor_index in self._matched_anchors_ea:
                     continue
-                filterred_candidates = filter(lambda x: lower_match_ea <= x and x <= upper_match_ea, candidates)
+                filterred_candidates = list(filter(lambda x: lower_match_ea <= x and x <= upper_match_ea, candidates))
                 # matched
                 if len(filterred_candidates) == 1:
                     bin_ea = filterred_candidates.pop()
@@ -453,8 +453,8 @@ class MatchEngine(object):
             started = False
 
         # remove empty files (wierd edge case)
-        self._src_file_names = filter(lambda x: len(self._src_file_mappings[x]) != 0, self._src_file_mappings.keys())
-        removed_names  = filter(lambda x: len(self._src_file_mappings[x]) == 0, self._src_file_mappings.keys())
+        self._src_file_names = list(filter(lambda x: len(self._src_file_mappings[x]) != 0, self._src_file_mappings.keys()))
+        removed_names  = list(filter(lambda x: len(self._src_file_mappings[x]) == 0, self._src_file_mappings.keys()))
         for name in removed_names:
             self._src_file_mappings.pop(name)
 
@@ -509,17 +509,17 @@ class MatchEngine(object):
         # create rough lower bounds to all files
         additional_lower_bounds = []
         prev_hard_limit = -1
-        for file_index in xrange(first_anchor_index, last_anchor_index + 1):
+        for file_index in range(first_anchor_index, last_anchor_index + 1):
             additional_lower_bounds = additional_lower_bounds + [prev_hard_limit]
             prev_hard_limit = file_max_bound[file_index] - file_upper_gap[file_index] + 1
         # create the same kind of upper bounds to all files, going from top to bottom
         additional_upper_bounds = []
         prev_hard_limit = len(all_bin_functions)
-        for file_index in xrange(last_anchor_index, first_anchor_index - 1, -1):
+        for file_index in range(last_anchor_index, first_anchor_index - 1, -1):
             additional_upper_bounds = [prev_hard_limit] + additional_upper_bounds
             prev_hard_limit = file_min_bound[file_index] + file_lower_gap[file_index] - 1
         # Now preform the full scan again, with all of the information we gathered in previous phases
-        for file_index in xrange(first_anchor_index, last_anchor_index + 1):
+        for file_index in range(first_anchor_index, last_anchor_index + 1):
             next_checks = file_index + 1 < last_anchor_index + 1
             # if we reached the anchor above us, we need to shrink
             if next_checks and file_max_bound[file_index] >= file_min_bound[file_index + 1] + file_lower_gap[file_index + 1]:
@@ -571,7 +571,7 @@ class MatchEngine(object):
                 if len(file_to_anchor_mapping[file_name]) == 0:
                     # a "floating" file that will hold the entire binary functions as possible candidates
                     if self._floating_bin_functions is None:
-                        self._floating_bin_functions = map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[bin_start_index:bin_end_index + 1])
+                        self._floating_bin_functions = list(map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[bin_start_index:bin_end_index + 1]))
                     file_match = file_class(file_name, src_start_index, src_end_index, None, bin_start_index, bin_end_index, remain_source_funcs, self)
                     self._floating_files.append(file_match)
                 else:
@@ -584,7 +584,7 @@ class MatchEngine(object):
                                                         file_name, all_bin_functions[local_bin_start_index])
                         raise KartaException
                     # scoped binary functions
-                    local_bins_ctx = map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[local_bin_start_index:local_bin_end_index + 1])
+                    local_bins_ctx = list(map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[local_bin_start_index:local_bin_end_index + 1]))
                     file_match = file_class(file_name, src_start_index, src_end_index, local_bins_ctx, local_bin_start_index, local_bin_end_index, src_end_index - src_start_index + 1, self)
                 # add this file instance to the list
                 self._match_files.append(file_match)

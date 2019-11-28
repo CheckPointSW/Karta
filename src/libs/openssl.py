@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 import string
 
 class OpenSSLSeeker(Seeker):
@@ -31,7 +31,7 @@ class OpenSSLSeeker(Seeker):
             if key_string in str(bin_str):
                 copyright_string = str(bin_str)
                 # check for a supporting key word id
-                if len(filter(lambda id: id in copyright_string, ids)) == 0:
+                if len(list(filter(lambda id: id in copyright_string, ids))) == 0:
                     # false match
                     continue
                 # check for a duplicate inside the same library

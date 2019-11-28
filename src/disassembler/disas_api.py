@@ -347,7 +347,7 @@ class DisasAPI(object):
                 ref_to_call[instr_pos] = self.funcNameEA(call_ea) if src_mode else call_ea
 
         # 2nd scan, start from each reference, and propagate till the end - O(kN), E(N) time, O(N) storage
-        sorted_refs = ref_to_block.keys()
+        sorted_refs = list(ref_to_block.keys())
         sorted_refs.sort()
         for ref in sorted_refs:
             start_block = ref_to_block[ref]
@@ -364,7 +364,7 @@ class DisasAPI(object):
             # build a list of BFS nodes
             search_list = map(lambda x: (x, set(working_set)), self.nextBlocks(start_block))
             # Sanity hook around analysis problem in r2 - TODO: remove in the future
-            search_list = filter(lambda x: self.blockStart(x[0]) in block_to_reach, search_list)
+            search_list = list(filter(lambda x: self.blockStart(x[0]) in block_to_reach, search_list))
             seen_blocks = set()
             # BFS Scan - until the list is empty
             while len(search_list) > 0:
@@ -385,9 +385,9 @@ class DisasAPI(object):
                     # learn, and keep going
                     else:
                         working_set.update(block_to_reach[cur_block_ea])
-                        new_search_list += map(lambda x: (x, set(working_set)), self.nextBlocks(cur_block))
+                        new_search_list += list(map(lambda x: (x, set(working_set)), self.nextBlocks(cur_block)))
                         # Sanity hook around analysis problem in r2 - TODO: remove in the future
-                        new_search_list = filter(lambda x: self.blockStart(x[0]) in block_to_reach, new_search_list)
+                        new_search_list = list(filter(lambda x: self.blockStart(x[0]) in block_to_reach, new_search_list))
                 search_list = new_search_list
 
         # 3rd scan, sum up the results - O(k) time, O(k*k) storage
@@ -395,7 +395,7 @@ class DisasAPI(object):
             reffed_block_ea = self.blockStart(ref_to_block[ref])
             reachable_from = block_to_reach[reffed_block_ea]
             # add a filter to prevent collisions from the same block
-            reachable_from = reachable_from.difference(filter(lambda x: x > ref, block_to_ref[reffed_block_ea]))
+            reachable_from = reachable_from.difference(list(filter(lambda x: x > ref, block_to_ref[reffed_block_ea])))
             if ref_to_call[ref] not in call_to_reach:
                 call_to_reach[ref_to_call[ref]] = []
             current_record = set(filter(lambda x: x != ref_to_call[ref], map(lambda x: ref_to_call[x], reachable_from)))

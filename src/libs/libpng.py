@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 from config.utils import getDisas
 
 class LibpngSeeker(Seeker):
@@ -58,7 +58,7 @@ class LibpngSeeker(Seeker):
                         # mark that we saw this function
                         seen_funcs.append(caller_func)
             # drop all illegal options
-            clue_strings = filter(lambda x: self.extractVersion(x) == x, clue_strings)
+            clue_strings = list(filter(lambda x: self.extractVersion(x) == x, clue_strings))
             # the version will be the most popular string
             chosen_string = max(set(clue_strings), key=clue_strings.count)
             logger.debug("The chosen version string is: %s", chosen_string)

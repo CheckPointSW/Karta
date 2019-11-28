@@ -1,3 +1,3 @@
-import file_layer
-import function_context
-import matching_engine
+from .file_layer        import *
+from .function_context  import *
+from .matching_engine   import *

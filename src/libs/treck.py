@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class TreckSeeker(Seeker):
     """Seeker (Identifier) for the Treck (Xilinx) closed source library."""

@@ -1,4 +1,4 @@
-from lib_template import *
+from .lib_template import *
 
 class LibTIFFSeeker(Seeker):
     """Seeker (Identifier) for the libtiff open source library."""

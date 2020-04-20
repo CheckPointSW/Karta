@@ -4,6 +4,7 @@ from ar_parser             import getArchiveFiles
 from config.utils          import *
 from elementals            import Prompter, ProgressBar
 from disassembler.factory  import identifyDisassemblerHandler
+from disassembler.IDA      import ida_cmd_api
 from function_context      import SourceContext, BinaryContext, IslandContext
 import config.anchor           as anchor
 
@@ -85,7 +86,7 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
         compiled_ars = range(len(bin_dirs))
 
     # ida has severe bugs, make sure to warn the user in advance
-    if disas_cmd.name() == "IDA" and ' ' in SCRIPT_PATH:
+    if disas_cmd.name() == ida_cmd_api.IdaCMD.name() and ' ' in SCRIPT_PATH:
         prompter.error("IDA does not support spaces (' ') in the script's path. Please move %s's directory accordingly (I feel your pain)", (LIBRARY_NAME))
         prompter.removeIndent()
         return
@@ -129,7 +130,11 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
                     fd = open(full_file_path + STATE_FILE_SUFFIX, 'r')
                 except IOError:
                     prompter.error("Failed to create the .JSON file for file: %s" % (compiled_file))
-                    prompter.error("Read the log file for more information: %s" % (constructLogPath(full_file_path)))
+                    prompter.error("Read the log file for more information:")
+                    prompter.addIndent()
+                    prompter.error(constructInitLogPath(full_file_path))
+                    prompter.error(constructLogPath(full_file_path))
+                    prompter.removeIndent()
                     prompter.removeIndent()
                     prompter.removeIndent()
                     prompter.error("Encountered an error, exiting")

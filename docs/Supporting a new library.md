@@ -13,3 +13,9 @@ Adding a new *.py file for the identification script is rather simple. The neede
 1.  Update the ```NAME``` variable, with an exact string name (case sensitive)
 1.  Update the logic of ```searchLib()``` method - currently based on a basic string search
 1.  If needed, update the logic of the ```identifyVersions()``` method
+
+Sharing with the community :)
+-----------------------------
+So, you just added support for a new library, and it worked on your setup. Good Job :)
+
+Please consider submitting it to the community collection of configurations and fingerprints. Feel free to submit it as a pull request for now, and in the future we might update it to a separate repository.

@@ -15,7 +15,7 @@ file_list = fileList()
 passed = True
 
 # Documentation tests
-for check in pydocstyle.check(file_list, ignore=["D100", "D104", "D413", "D213", "D203", "D402", "D407", "D416"]):
+for check in pydocstyle.check(file_list, ignore=["D100", "D104", "D413", "D213", "D203", "D402", "D407", "D416", "D417"]):
     print(check)
     passed = False
 

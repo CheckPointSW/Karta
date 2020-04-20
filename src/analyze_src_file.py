@@ -29,10 +29,16 @@ def analyzeFile():
     logger.info("Finished Successfully")
 
 
-# create a logger
+# Create a basic logger for the init phase
+init_logger = Logger(LIBRARY_NAME)
+init_logger.linkHandler(logging.FileHandler(constructInitLogPath(), "w"))
+disas = createDisassemblerHandler(init_logger)
+# In case of a dependency issue, disas will be None
+if disas is None:
+    exit()
+# Always init the utils before we start (now with the real logger too)
 logger = Logger(LIBRARY_NAME, use_stdout=False)
-# Always init the utils before we start
-initUtils(logger, createDisassemblerHandler(logger))
+initUtils(logger, disas)
 # Register our contexts
 registerContexts(SourceContext, BinaryContext, IslandContext)
 # Start to analyze the file

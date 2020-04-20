@@ -2,7 +2,6 @@ from sklearn                    import metrics
 from sklearn.ensemble           import RandomForestClassifier
 from sklearn.model_selection    import train_test_split
 import idc
-import idautils
 import ida_nalt
 import sark
 import numpy

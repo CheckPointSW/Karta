@@ -1,14 +1,16 @@
+# Dependencies that only exist inside IDA
 import idautils
 import idaapi
 import idc
 import ida_pro
 import ida_search
 import ida_nalt
+# Dependencies with heavy setup
 import sark
+from .ida_analysis_api      import AnalyzerIDA
+# Basic dependencies (only basic python packages)
 from config.utils           import *
 from disassembler.disas_api import DisasAPI
-from disassembler.factory   import registerDisassembler
-from .ida_analysis_api      import AnalyzerIDA
 import logging
 
 class IdaLogHandler(logging.Handler):
@@ -718,7 +720,3 @@ class IDA(DisasAPI):
         """
         view = ExternalsChooseForm(prepared_entries)
         view.show()
-
-
-# Don't forget to register at the factory
-registerDisassembler("IDA", IDA)

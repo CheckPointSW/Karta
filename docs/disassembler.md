@@ -11,6 +11,7 @@ Since **Karta** was developed to be modular, and because one of our researchers 
 The  ```src\disassembler\disas_api.py``` file defines the interface needed by **Karta**, and can be split to 3 main parts (as can be seen inside the folder ```src\disassembler\IDA```):
 1. Basic API - finding the name of a function, getting a segment list, etc.
 2. Cmd API - functionality for activating the disassembler from the command line.
-3. Analysis API - core logic needed for creating the canonical representation of a function.
+3. Verifier API - key integration point for the factory to be able to decide inside which disassembler are we being run at the current moment.
+4. Analysis API - core logic needed for creating the canonical representation of a function.
 
-While the first 2 parts can be easily implemented as empty adapters without any logic, the 3rd part is a bit more complex. We recommend developers to read the code from  ``` src\disassembler\IDA\ida_analysis_api.py``` as an example implementation, when trying to implement the same functionality in the added disassembler.
+While the first 3 parts can be easily implemented as empty adapters without any logic, the 4th part is a bit more complex. We recommend developers to read the code from  ``` src\disassembler\IDA\ida_analysis_api.py``` as an example implementation, when trying to implement the same functionality in the added disassembler.

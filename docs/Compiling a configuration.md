@@ -50,3 +50,9 @@ The script will ask you for the path to your disassembler (IDA), and will sugges
 Storing the config file
 -----------------------
 In the end, a new ```*.json``` file will be generated (using the library name + version), and it should be stored together with the rest of the configuration files in the ```configs``` directory.
+
+Uploading the config file back to the community :)
+--------------------------------------------------
+So, you created a new config file and it works on your setup, Good Job :)
+
+Please consider submitting it to the community collection of configurations and fingerprints. Feel free to submit it as a pull request for now, and in the future we might update it to a separate repository.

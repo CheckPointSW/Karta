@@ -570,3 +570,38 @@ class DisasCMD(object):
             script (path): python script to be executed once the database is loaded
         """
         raise NotImplementedError("Subclasses should implement this!")
+
+class DisasVerifier(object):
+    """Abstract class that verifies that we are running inside our matching disassembler.
+
+    Attributes
+    ----------
+        (none)
+    """
+
+    @staticmethod
+    def identify():
+        """Check if we are being executed inside our matching disassembler.
+
+        Return Value:
+            True iff the environment matches our program
+        """
+        raise NotImplementedError("Subclasses should implement this!")
+
+    @staticmethod
+    def name():
+        """Get the program's name (used mainly for bug fixes in our code...).
+
+        Return Value:
+            String name of the disassembler program
+        """
+        raise NotImplementedError("Subclasses should implement this!")
+
+    @staticmethod
+    def disas():
+        """Create a disassembler class instance.
+
+        Return Value:
+            Created disassembler instance
+        """
+        raise NotImplementedError("Subclasses should implement this!")

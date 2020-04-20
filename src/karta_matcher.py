@@ -149,8 +149,13 @@ def pluginMain():
     """Run the Karta (matcher) plugin."""
     global disas, logger, config_path
 
-    # init our disassembler handler
-    disas = createDisassemblerHandler(None)
+    # Use the basic logger on the init phase
+    init_logger = Logger(LIBRARY_NAME)
+    init_logger.linkHandler(logging.FileHandler(constructInitLogPath(), "w"))
+    disas = createDisassemblerHandler(init_logger)
+    # In case of a dependency issue, disas will be None
+    if disas is None:
+        return
 
     # Get the configuration values from the user
     config_values = disas.configForm()

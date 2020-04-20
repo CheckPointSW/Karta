@@ -192,6 +192,18 @@ def getContextsStats():
     """
     return src_seen_strings, src_seen_consts, src_functions_list
 
+def constructInitLogPath(bin_path=None):
+    """Generate the name for the init log file of the currently analyzed binary file.
+
+    Args:
+        bin_path (str, Optional): path to the compiled binary file (None by default)
+
+    Return value:
+        file name for the log file
+    """
+    prefix = '' if bin_path is None else os.path.split(bin_path)[0] + os.path.sep
+    return prefix + LIBRARY_NAME + ".log"
+
 def constructLogPath(bin_path=None):
     """Generate the name for the log file of the currently analyzed binary file.
 

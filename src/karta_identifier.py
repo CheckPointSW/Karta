@@ -157,9 +157,17 @@ def pluginMain():
     """Run the Karta (identifier) plugin."""
     global logger, disas
 
+    # Use the basic logger on the init phase
+    init_logger = Logger(LIBRARY_NAME)
+    init_logger.linkHandler(logging.FileHandler(constructInitLogPath(), "w"))
+    disas = createDisassemblerHandler(init_logger)
+    # In case of a dependency issue, disas will be None
+    if disas is None:
+        return
+
+    # Can now safely continue on
     logger = Logger(LIBRARY_NAME, [], use_stdout=False, min_log_level=logging.INFO)
-    initUtils(logger, createDisassemblerHandler(logger))
-    disas = getDisas()
+    initUtils(logger, disas)
     logger.info("Started the Script")
 
     # Init the strings list (Only once, because it's heavy to calculate)

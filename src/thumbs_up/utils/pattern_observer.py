@@ -1,6 +1,5 @@
 import idc
 import random
-import idautils
 import ida_nalt
 import struct
 

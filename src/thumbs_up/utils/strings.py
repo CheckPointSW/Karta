@@ -2,7 +2,6 @@ from .pattern_observer import AlignmentPattern, pad, padSize
 import idc
 import ida_bytes
 import idautils
-import idaapi
 import string
 import sark
 

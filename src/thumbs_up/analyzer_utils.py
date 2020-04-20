@@ -323,7 +323,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
     """Use various metrics in order to locate / fix code type transitions.
 
     Args:
-        analyser (instance): analyzer instance to be used
+        analyzer (instance): analyzer instance to be used
         sc (segment): (sark) code segment to work on
         aggressive (bool, optional): True iff should use aggressive heuristics (False by default)
         align (bool, optional): True iff should use align-based heuristics (False by default)

@@ -65,7 +65,7 @@ class FunctionClassifier():
         self._mixed_classifiers = {}
         self._type_classifier   = None
         # seed the random generator
-        numpy.random.seed(seed=struct.unpack("L", ida_nalt.retrieve_input_file_md5()[:4])[0])
+        numpy.random.seed(seed=struct.unpack("!I", ida_nalt.retrieve_input_file_md5()[:4])[0])
 
     def isFuncStart(self, ea):
         """Check if the given effective address is the start of a known function.

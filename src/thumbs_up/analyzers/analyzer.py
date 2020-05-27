@@ -247,7 +247,7 @@ class Analyzer:
             True iff the code pointer is valid
         """
         ptr_type = self.ptrCodeType(ptr_ea)
-        return self.isCodeAligned(self.cleanPtr(ptr_ea), ptr_type) and ptr_type in self.activeCodeTypes()
+        return self.isCodeAligned(self.cleanPtr(ptr_ea), ptr_type) and self.supportedCodeType(ptr_type)
 
     def hasCodeTypes(self):
         """Check if the given CPU has multiple code types.
@@ -289,8 +289,19 @@ class Analyzer:
         Args:
             code_type (int): code type to be disabled
         """
-        if code_type in self._active_code_types:
+        if self.supportedCodeType(code_type):
             self._active_code_types.remove(code_type)
+
+    def supportedCodeType(self, code_type):
+        """Check if a given code_type is actively supported.
+
+        Args:
+            code_type (int): code type to be checked
+
+        Return Value:
+            The code type of the annotated pointer
+        """
+        return code_type in self._active_code_types
 
     def ptrCodeType(self, ptr_ea):
         """Extract the code type of the annotated pointer.

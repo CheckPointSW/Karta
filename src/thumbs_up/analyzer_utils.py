@@ -153,8 +153,10 @@ def functionScan(analyzer, scs):
             if search_func or analyzer.switch_identifier.isSwitchCase(line.start_ea):
                 line = line.next
                 continue
+            original_code_type = analyzer.codeType(line.start_ea)
             # If this is code, check that it matches the start of a function, and make it a function
-            if line.is_code and analyzer.func_classifier.predictFunctionStartMixed(line.start_ea):
+            if line.is_code and analyzer.supportedCodeType(original_code_type) and \
+                        analyzer.func_classifier.predictFunctionStartMixed(line.start_ea):
                 if not ida_funcs.add_func(line.start_ea):
                     line = line.next
                 else:
@@ -168,7 +170,6 @@ def functionScan(analyzer, scs):
             # If unknown, check if a function and don't try to keep the same code type
             if line.is_unknown:
                 guess_code_type = analyzer.func_classifier.predictFunctionStartType(line.start_ea)
-                original_code_type = analyzer.codeType(line.start_ea)
                 if analyzer.func_classifier.predictFunctionStart(line.start_ea, guess_code_type):
                     if original_code_type != guess_code_type:
                         analyzer.setCodeType(line.start_ea, line.start_ea + 1, guess_code_type)

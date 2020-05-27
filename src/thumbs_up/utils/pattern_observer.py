@@ -82,7 +82,7 @@ class AlignmentPattern:
         # Now check for a basic alignment rule
         seen_eas = list(map(lambda x: x[0], self._records))
         # Deterministic results per binary, but still random
-        random.seed(struct.unpack("L", ida_nalt.retrieve_input_file_md5()[:4])[0])
+        random.seed(struct.unpack("I", ida_nalt.retrieve_input_file_md5()[:4])[0])
         while True:
             # Check against two random candidates, and always make sure the representative isn't rare
             measure_candidate = seen_eas[random.randint(0, len(seen_eas) - 1)]

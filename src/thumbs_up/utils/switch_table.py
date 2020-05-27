@@ -67,6 +67,19 @@ class SwitchIdentifier():
             self._switch_case_cases   = []
             return False
 
+    def hasSwithTables(self, sc):
+        """Check if there are known switch tables in the code segment.
+
+        Args:
+            sc (segment): (sark) code segment in which we are interested right now
+
+        Return Value:
+            True iff the code segment contains a known switch table
+        """
+        for switch_instr, table_start, table_end in filter(lambda x: sc.start_ea <= x[0] and x[1] < sc.end_ea, self._switch_case_entries):
+            return True
+        return False
+
     def markSwitchTables(self, sc, aggressive=True):
         """Help IDA by marking all of the needed information from the observed switch tables.
 
@@ -148,7 +161,7 @@ class SwitchIdentifier():
                         continue
                 except Exception:
                     continue
-                # IDA recognized the switch table exactly at the last code instruction before it
+                # IDA recognized the switch table exactly at the last code instruction before it begins
                 observer.add(line)
 
                 # Going to use the easy case

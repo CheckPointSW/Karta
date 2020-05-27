@@ -94,6 +94,16 @@ class FptrIdentifier:
         """
         return len(list(filter(lambda x: chr(x) in string.printable, struct.pack("!%s" % (self._analyzer.address_pack_format), ea)))) == self._analyzer.addressSize()
 
+    def hasKnownFptrs(self):
+        """Check if there are known fptrs.
+
+        Return Value:
+            True iff there are known fptrs we've seen before
+        """
+        for func_ea, code_type in self._ref_ptrs.items():
+            return True
+        return False
+
     def makePointedFunctions(self):
         """Modify the code and tell IDA that our code fptrs should point to the beginning of functions."""
         # We want the list in descending function order

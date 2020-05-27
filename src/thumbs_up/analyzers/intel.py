@@ -63,6 +63,12 @@ class IntelAnalyzer(Analyzer):
         self.switch_identifier = SwitchIdentifier(self)
 
     # Overridden base function
+    def presentCodeTypes(self):
+        """Print a list of the supported code types."""
+        self.logger.info("Supported Intel code types:")
+        self.logger.info("0 - Intel (Only a single code type is supported)")
+
+    # Overridden base function
     def isCodeAligned(self, ea, code_type=None):
         """Check if the code is aligned according to the given code type.
 

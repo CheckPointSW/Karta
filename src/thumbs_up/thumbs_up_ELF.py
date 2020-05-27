@@ -155,6 +155,7 @@ def main():
         logger.error("Failed to find any code segment, can't continue...")
         return
     # Notify the user about our segment decisions
+    logger.info("Segments, as marked in the ELF:")
     for sc in code_segments:
         logger.info("Code Segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
     for sd in data_segments:
@@ -171,6 +172,9 @@ def main():
     analyzer.linkStringIdentifier()
     analyzer.linkLocalsIdentifier()
     analyzer.linkSwitchIdentifier()
+
+    # Notify the user about the code types
+    analyzer.presentCodeTypes()
 
     # Start the analysis
     logger.info("Starting the analysis")

@@ -68,6 +68,13 @@ class ArmAnalyzer(Analyzer):
         self.switch_identifier = SwitchIdentifier(self)
 
     # Overridden base function
+    def presentCodeTypes(self):
+        """Print a list of the supported code types."""
+        self.logger.info("Supported ARM code types:")
+        self.logger.info("0 - ARM")
+        self.logger.info("1 - THUMB")
+
+    # Overridden base function
     def isCodeContainsData(self):
         """Check if the code might contain data constants.
 

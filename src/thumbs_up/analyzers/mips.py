@@ -68,6 +68,13 @@ class MipsAnalyzer(Analyzer):
         self.switch_identifier = SwitchIdentifier(self)
 
     # Overridden base function
+    def presentCodeTypes(self):
+        """Print a list of the supported code types."""
+        self.logger.info("Supported MIPS code types:")
+        self.logger.info("0 - MIPS")
+        self.logger.info("1 - Mips16")
+
+    # Overridden base function
     def isCodeContainsData(self):
         """Check if the code might contain data constants.
 

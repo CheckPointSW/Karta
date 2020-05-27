@@ -153,7 +153,6 @@ class FunctionClassifier():
             Training must happen *after* the calibration phase
         """
         functions = []
-        # TODO: check if the loss of samples is worth the risk of training on questionable fptr data
         for sc in scs:
             functions += list(filter(lambda func: not self._analyzer.fptr_identifier.isPointedFunction(func.start_ea), sc.functions))
         # Each code type is trained on it's own
@@ -203,7 +202,6 @@ class FunctionClassifier():
             True iff the calibration passed and the accuracy is above the minimal threshold
         """
         functions = []
-        # TODO: check if the loss of samples is worth the risk of training on questionable fptr data
         for sc in scs:
             functions += list(filter(lambda func: not self._analyzer.fptr_identifier.isPointedFunction(func.start_ea), sc.functions))
         for code_type in self._analyzer.activeCodeTypes():
@@ -280,6 +278,7 @@ class FunctionClassifier():
             # ValueError when we only have a single sample and we call fit()
             except ValueError:
                 self._analyzer.logger.warning("Not enough functions to calibrate the classifier for code type %d", code_type)
+                self._analyzer.logger.warning("Disabling heuristics for code type %d", code_type)
                 self._analyzer.disableCodeType(code_type)
 
         # If reached this point it means that all was OK, if we have some code types left

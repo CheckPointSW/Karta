@@ -47,10 +47,16 @@ def cleanStart(analyzer, scs, undef=False):
         if undef:
             analyzer.logger.info("Undefining code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
             sark.data.undefine(sc.start_ea, sc.end_ea)
-            analyzer.logger.info("Marking all known switch tables in the segment")
-            analyzer.switch_identifier.markSwitchTables(sc)
-    analyzer.logger.info("Marking all known fptr functions")
-    analyzer.fptr_identifier.makePointedFunctions()
+            if analyzer.switch_identifier.hasSwithTables(sc):
+                analyzer.logger.info("Marking all known switch tables in the segment")
+                analyzer.switch_identifier.markSwitchTables(sc)
+            else:
+                analyzer.logger.debug("No known switch tables in the segment")
+    if analyzer.fptr_identifier.hasKnownFptrs():
+        analyzer.logger.info("Marking all known fptr functions")
+        analyzer.fptr_identifier.makePointedFunctions()
+    else:
+        analyzer.logger.debug("No known fptr functions")
     for sc in scs:
         analyzer.logger.info("Re-Analyzing code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
         idc.plan_and_wait(sc.start_ea, sc.end_ea)
@@ -65,7 +71,7 @@ def convertRegion(analyzer, start_ea, end_ea):
         end_ea (int): effective end address of the region
     """
     wanted_code_type = analyzer.codeType(end_ea)
-    analyzer.logger.info("Converting code region of type %d to %d: 0x%x - 0x%x (%d)", analyzer.codeType(start_ea), wanted_code_type, start_ea, end_ea, end_ea - start_ea)
+    analyzer.logger.info("Converting code region of type %d to %d: 0x%x - 0x%x (%d bytes)", analyzer.codeType(start_ea), wanted_code_type, start_ea, end_ea, end_ea - start_ea)
     # Make sure it will be treated as code
     ida_bytes.del_items(start_ea, 0, end_ea - start_ea)
     # manually set the wanted value over the entire region
@@ -127,7 +133,7 @@ def functionScan(analyzer, scs):
         2. Unknown after a previous function - and it looks like the beginning of a function of the estimated code type
     """
     for sc in scs:
-        analyzer.logger.debug("Function scanning code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+        analyzer.logger.info("Function scanning code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
         search_func = False
         just_started = True
         line = sark.Line(sc.start_ea)
@@ -192,7 +198,7 @@ def aggressiveFunctionScan(analyzer, scs):
         scs (list): list of (sark) code segments
     """
     for sc in scs:
-        analyzer.logger.debug("Aggressively scanning code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+        analyzer.logger.info("Aggressively scanning code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
         search_func = False
         just_started = True
         line = sark.Line(sc.start_ea)

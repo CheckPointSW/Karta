@@ -102,11 +102,12 @@ def analysisStart(analyzer, scs, sds):
         analyzer.logger.info("Phase #%d", phase_counter)
         phase_counter += 1
         analyzer.logger.info("Tell IDA to re-analyze all of the code segments, using the added features")
-        finished = False
-        while not finished:
+        num_false_fptrs = -1
+        while num_false_fptrs != 0:
             cleanStart(analyzer, scs, undef=True)
             # Remove false fptrs
-            finished = analyzer.fptr_identifier.checkPointedFunctions() == 0
+            num_false_fptrs = analyzer.fptr_identifier.checkPointedFunctions()
+            analyzer.logger.info("Removed %d possibly wrong fptrs", num_false_fptrs)
 
     ###########################
     # 6. Define the functions #
@@ -195,6 +196,7 @@ def main():
         logger.error("Failed to find any data segment, can't continue...")
         return
     # Notify the user about our segment decisions
+    logger.info("Segments, as marked by the disassembler:")
     for sc in code_segments:
         logger.info("Code Segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
     for sd in data_segments:
@@ -212,6 +214,9 @@ def main():
     analyzer.linkStringIdentifier()
     analyzer.linkLocalsIdentifier()
     analyzer.linkSwitchIdentifier()
+
+    # Notify the user about the code types
+    analyzer.presentCodeTypes()
 
     # Start the analysis
     logger.info("Starting the analysis")

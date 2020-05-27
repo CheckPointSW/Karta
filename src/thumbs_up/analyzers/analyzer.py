@@ -78,6 +78,10 @@ class Analyzer:
         """Link a switch tables identifier to our analyzer."""
         raise NotImplementedError("Subclasses should implement this!")
 
+    def presentCodeTypes(self):
+        """Print a list of the supported code types."""
+        raise NotImplementedError("Subclasses should implement this!")
+
     def addressSize(self):
         """Address size in bytes, according to the CPU's bitness.
 

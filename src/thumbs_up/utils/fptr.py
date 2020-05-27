@@ -200,7 +200,7 @@ class FptrIdentifier:
                     continue
                 # check for a function ptr
                 value = self._analyzer.parseAdderss(cur_ea)
-                # make sure it is valid
+                # make sure it is valid (enforces that the code_type is active)
                 if self.isValidCodePtr(value, scs):
                     func_value = self._analyzer.cleanPtr(value)
                     code_type  = self._analyzer.ptrCodeType(value)

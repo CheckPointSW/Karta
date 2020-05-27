@@ -16,7 +16,7 @@ setup(name='Karta',
       url='https://github.com/CheckPointSW/Karta',
       license='MIT',
       packages=find_packages(),
-      install_requires=['elementals', 'sark==2.0', 'pydocstyle', 'flake8', 'click', 'scikit-learn'],
+      install_requires=['elementals', 'sark', 'pydocstyle', 'flake8', 'click', 'scikit-learn'],
       classifiers=[
                     "Programming Language :: Python :: 3",
                     "License :: OSI Approved :: MIT License (MIT License)",

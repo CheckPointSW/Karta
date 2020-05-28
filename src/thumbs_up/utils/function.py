@@ -410,7 +410,7 @@ class FunctionClassifier():
         """
         # Nothing to check if there is only one type
         if not self._analyzer.hasActiveCodeTypes():
-            return self._analyzer.codeTypes()[0]
+            return self._analyzer.activeCodeTypes()[0]
         # Multiple types, now predict the right one
         sample = self.extractFunctionTypeSample(ea)
         return int(self._type_classifier.predict([sample]))

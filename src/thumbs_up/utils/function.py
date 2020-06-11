@@ -204,7 +204,7 @@ class FunctionClassifier():
         functions = []
         for sc in scs:
             functions += list(filter(lambda func: not self._analyzer.fptr_identifier.isPointedFunction(func.start_ea), sc.functions))
-        for code_type in self._analyzer.activeCodeTypes():
+        for code_type in list(self._analyzer.activeCodeTypes()):
             scoped_functions = list(filter(lambda x: self._analyzer.codeType(x.start_ea) == code_type, functions))
             self._analyzer.logger.info("There are %d scoped functions for code type %d", len(scoped_functions), code_type)
             # 1st round - calibration
@@ -232,7 +232,7 @@ class FunctionClassifier():
                         self._classifiers_start_offsets[code_type] = list(map(lambda x: x[0], start_impact[:self._feature_size]))
                     elif accuracy < CALIBRATION_LOWER_BOUND:
                         self._analyzer.logger.error("Function Prologue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                        return False
+                        raise ValueError
                     # End of function classifier
                     clf = RandomForestClassifier(n_estimators=100)
                     eas = list(map(lambda x: x.end_ea, scoped_functions)) + list(map(lambda x: x.end_ea - self._inner_offset, scoped_functions))
@@ -253,7 +253,7 @@ class FunctionClassifier():
                         self._classifiers_end_offsets[code_type] = list(map(lambda x: x[0], end_impact[:self._feature_size]))
                     elif accuracy < CALIBRATION_LOWER_BOUND:
                         self._analyzer.logger.error("Function Epilogue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                        return False
+                        raise ValueError
                     # Start/End of function classifier
                     clf = RandomForestClassifier(n_estimators=100)
                     eas = list(map(lambda x: x.start_ea, scoped_functions)) + list(map(lambda x: x.start_ea + self._inner_offset, scoped_functions))
@@ -274,7 +274,7 @@ class FunctionClassifier():
                         self._classifiers_mixed_offsets[code_type] = list(map(lambda x: x[0], mixed_impact[:self._feature_size]))
                     elif accuracy < CALIBRATION_LOWER_BOUND:
                         self._analyzer.logger.error("Function Prologue/Epilogue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                        return False
+                        raise ValueError
             # ValueError when we only have a single sample and we call fit()
             except ValueError:
                 self._analyzer.logger.warning("Not enough functions to calibrate the classifier for code type %d", code_type)

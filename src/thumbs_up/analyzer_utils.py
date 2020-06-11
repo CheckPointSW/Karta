@@ -262,6 +262,9 @@ def dataScan(analyzer, scs):
             if first_line is not None and end_line is not None:
                 chunk_start = first_line.start_ea
                 chunk_end   = end_line.start_ea
+                # check that we can deduce anything on this current code type
+                if not analyzer.supportedCodeType(analyzer.codeType(chunk_start)):
+                    continue
                 # check that the chunk before us is not the end of a function
                 if analyzer.func_classifier.predictFunctionEnd(chunk_start):
                     # shouldn't really happen, do nothing in this case

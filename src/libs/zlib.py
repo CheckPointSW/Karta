@@ -5,7 +5,7 @@ class ZlibSeeker(Seeker):
     """Seeker (Identifier) for the zlib open source library."""
 
     # Library Name
-    NAME = 'zlib'
+    NAME = "zlib"
     # version string marker
     VERSION_STRING = " deflate "
 
@@ -35,12 +35,12 @@ class ZlibSeeker(Seeker):
                     # false match
                     continue
                 # valid match
-                logger.debug("Located a copyright string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a copyright string of {self.NAME} in address 0x{bin_str.ea:x}")
                 # save the string for later
                 self._version_strings.append(copyright_string)
             # use the error strings as backups
             elif str(bin_str) in key_error_strings and len(self._version_strings) == 0:
-                logger.debug("Located a key error string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a key error string of {self.NAME} in address 0x{bin_str.ea:x}")
                 matched_error_strings[str(bin_str)].append(bin_str)
 
         # check if we need the backup

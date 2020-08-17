@@ -14,42 +14,39 @@ def isAnchor(context, seen_strings, seen_consts, functions_list, logger):
     Return Value:
         is string criteria (True / False), threshold count, Matching anchor criteria (list of string for instance), or None if not an anchor
     """
-    case = 1
-    max_case = 5
-    while case <= max_case:
-        # 1. Huge unique string
-        if case == 1:
-            huge_strings = list(filter(lambda x: seen_strings.count(x) == 1, filter(lambda x: len(x) >= STRING_HUGE_LIMIT, context.strings)))
-            if len(huge_strings) >= STRING_HUGE_GROUP:
-                logger.debug("Found an Anchor: %s ==> Unique HUGE string (%d)", context.name, len(huge_strings[0]))
-                return True, STRING_HUGE_GROUP, huge_strings
-        # 2. Unique string with a function name in it
-        elif case == 2:
-            for unique_str in filter(lambda x: seen_strings.count(x) == 1, context.strings):
-                for func_name in functions_list:
-                    if func_name in unique_str:
-                        logger.debug("Found an Anchor: %s ==> Unique string (%s) containing a function name (%s)", context.name, unique_str, func_name)
-                        return True, 1, [unique_str]
-        # 3. X unique strings with long length
-        elif case == 3:
-            unique_long_strings = list(filter(lambda x: seen_strings.count(x) == 1, filter(lambda x: len(x) >= STRING_LONG_LIMIT, context.strings)))
-            if len(unique_long_strings) >= STRING_LONG_GROUP:
-                logger.debug("Found an Anchor: %s ==> %d unique long strings", context.name, len(unique_long_strings))
-                return True, STRING_LONG_GROUP, unique_long_strings
-        # 4. X unique strings with medium length
-        elif case == 4:
-            unique_medium_strings = list(filter(lambda x: seen_strings.count(x) == 1, filter(lambda x: len(x) >= STRING_MEDIUM_LIMIT, context.strings)))
-            if len(unique_medium_strings) >= STRING_MEDIUM_GROUP:
-                logger.debug("Found an Anchor: %s ==> %d unique medium strings", context.name, len(unique_medium_strings))
-                return True, STRING_MEDIUM_GROUP, unique_medium_strings
-        # 5. Unique const with high entropy
-        elif case == 5:
-            unique_complex_consts = list(filter(lambda x: seen_consts.count(x) == 1, filter(lambda x: rankConst(x, context) >= CONST_COMPLEX_LIMIT, context.consts)))
-            if len(unique_complex_consts) >= CONST_COMPLEX_GROUP:
-                logger.debug("Found an Anchor: %s ==> %d unique complex consts: %s", context.name, len(unique_complex_consts), hex(unique_complex_consts[0]))
-                return False, CONST_COMPLEX_GROUP, unique_complex_consts
-        case += 1
-    # we found nothing if we reached this line
+    unique_strings = [s for s in context.strings if seen_strings.count(s) == 1]
+    # Case #1. Huge unique string
+    huge_strings = [s for s in unique_strings if len(s) >= STRING_HUGE_LIMIT]
+    if len(huge_strings) >= STRING_HUGE_GROUP:
+        logger.debug(f"Found an Anchor: {context.name} ==> Unique HUGE string ({len(huge_strings[0])})")
+        return True, STRING_HUGE_GROUP, huge_strings
+
+    # Case #2. Unique string with a function name in it
+    for unique_str in unique_strings:
+        for func_name in functions_list:
+            if func_name in unique_str:
+                logger.debug(f"Found an Anchor: {context.name} ==> Unique string ({unique_str}) containing a function name ({func_name})")
+                return True, 1, [unique_str]
+
+    # Case #3. X unique strings with long length
+    unique_long_strings = [s for s in unique_strings if len(s) >= STRING_LONG_LIMIT]
+    if len(unique_long_strings) >= STRING_LONG_GROUP:
+        logger.debug(f"Found an Anchor: {context.name} ==> {len(unique_long_strings)} unique long strings")
+        return True, STRING_LONG_GROUP, unique_long_strings
+
+    # Case #4. X unique strings with medium length
+    unique_medium_strings = [s for s in unique_strings if len(s) >= STRING_MEDIUM_LIMIT]
+    if len(unique_medium_strings) >= STRING_MEDIUM_GROUP:
+        logger.debug(f"Found an Anchor: {context.name} ==> {len(unique_medium_strings)} unique medium strings")
+        return True, STRING_MEDIUM_GROUP, unique_medium_strings
+
+    # Case #5. Unique const with high entropy
+    unique_complex_consts = [c for c in context.consts if rankConst(c, context) >= CONST_COMPLEX_LIMIT and seen_consts.count(c) == 1]
+    if len(unique_complex_consts) >= CONST_COMPLEX_GROUP:
+        logger.debug(f"Found an Anchor: {context.name} ==> len(unique_complex_consts) unique complex consts: 0x{unique_complex_consts[0]:x}")
+        return False, CONST_COMPLEX_GROUP, unique_complex_consts
+
+    # If we reached this line it means we found nothing :(
     return False, 0, None
 
 def isAgent(context, unique_strings, unique_consts, logger):
@@ -64,27 +61,24 @@ def isAgent(context, unique_strings, unique_consts, logger):
     Return Value:
         is string criteria (True / False), threshold count, Matching agent criteria (list of string for instance), or None if not an agent
     """
-    case = 1
-    max_case = 3
-    while case <= max_case:
-        # 1. Medium unique string
-        if case == 1:
-            medium_strings = list(filter(lambda x: x in unique_strings, filter(lambda x: len(x) >= STRING_MEDIUM_LIMIT, context.strings)))
-            if len(medium_strings) > 0:
-                logger.debug("Found an Agent: %s ==> Unique medium string (%d)", context.name, len(medium_strings[0]))
-                return True, 1, medium_strings
-        # 2. X unique strings with short length
-        elif case == 2:
-            unique_short_strings = list(filter(lambda x: x in unique_strings, filter(lambda x: len(x) >= STRING_SHORT_LIMIT, context.strings)))
-            if len(unique_short_strings) >= STRING_SHORT_GROUP:
-                logger.debug("Found an Agent: %s ==> %d unique long strings", context.name, len(unique_short_strings))
-                return True, STRING_SHORT_GROUP, unique_short_strings
-        # 3. Unique const with medium entropy
-        elif case == 3:
-            unique_medium_consts = list(filter(lambda x: x in unique_consts, filter(lambda x: rankConst(x, context) >= CONST_MEDIUM_LIMIT, context.consts)))
-            if len(unique_medium_consts) > 0:
-                logger.debug("Found an Agent: %s ==> %d unique medium consts", context.name, len(unique_medium_consts))
-                return False, 1, unique_medium_consts
-        case += 1
-    # we found nothing if we reached this line
+    unique_local_strings = unique_strings & context.strings
+    # Case #1. Medium unique string
+    medium_strings = [s for s in unique_local_strings if len(s) >= STRING_MEDIUM_LIMIT]
+    if len(medium_strings) > 0:
+        logger.debug(f"Found an Agent: {context.name} ==> Unique medium string ({len(medium_strings[0])})")
+        return True, 1, medium_strings
+
+    # Case #2. X unique strings with short length
+    unique_short_strings = [s for s in unique_local_strings if len(s) >= STRING_SHORT_LIMIT]
+    if len(unique_short_strings) >= STRING_SHORT_GROUP:
+        logger.debug(f"Found an Agent: {context.name} ==> {len(unique_short_strings)} unique long strings")
+        return True, STRING_SHORT_GROUP, unique_short_strings
+
+    # Case #3. Unique const with medium entropy
+    unique_medium_consts = [c for c in unique_consts & context.consts if rankConst(c, context) >= CONST_MEDIUM_LIMIT]
+    if len(unique_medium_consts) > 0:
+        logger.debug(f"Found an Agent: {context.name} ==> {len(unique_medium_consts)} unique medium consts")
+        return False, 1, unique_medium_consts
+
+    # If we reached this line it means we found nothing :(
     return False, 0, None

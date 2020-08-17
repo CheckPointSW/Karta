@@ -36,7 +36,7 @@ def analysisStart(analyzer, scs, sds):
     # 1. Clean the code #
     #####################
 
-    analyzer.logger.info("Phase #%d", phase_counter)
+    analyzer.logger.info(f"Phase #{phase_counter}")
     phase_counter += 1
     analyzer.logger.info("Tell IDA to analyze all of the code segments")
     cleanStart(analyzer, scs)
@@ -46,7 +46,7 @@ def analysisStart(analyzer, scs, sds):
     # 2. Observe and Locate the program features #
     ##############################################
 
-    analyzer.logger.info("Phase #%d", phase_counter)
+    analyzer.logger.info(f"Phase #{phase_counter}")
     phase_counter += 1
     analyzer.logger.info("Observe all code patterns from the initial analysis")
     if not gatherIntel(analyzer, scs, sds):
@@ -68,7 +68,7 @@ def analysisStart(analyzer, scs, sds):
     # 3. Re-Analyze the code #
     ##########################
 
-    analyzer.logger.info("Phase #%d", phase_counter)
+    analyzer.logger.info(f"Phase #{phase_counter}")
     phase_counter += 1
     analyzer.logger.info("Tell IDA to re-analyze all of the code segments, using the added features")
     cleanStart(analyzer, scs, undef=True)
@@ -79,7 +79,7 @@ def analysisStart(analyzer, scs, sds):
     ####################################
 
     if analyzer.hasActiveCodeTypes():
-        analyzer.logger.info("Phase #%d", phase_counter)
+        analyzer.logger.info(f"Phase #{phase_counter}")
         phase_counter += 1
         analyzer.logger.info("Observe all code patterns from the improved analysis")
         if not gatherIntel(analyzer, scs, sds):
@@ -99,7 +99,7 @@ def analysisStart(analyzer, scs, sds):
     ##########################
 
     if analyzer.hasActiveCodeTypes():
-        analyzer.logger.info("Phase #%d", phase_counter)
+        analyzer.logger.info(f"Phase #{phase_counter}")
         phase_counter += 1
         analyzer.logger.info("Tell IDA to re-analyze all of the code segments, using the added features")
         num_false_fptrs = -1
@@ -107,13 +107,13 @@ def analysisStart(analyzer, scs, sds):
             cleanStart(analyzer, scs, undef=True)
             # Remove false fptrs
             num_false_fptrs = analyzer.fptr_identifier.checkPointedFunctions()
-            analyzer.logger.info("Removed %d possibly wrong fptrs", num_false_fptrs)
+            analyzer.logger.info(f"Removed {num_false_fptrs} possibly wrong fptrs")
 
     ###########################
     # 6. Define the functions #
     ###########################
 
-    analyzer.logger.info("Phase #%d", phase_counter)
+    analyzer.logger.info(f"Phase #{phase_counter}")
     phase_counter += 1
     analyzer.logger.info("Observe all code patterns from the improved analysis")
     if not gatherIntel(analyzer, scs, sds):
@@ -127,7 +127,7 @@ def analysisStart(analyzer, scs, sds):
     #####################################
 
     if analyzer.hasActiveCodeTypes():
-        analyzer.logger.info("Phase #%d", phase_counter)
+        analyzer.logger.info(f"Phase #{phase_counter}")
         phase_counter += 1
         analyzer.logger.info("Aggressively help IDA figure out the transition point between the different code types")
         # Find code type transitions, and resolve the complex ones
@@ -148,7 +148,7 @@ def analysisStart(analyzer, scs, sds):
     #####################################
 
     if analyzer.isCodeContainsData() and not analyzer.isCodeMixedWithData():
-        analyzer.logger.info("Phase #%d", phase_counter)
+        analyzer.logger.info(f"Phase #{phase_counter}")
         phase_counter += 1
         analyzer.logger.info("Locate all in-code constants & strings")
         analyzer.locals_identifier.locateLocalConstants(scs, sds)
@@ -161,7 +161,7 @@ def analysisStart(analyzer, scs, sds):
     # 9. Finish defining the functions #
     ####################################
 
-    analyzer.logger.info("Phase #%d", phase_counter)
+    analyzer.logger.info(f"Phase #{phase_counter}")
     phase_counter += 1
     analyzer.logger.info("Aggressively scan for functions")
     functionScan(analyzer, scs)
@@ -172,7 +172,7 @@ def analysisStart(analyzer, scs, sds):
     # 10. Resolve function chunks #
     ###############################
 
-    analyzer.logger.info("Phase #%d", phase_counter)
+    analyzer.logger.info(f"Phase #{phase_counter}")
     phase_counter += 1
     analyzer.logger.info("Resolve all function chunks")
     resolveFunctionChunks(analyzer, scs)
@@ -186,8 +186,8 @@ def main():
     logger = Logger("Thumbs Up Logger", [("thumbs_up.log", "w", logging.DEBUG)], use_stdout=False, min_log_level=logging.INFO)
     logger.linkHandler(IdaLogHandler())
     # Locate the segments
-    code_segments = list(filter(lambda x: x.type == 2, sark.segments()))
-    data_segments = list(filter(lambda x: x.type in [0, 3], sark.segments()))
+    code_segments = [sc for sc in sark.segments() if sc.type == 2]
+    data_segments = [sc for sc in sark.segments() if sc.type in [0, 3]]
     # Sanity checks
     if len(code_segments) == 0:
         logger.error("Failed to find any code segment, can't continue...")
@@ -198,9 +198,9 @@ def main():
     # Notify the user about our segment decisions
     logger.info("Segments, as marked by the disassembler:")
     for sc in code_segments:
-        logger.info("Code Segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+        logger.info(f"Code Segment: 0x{sc.start_ea:x} - 0x{sc.end_ea:x}")
     for sd in data_segments:
-        logger.info("Data Segment: 0x%x - 0x%x", sd.start_ea, sd.end_ea)
+        logger.info(f"Data Segment: 0x{sd.start_ea:x} - 0x{sd.end_ea:x}")
 
     # Build up the analyzer
     analyzer = createAnalyzer(logger, False)

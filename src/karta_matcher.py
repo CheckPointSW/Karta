@@ -26,8 +26,8 @@ def startMatch(config_file, lib_name):
     initUtils(logger, disas, invoked_before=True)
 
     # Load the configuration file
-    fd = open(config_file, 'r')
-    config_dict = json.load(fd, object_pairs_hook=collections.OrderedDict)
+    fd = open(config_file, "r")
+    config_dict = json.load(fd)
     fd.close()
 
     # Load the accumulated knowledge for this binary file
@@ -40,7 +40,7 @@ def startMatch(config_file, lib_name):
             logger.addIndent()
             for src_index in all_manual_anchors[lib_name]:
                 src_file, src_name, hex_ea, bin_ea = all_manual_anchors[lib_name][src_index]
-                logger.debug("Manual anchor: %s (%d), 0x%x", src_name, int(src_index), bin_ea)
+                logger.debug(f"Manual anchor: {src_name} ({int(src_index)}), 0x{bin_ea:x}")
                 manual_anchors.append((int(src_index), bin_ea))
             logger.removeIndent()
     else:
@@ -85,13 +85,12 @@ def matchLibrary(lib_name, lib_version):
     config_name = constructConfigPath(lib_name, lib_version)
     cur_config_path = os.path.join(config_path, config_name)
     if not os.path.exists(cur_config_path):
-        logger.error("Missing configuration file (%s) for \"%s\" Version: \"%s\"",
-                                config_name, lib_name, lib_version)
+        logger.error(f"Missing configuration file ({config_name}) for \"{lib_name}\" Version: \"{lib_version}\"")
         return
 
     # Start the actual matching
     logger.addIndent()
-    logger.info("Starting to match \"%s\" Version: \"%s\"", lib_name, lib_version)
+    logger.info(f"Starting to match \"{lib_name}\" Version: \"{lib_version}\"")
     startMatch(cur_config_path, lib_name)
     logger.info("Finished the matching")
     logger.removeIndent()
@@ -115,27 +114,27 @@ def matchLibraries():
         # check for a pre-supplied manual version
         if lib_name in all_manual_versions:
             manual_versions = all_manual_versions[lib_name]
-            logger.debug("Manual versions: %s", ", ".join(manual_versions))
+            logger.debug(f"Manual versions: {', '.join(manual_versions)}")
         else:
             manual_versions = []
-        logger.debug("Searching for library \"%s\" in the binary", lib_name)
+        logger.debug(f"Searching for library \"{lib_name}\" in the binary")
         logger.addIndent()
         # search for it
         match_counter = lib_instance.searchLib(logger)
         # make sure we have a single match
         if match_counter > 1:
-            logger.warning("Found multiple instances of \"%s\" - multiple instances are not supported right now", lib_name)
+            logger.warning(f"Found multiple instances of \"{lib_name}\" - multiple instances are not supported right now")
         elif match_counter == 0:
-            logger.info("Did not find \"%s\" in the binary", lib_name)
+            logger.info(f"Did not find \"{lib_name}\" in the binary")
         # exact, single match
         else:
-            logger.info("Successfully found \"%s\" in the binary", lib_name)
+            logger.info(f"Successfully found \"{lib_name}\" in the binary")
             # identify it's version
             lib_versions = lib_instance.identifyVersions(logger)
             # check if we need to identify this one
             if lib_versions[0] == lib_instance.VERSION_UNKNOWN:
                 if len(manual_versions) != 1:
-                    logger.warning("Can't match an unknown version of library \"%s\"", lib_name)
+                    logger.warning(f"Can't match an unknown version of library \"{lib_name}\"")
                     continue
                 actual_version = manual_versions[0]
             else:
@@ -170,9 +169,9 @@ def pluginMain():
     working_path = os.path.split(disas.databaseFile())[0]
 
     log_files  = []
-#    log_files += [(os.path.join(working_path, "%s_debug.log"   % (LIBRARY_NAME)), "w", logging.DEBUG)]
-    log_files += [(os.path.join(working_path, "%s_info.log"    % (LIBRARY_NAME)), "w", logging.INFO)]
-    log_files += [(os.path.join(working_path, "%s_warning.log" % (LIBRARY_NAME)), "w", logging.WARNING)]
+#    log_files += [(os.path.join(working_path, LIBRARY_NAME + "_debug.log"),   "w", logging.DEBUG)]
+    log_files += [(os.path.join(working_path, LIBRARY_NAME + "_info.log"),    "w", logging.INFO)]
+    log_files += [(os.path.join(working_path, LIBRARY_NAME + "_warning.log"), "w", logging.WARNING)]
     logger = Logger(LIBRARY_NAME, log_files, use_stdout=False, min_log_level=logging.INFO)
     initUtils(logger, disas)
     logger.info("Started the Script")
@@ -191,7 +190,7 @@ def pluginMain():
     logger.info("Finished Successfully")
 
     # Notify the user about the logs
-    disas.messageBox("Saved the logs to directory: %s" % (working_path))
+    disas.messageBox(f"Saved the logs to directory: {working_path}")
 
 
 # Start to analyze the file

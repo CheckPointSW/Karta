@@ -4,7 +4,7 @@ class gSOAPSeeker(Seeker):
     """Seeker (Identifier) for the gSOAP open source library."""
 
     # Library Name
-    NAME = 'gSOAP'
+    NAME = "gSOAP"
     # version string marker
     VERSION_STRING = "gSOAP/2."
 
@@ -25,7 +25,7 @@ class gSOAPSeeker(Seeker):
             if str(bin_str).startswith(self.VERSION_STRING):
                 version_string = str(bin_str)
                 # valid match
-                logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a version string of {self.NAME} in address 0x{bin_str.ea:x}")
                 # save the string for later
                 self._version_strings.add(version_string)
 

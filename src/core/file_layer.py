@@ -114,7 +114,7 @@ class FileMatch(object):
 
         # calculate the remaining size
         if self.located:
-            inner_matches_indices = set(self._engine.matchedSrcIndices()).intersection(range(self._src_index_start, self._src_index_end + 1))
+            inner_matches_indices = set(self._engine.matchedSrcIndices()) & set(range(self._src_index_start, self._src_index_end + 1))
             self._remain_size = self._src_index_end - self._src_index_start + 1
             self._remain_size -= len(inner_matches_indices)
         else:
@@ -136,7 +136,7 @@ class FileMatch(object):
 
         # Sanity Check - make sure we saw at least one bin match if located an anchor in this file
         if self.located and self._lower_match_ctx is None:
-            self._engine.logger.error("Sanity check failed in FileMatch.__init__(): failed to find the matched anchor inside file %s", self.name)
+            self._engine.logger.error(f"Sanity check failed in FileMatch.__init__(): failed to find the matched anchor inside file {self.name}")
             raise AssumptionException()
 
         # take full ownership of functions between the two match indices (if they are indeed mine)
@@ -145,7 +145,7 @@ class FileMatch(object):
         self._upper_locked_eas = set()
         if self.located:
             bin_range = range(self._bin_functions_ctx.index(self._lower_match_ctx), self._bin_functions_ctx.index(self._upper_match_ctx) + 1)
-            self._locked_eas.update(set(map(lambda x: self._bin_functions_ctx[x].ea, bin_range)))
+            self._locked_eas.update(self._bin_functions_ctx[x].ea for x in bin_range)
             for bin_index in bin_range:
                 bin_ctx = self._bin_functions_ctx[bin_index]
                 bin_ctx.linkFile(self)
@@ -190,7 +190,7 @@ class FileMatch(object):
             bin_index = self._bin_functions_ctx.index(bin_ctx)
             for seq_index, cur_seq in enumerate(self._match_sequences):
                 try:
-                    if self._bin_functions_ctx.index(cur_seq.bin_lower_ctx) <= bin_index and bin_index <= self._bin_functions_ctx.index(cur_seq.bin_upper_ctx):
+                    if self._bin_functions_ctx.index(cur_seq.bin_lower_ctx) <= bin_index <= self._bin_functions_ctx.index(cur_seq.bin_upper_ctx):
                         return seq_index
                 except ValueError:
                     # A False positive broke our invariants
@@ -244,8 +244,8 @@ class FileMatch(object):
                 # finished
                 return
             # sanity check
-            if current_seq_lower_index <= match_index and match_index <= current_seq_upper_index:
-                self._engine.logger.error("Sanity check failed in cleanupMatches(): matched a function twice in file %s", self.name)
+            if current_seq_lower_index <= match_index <= current_seq_upper_index:
+                self._engine.logger.error(f"Sanity check failed in cleanupMatches(): matched a function twice in file {self.name}")
                 raise AssumptionException()
             # continue to the next case
         # if we still have a new sequence, it means it is way after the last one
@@ -284,8 +284,8 @@ class FileMatch(object):
 
     def checkFinished(self):
         """Check if we finished matching the binary functions, and handles the cleanups needed."""
-        if len(list(filter(lambda ctx: not ctx.matched(), self._bin_functions_ctx))) == 0:
-            unused_funcs = set(range(self._src_index_start, self._src_index_end + 1)).difference(self._engine.matchedSrcIndices())
+        if len([ctx for ctx in self._bin_functions_ctx if not ctx.matched()]) == 0:
+            unused_funcs = set(range(self._src_index_start, self._src_index_end + 1)) - set(self._engine.matchedSrcIndices())
             if len(unused_funcs) > 0:
                 self.disableSources(unused_funcs)
                 # adjust the limits of the floating file
@@ -318,24 +318,22 @@ class FileMatch(object):
         try:
             upper_index = bin_ctxs.index(self._upper_match_ctx)
         except ValueError:
-            self._engine.logger.error("Sanity check failed in FileMatch (%s) remove(): upper match (%s) not in bin_ctxs", self.name, self._upper_match_ctx.name)
+            self._engine.logger.error(f"Sanity check failed in FileMatch ({self.name}) remove(): upper match ({self._upper_match_ctx.name}) not in bin_ctxs")
             raise AssumptionException()
         try:
             lower_index = bin_ctxs.index(self._lower_match_ctx)
         except ValueError:
-            self._engine.logger.error("Sanity check failed in FileMatch (%s) remove(): lower match (%s) not in bin_ctxs", self.name, self._lower_match_ctx.name)
+            self._engine.logger.error(f"Sanity check failed in FileMatch ({self.name}) remove(): lower match ({self._lower_match_ctx.name}) not in bin_ctxs")
             raise AssumptionException()
         upper_part = upper_index < bin_index
         lower_part = bin_index < lower_index
         # sanity check - more than the upper leftovers
         if upper_part and self._upper_leftovers is not None and len(bin_ctxs) - bin_index > self._upper_leftovers:
-            self._engine.logger.error("Sanity check failed on FileMatch (%s) remove(): %d %d 0x%x %d",
-                                                        self.name, bin_index, len(bin_ctxs), bin_ctx.ea, self._upper_leftovers)
+            self._engine.logger.error(f"Sanity check failed on FileMatch ({self.name}) remove(): {bin_index} {len(bin_ctxs)} 0x{bin_ctx.ea:x} {self._upper_leftovers}")
             raise AssumptionException()
         # sanity check - more than the lower leftovers
         elif lower_part and self._lower_leftovers is not None and bin_index + 1 > self._lower_leftovers:
-            self._engine.logger.error("Sanity check failed on FileMatch (%s) remove(): %d 0x%x %d",
-                                                        self.name, bin_index, bin_ctx.ea, self._lower_leftovers)
+            self._engine.logger.error(f"Sanity check failed on FileMatch ({self.name}) remove(): {bin_index} 0x{bin_ctx.ea:x} {self._lower_leftovers}")
             raise AssumptionException()
         # Now preform the update itself (changes according to the "type" of the file)
         if self.located:
@@ -348,7 +346,7 @@ class FileMatch(object):
                 self._bin_functions_ctx = self._bin_functions_ctx[bin_index + 1:]
                 self._lower_leftovers -= len(removed_funcs)
             # Now update all of the relevant functions that they are expelled from our file
-            list(map(lambda x: x.expel(self), removed_funcs))
+            [x.expel(self) for x in removed_funcs]
             # check if we matched all of our binaries
             self.checkFinished()
 
@@ -365,8 +363,7 @@ class FileMatch(object):
         # check if this is an internal match or an external remove
         src_ctx = self._engine.src_functions_ctx[src_index]
         if src_index < self._src_index_start or self._src_index_end < src_index:
-            self._engine.logger.error("Sanity check failed in FileMatch (%s) match() when matching %s: src index (%d) not in range %d - %d when matching %s",
-                                                        self.name, src_ctx.name, src_index, self._src_index_start, self._src_index_end, bin_ctx.name)
+            self._engine.logger.error(f"Sanity check failed in FileMatch ({self.name}) match() when matching {src_ctx.name}: src index ({src_index}) not in range {self._src_index_start} - {self._src_index_end} when matching {bin_ctx.name}")
             raise AssumptionException()
         # rewire the floating functions back to our file (for adjustments)
         if not self.located:
@@ -384,22 +381,19 @@ class FileMatch(object):
         try:
             bin_index = self._bin_functions_ctx.index(bin_ctx)
         except ValueError:
-            self._engine.logger.error("Sanity check failed in FileMatch (%s) match() when matching %s: matched binary (%s) not in bin_ctxs",
-                                                        self.name, src_ctx.name, bin_ctx.name)
+            self._engine.logger.error(f"Sanity check failed in FileMatch ({self.name}) match() when matching {src_ctx.name}: matched binary ({bin_ctx.name}) not in bin_ctxs")
             raise AssumptionException()
         link_files = set()
         if len(self._match_sequences) != 0:
             try:
                 upper_match_index = self._bin_functions_ctx.index(self._upper_match_ctx)
             except ValueError:
-                self._engine.logger.error("Sanity check failed in FileMatch (%s) match() when matching %s: upper match (%s) not in bin_ctxs",
-                                                        self.name, src_ctx.name, self._upper_match_ctx.name)
+                self._engine.logger.error(f"Sanity check failed in FileMatch ({self.name}) match() when matching {src_ctx.name}: upper match ({self._upper_match_ctx.name}) not in bin_ctxs")
                 raise AssumptionException()
             try:
                 lower_match_index = self._bin_functions_ctx.index(self._lower_match_ctx)
             except ValueError:
-                self._engine.logger.error("Sanity check failed in FileMatch (%s) match() when matching %s: lower match (%s) not in bin_ctxs",
-                                                        self.name, src_ctx.name, self._lower_match_ctx.name)
+                self._engine.logger.error(f"Sanity check failed in FileMatch ({self.name}) match() when matching {src_ctx.name}: lower match ({self._lower_match_ctx.name}) not in bin_ctxs")
                 raise AssumptionException()
         # case #0 - no match yet
         floating_representative = self._engine.floatingRepresentative()
@@ -449,13 +443,13 @@ class FileMatch(object):
         # case #1
         elif bin_index < lower_match_index:
             self._lower_leftovers -= lower_match_index - bin_index
-            self._lower_locked_eas.update(list(map(lambda ctx: ctx.ea, self._bin_functions_ctx[bin_index + 1:lower_match_index])))
+            self._lower_locked_eas.update(ctx.ea for ctx in self._bin_functions_ctx[bin_index + 1:lower_match_index])
             link_files.update(self._bin_functions_ctx[bin_index:lower_match_index])
             self._lower_match_ctx = bin_ctx
         # case #2
         elif bin_index > upper_match_index:
             self._upper_leftovers -= bin_index - upper_match_index
-            self._upper_locked_eas.update(list(map(lambda ctx: ctx.ea, self._bin_functions_ctx[upper_match_index + 1:bin_index])))
+            self._upper_locked_eas.update(ctx.ea for ctx in self._bin_functions_ctx[upper_match_index + 1:bin_index])
             link_files.update(self._bin_functions_ctx[upper_match_index + 1:bin_index + 1])
             self._upper_match_ctx = bin_ctx
         # case #3
@@ -498,8 +492,7 @@ class FileMatch(object):
         try:
             bin_index = self._bin_functions_ctx.index(bin_ctx)
         except ValueError:
-            self._engine.logger.error("Sanity check failed in FileMatch (%s) match() when matching %s: matched binary (%s) not in bin_ctxs after update",
-                                                        self.name, src_ctx.name, bin_ctx.name)
+            self._engine.logger.error(f"Sanity check failed in FileMatch ({self.name}) match() when matching {src_ctx.name}: matched binary ({bin_ctx.name}) not in bin_ctxs after update")
             raise AssumptionException()
         # now it's safe to preform the cleanup
         self.cleanupMatches(bin_ctx)

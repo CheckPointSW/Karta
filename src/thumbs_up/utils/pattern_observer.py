@@ -80,15 +80,15 @@ class AlignmentPattern:
         if len(self._records) < 2:
             return None
         # Now check for a basic alignment rule
-        seen_eas = list(map(lambda x: x[0], self._records))
+        seen_eas = [x[0] for x in self._records]
         # Deterministic results per binary, but still random
         random.seed(struct.unpack("!I", ida_nalt.retrieve_input_file_md5()[:4])[0])
         while True:
             # Check against two random candidates, and always make sure the representative isn't rare
             measure_candidate = seen_eas[random.randint(0, len(seen_eas) - 1)]
             measure_candidate_alt = seen_eas[random.randint(0, len(seen_eas) - 1)]
-            gcds = list(map(lambda x: gcd(measure_candidate, x), seen_eas))
-            gcds_alt = list(map(lambda x: gcd(measure_candidate_alt, x), seen_eas))
+            gcds = [gcd(measure_candidate, x) for x in seen_eas]
+            gcds_alt = [gcd(measure_candidate_alt, x) for x in seen_eas]
             alignment = min(gcds)
             alignment_alt = min(gcds_alt)
             if alignment > alignment_alt:
@@ -102,7 +102,7 @@ class AlignmentPattern:
             # Try to check if removing outliers will improve the alignment
             if try_again or gcds.count(alignment) <= len(gcds) * 0.01:
                 # pick the next element, and try to improve the result
-                seen_eas = list(filter(lambda x: gcd(measure_candidate, x) != alignment, seen_eas))
+                seen_eas = [x for x in seen_eas if gcd(measure_candidate, x) != alignment]
             # we can't improve the results
             else:
                 break
@@ -154,7 +154,7 @@ class CodePattern:
         Note:
             The record features are extracted from the given code line
         """
-        self._records.append((instr.insn.mnem, list(map(str, instr.insn.operands))))
+        self._records.append((instr.insn.mnem, [str(x) for x in instr.insn.operands]))
 
     def size(self):
         """Return the number of observed records.

@@ -5,7 +5,7 @@ class LibpngSeeker(Seeker):
     """Seeker (Identifier) for the libpng open source library."""
 
     # Library Name
-    NAME = 'libpng'
+    NAME = "libpng"
     # version string marker
     VERSION_STRING = "libpng version "
 
@@ -33,13 +33,13 @@ class LibpngSeeker(Seeker):
                     # false match
                     continue
                 # valid match
-                logger.debug("Located a copyright string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a copyright string of {self.NAME} in address 0x{bin_str.ea:x}")
                 # save the string for later
                 self._version_strings.append(copyright_string)
             # partial match, only the backup
             if backup_string in str(bin_str) and len(self._version_strings) == 0:
                 # valid placeholder
-                logger.debug("Located a place holder string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a place holder string of {self.NAME} in address 0x{bin_str.ea:x}")
                 # save the string for later
                 backup_strings.append(bin_str)
 
@@ -61,7 +61,7 @@ class LibpngSeeker(Seeker):
             clue_strings = list(filter(lambda x: self.extractVersion(x) == x, clue_strings))
             # the version will be the most popular string
             chosen_string = max(set(clue_strings), key=clue_strings.count)
-            logger.debug("The chosen version string is: %s", chosen_string)
+            logger.debug(f"The chosen version string is: {chosen_string}")
             self._version_strings.append(self.VERSION_STRING + chosen_string)
 
         # return the result

@@ -7,17 +7,17 @@ def getArchiveFiles(ar_path):
     Return Value:
         Ordered list of file names
     """
-    ar_fd = open(ar_path, 'rb')
+    ar_fd = open(ar_path, "rb")
     is_windows = ar_path.endswith(".lib")
 
     # check the signature
-    if ar_fd.read(8) != b'!<arch>\n':
+    if ar_fd.read(8) != b"!<arch>\n":
         raise ValueError("Invalid archive signature")
 
     # split the content to parts
     ar_content = ar_fd.read()
     names = []
-    for ar_part in ar_content.split(b'\x60\x0A')[:-1]:
+    for ar_part in ar_content.split(b"\x60\x0A")[:-1]:
         # .ar file format (unix) seems simpler
         if not is_windows:
             # sanity check
@@ -31,7 +31,7 @@ def getArchiveFiles(ar_path):
         else:
             if ar_part.find(b".obj") == -1:
                 continue
-            name = ar_part.split(b".obj")[-2].split(b'\x00')[-1].split(b'\\')[-1] + b".obj"
+            name = ar_part.split(b".obj")[-2].split(b"\x00")[-1].split(b"\\")[-1] + b".obj"
             name = name.strip()
         # append the new record
         if name not in names and len(name) > 0:

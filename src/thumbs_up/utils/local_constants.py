@@ -141,12 +141,12 @@ class LocalsIdentifier:
                             if offset + 1 == self._analyzer.addressSize():
                                 value = self._analyzer.parseAdderss(cur_ea)
                                 # only support pointers inside our local segment (more probable)
-                                if sc.start_ea <= value and value < sc.end_ea:
+                                if sc.start_ea <= value < sc.end_ea:
                                     self._analyzer.markCodePtr(cur_ea, value, aggressive=False)
                                 # try a pointer to a declared string
                                 else:
                                     for sd in sds:
-                                        if sd.start_ea <= value and value <= sd.end_ea:
+                                        if sd.start_ea <= value <= sd.end_ea:
                                             line = sark.Line(value)
                                             if line.is_string and line.start_ea == value:
                                                 self._analyzer.markDataPtr(cur_ea, value, aggressive=False)

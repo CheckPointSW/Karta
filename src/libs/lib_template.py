@@ -14,7 +14,7 @@ class Seeker(object):
         NAME (str): name of the open source library (without versioning info)
     """
 
-    VERSION_UNKNOWN = 'unknown'
+    VERSION_UNKNOWN = "unknown"
 
     def __init__(self, all_strings):
         """Init the base seeker with useful data.
@@ -66,7 +66,7 @@ class Seeker(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def extractVersion(self, raw_version_string, start_index=0, legal_chars=string.digits + '.'):
+    def extractVersion(self, raw_version_string, start_index=0, legal_chars=string.digits + "."):
         """Extract the version of the library from the raw version string.
 
         Args:
@@ -81,7 +81,7 @@ class Seeker(object):
         # scan until we stop
         while end_index < len(raw_version_string) and raw_version_string[end_index] in legal_chars:
             end_index += 1
-        if end_index < len(raw_version_string) and raw_version_string[end_index] == '.':
+        if end_index < len(raw_version_string) and raw_version_string[end_index] == ".":
             end_index -= 1
         # return the result
         return raw_version_string[start_index:end_index]

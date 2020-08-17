@@ -5,7 +5,7 @@ class OpenSSLSeeker(Seeker):
     """Seeker (Identifier) for the OpenSSL open source library."""
 
     # Library Name
-    NAME = 'OpenSSL'
+    NAME = "OpenSSL"
     # version string marker
     VERSION_STRING = " part of OpenSSL "
 
@@ -20,7 +20,7 @@ class OpenSSLSeeker(Seeker):
             number of library instances that were found in the binary
         """
         key_string = self.VERSION_STRING
-        ids = ['SHA1', 'SHA-256', 'SHA-512', 'SSLv3', 'TLSv1', 'ASN.1', 'EVP', 'RAND', 'RSA', 'Big Number']
+        ids = ["SHA1", "SHA-256", "SHA-512", "SSLv3", "TLSv1", "ASN.1", "EVP", "RAND", "RSA", "Big Number"]
 
         # Now search
         self._version_strings = []
@@ -31,7 +31,7 @@ class OpenSSLSeeker(Seeker):
             if key_string in str(bin_str):
                 copyright_string = str(bin_str)
                 # check for a supporting key word id
-                if len(list(filter(lambda id: id in copyright_string, ids))) == 0:
+                if len([x for x in ids if x in copyright_string]) == 0:
                     # false match
                     continue
                 # check for a duplicate inside the same library
@@ -39,7 +39,7 @@ class OpenSSLSeeker(Seeker):
                 if match_counter >= 1 and chopped_copyright_string in seen_copyrights:
                     continue
                 # valid match
-                logger.debug("Located a copyright string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a copyright string of {self.NAME} in address 0x{bin_str.ea:x}")
                 match_counter += 1
                 seen_copyrights.add(chopped_copyright_string)
                 # save the string for later

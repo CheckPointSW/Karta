@@ -5,7 +5,7 @@ class LibJPEGSeeker(Seeker):
     """Seeker (Identifier) for the libjpeg (ITU) open source library."""
 
     # Library Name
-    NAME = 'libjpeg'
+    NAME = "libjpeg"
     # version string marker
     VERSION_STRING = ", Thomas G. Lane, Guido Vollbeding"
 
@@ -36,7 +36,7 @@ class LibJPEGSeeker(Seeker):
                 except ValueError:
                     continue
                 # valid match
-                logger.debug("Located a version string of %s in address 0x%x", self.NAME, wanted_string_raw.ea)
+                logger.debug(f"Located a version string of {self.NAME} in address 0x{wanted_string_raw.ea:x}")
                 # save the string for later
                 self._version_strings.append(wanted_string)
 
@@ -60,7 +60,7 @@ class LibJPEGSeeker(Seeker):
         results = []
         # extract the version from the copyright string
         for work_str in self._version_strings:
-            results.append(self.extractVersion(work_str, legal_chars=string.digits + string.ascii_lowercase + '.'))
+            results.append(self.extractVersion(work_str, legal_chars=string.digits + string.ascii_lowercase + "."))
         # return the result
         return results
 

@@ -92,7 +92,7 @@ class FptrIdentifier:
         Return Value:
             True iff the given address contains only printable chars
         """
-        return len(list(filter(lambda x: chr(x) in string.printable, struct.pack("!%s" % (self._analyzer.address_pack_format), ea)))) == self._analyzer.addressSize()
+        return self._analyzer.addressSize() == len([x for x in struct.pack("!%s" % (self._analyzer.address_pack_format), ea) if chr(x) in string.printable])
 
     def hasKnownFptrs(self):
         """Check if there are known fptrs.
@@ -148,7 +148,7 @@ class FptrIdentifier:
         """Delete a function pointer to a given address, and of the given code type."""
         if ea not in self._ref_ptrs or self._ref_ptrs[ea] != code_type:
             return
-        self._analyzer.logger.debug("Deleting a FP function pointer to 0x%x (type %d)", ea, code_type)
+        self._analyzer.logger.debug(f"Deleting a FP function pointer to 0x{ea:x} (type {code_type})")
         self._ref_ptrs.pop(ea)
         for fptr_ea in self._ptrs_mappings[ea]:
             self._analyzer.delCodePtr(fptr_ea, self._analyzer.annotatePtr(ea, code_type))
@@ -167,7 +167,7 @@ class FptrIdentifier:
         if ea % self._analyzer.data_fptr_alignment != 0:
             return False
         for sd in sds:
-            if sd.start_ea <= ea and ea <= sd.end_ea:
+            if sd.start_ea <= ea <= sd.end_ea:
                 return True
         return False
 
@@ -184,7 +184,7 @@ class FptrIdentifier:
         if not self._analyzer.isValidCodePtr(ea):
             return False
         for sc in scs:
-            if sc.start_ea <= ea and ea < sc.end_ea:
+            if sc.start_ea <= ea < sc.end_ea:
                 return True
         return False
 
@@ -218,9 +218,9 @@ class FptrIdentifier:
                     if func_value in local_ref_ptrs:
                         local_ref_ptrs[func_value].add(code_type)
                         ptrs_mappings[func_value].add(cur_ea)
-                        self._analyzer.logger.debug("Located a fptr from 0x%x to 0x%x (type: %d) - Undeclared function", cur_ea, func_value, code_type)
+                        self._analyzer.logger.debug(f"Located a fptr from 0x{cur_ea:x} to 0x{func_value:x} (type: {code_type}) - Undeclared function")
                         if self.isPrintableAddress(value):
-                            self._analyzer.logger.debug("Looks like a printable FP: 0x%x", value)
+                            self._analyzer.logger.debug(f"Looks like a printable FP: 0x{value:x}")
                         approved_ptrs.append((cur_ea, value))
                         approved_eas.add(cur_ea)
                         seen_list.append((cur_ea, True))
@@ -229,7 +229,7 @@ class FptrIdentifier:
                     elif self._analyzer.codeType(func_value) == code_type and self._analyzer.func_classifier.isFuncStart(func_value):
                         local_ref_ptrs[func_value].add(code_type)
                         ptrs_mappings[func_value].add(cur_ea)
-                        self._analyzer.logger.debug("Located a fptr from 0x%x to 0x%x (type: %d) - Existing function", cur_ea, func_value, code_type)
+                        self._analyzer.logger.debug(f"Located a fptr from 0x{cur_ea:x} to 0x{func_value:x} (type: {code_type}) - Existing function")
                         approved_ptrs.append((cur_ea, value))
                         approved_eas.add(cur_ea)
                         seen_list.append((cur_ea, True))
@@ -238,9 +238,9 @@ class FptrIdentifier:
                     elif self._analyzer.func_classifier.predictFunctionStartMixed(func_value, known_type=code_type):
                         local_ref_ptrs[func_value].add(code_type)
                         ptrs_mappings[func_value].add(cur_ea)
-                        self._analyzer.logger.debug("Located a fptr from 0x%x to 0x%x (type: %d) - Undeclared function", cur_ea, func_value, code_type)
+                        self._analyzer.logger.debug(f"Located a fptr from 0x{cur_ea:x} to 0x{func_value:x} (type: {code_type}) - Undeclared function")
                         if self.isPrintableAddress(value):
-                            self._analyzer.logger.debug("Looks like a printable FP: 0x%x", value)
+                            self._analyzer.logger.debug(f"Looks like a printable FP: 0x{value:x}")
                         approved_ptrs.append((cur_ea, value))
                         approved_eas.add(cur_ea)
                         seen_list.append((cur_ea, True))
@@ -256,7 +256,7 @@ class FptrIdentifier:
                 elif self.isValidDataPtr(value, sds):
                     # make it a data pointer
                     self._analyzer.markDataPtr(cur_ea, value)
-                    self._analyzer.logger.debug("Located a data ptr from 0x%x to 0x%x", cur_ea, value)
+                    self._analyzer.logger.debug(f"Located a data ptr from 0x{cur_ea:x} to 0x{value:x}")
                     marked_artifacts.append((cur_ea, False))
                     marked_artifacts.append((value, False))
                 # continue forward
@@ -319,7 +319,7 @@ class FptrIdentifier:
                 approved_ptrs.append((cur_ea, value))
                 marked_artifacts.append((cur_ea, True))
                 approved_eas.add(cur_ea)
-                self._analyzer.logger.debug("Located new fptr from 0x%x to 0x%x (type: %d)", cur_ea, func_value, code_type)
+                self._analyzer.logger.debug(f"Located new fptr from 0x{cur_ea:x} to 0x{func_value:x} (type: {code_type})")
             # advance the window
             cur_window = cur_window[1:]
 
@@ -358,7 +358,7 @@ class FptrIdentifier:
             marked_artifacts.remove((cur_ea, True))
             # no need to remove from local_ref_ptrs, as the global variable only gets the approved values
             # no need to remove from approved_eas, as this data set isn't used anymore
-            self._analyzer.logger.debug("Disqualified (code) pointer 0x%08x from 0x%08x (type %d, seen types %s)", fixed_address, cur_ea, wanted_code_type, local_ref_ptrs[fixed_address])
+            self._analyzer.logger.debug(f"Disqualified (code) pointer 0x{fixed_address:08x} from 0x{cur_ea:08x} (type {wanted_code_type}, seen types {local_ref_ptrs[fixed_address]})")
 
         # Now filter them based on scoped range from other artifacts
         marked_artifacts.sort(key=lambda x: x[0])
@@ -378,7 +378,7 @@ class FptrIdentifier:
                     if fixed_address in self._ptrs_mappings:
                         self._ptrs_mappings.pop(fixed_address)
                     disqualified_addresses.add(raw_address)
-                    self._analyzer.logger.debug("Disqualified (scope) pointer 0x%08x from 0x%08x (type %d))", fixed_address, cur_ea, wanted_code_type)
+                    self._analyzer.logger.debug(f"Disqualified (scope) pointer 0x{fixed_address:08x} from 0x{cur_ea:08x} (type {wanted_code_type}))")
                 # set the prev artifact
                 prev_artifact = None
                 # check the next element
@@ -389,9 +389,9 @@ class FptrIdentifier:
                 cur_index += 1
 
         # mark the pointers
-        for cur_ea, raw_address in filter(lambda x: x[1] not in disqualified_addresses, approved_ptrs):
+        for cur_ea, raw_address in [x for x in approved_ptrs if x[1] not in disqualified_addresses]:
             self._ref_ptrs[self._analyzer.cleanPtr(raw_address)] = self._analyzer.ptrCodeType(raw_address)
             self._analyzer.markCodePtr(cur_ea, raw_address)
 
         # print some results
-        self._analyzer.logger.info("Found %d different potential function pointer destinations", len(self._ref_ptrs))
+        self._analyzer.logger.info(f"Found {len(self._ref_ptrs)} different potential function pointer destinations")

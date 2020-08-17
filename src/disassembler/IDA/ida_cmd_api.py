@@ -16,7 +16,7 @@ class IdaCMD(DisasCMD):
         Return Value:
             True iff the command-line path refers to our program
         """
-        return os.path.split(path)[-1].split('.')[0].lower().startswith("ida")
+        return os.path.split(path)[-1].split(".")[0].lower().startswith("ida")
 
     # Overridden base function
     @staticmethod
@@ -43,7 +43,7 @@ class IdaCMD(DisasCMD):
         suffix = ".i64" if self._path.endswith("64") else ".idb"
         database_file = binary_file + suffix
         # execute the program
-        os.system("%s -A -B -T%s -o%s %s" % (self._path, type, database_file, binary_file))
+        os.system(f"{self._path} -A -B -T{type} -o{database_file} {binary_file}")
         # return back the (should be) created database file path
         return database_file
 
@@ -55,7 +55,7 @@ class IdaCMD(DisasCMD):
             database (path): path to a database file created by the same program
             script (path): python script to be executed once the database is loaded
         """
-        os.system("%s -A -S%s %s" % (self._path, script, database))
+        os.system(f"{self._path} -A -S{script} {database}")
 
 
 # Don't forget to register at the factory

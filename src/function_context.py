@@ -75,7 +75,7 @@ class ExternalFunction(CodeContext):
         if self.hints is None:
             self.hints = set(hints)
         else:
-            self.hints = self.hints.intersection(hints)
+            self.hints &= set(hints)
         # check for a match
         if len(self.hints) == 1:
             self.declareMatch(list(self.hints)[0])
@@ -145,12 +145,12 @@ class ComparableContext(object):
         """
         score = 0
         # earn points by ranking the consts in the intersection
-        for const in src_ctx.consts.intersection(bin_ctx.consts):
+        for const in src_ctx.consts & set(bin_ctx.consts):
             score += src_ctx._const_ranks[const]
         # deduce points by ranking the consts in the symmetric difference
-        for const in src_ctx.consts.difference(bin_ctx.consts):
+        for const in src_ctx.consts - set(bin_ctx.consts):
             score -= src_ctx._const_ranks[const]
-        for const in bin_ctx.consts.difference(src_ctx.consts):
+        for const in bin_ctx.consts - set(src_ctx.consts):
             score -= bin_ctx._const_ranks[const]
         # give a boost for a perfect match
         if len(src_ctx.consts) > 0 and src_ctx.consts == bin_ctx.consts:
@@ -175,7 +175,7 @@ class ComparableContext(object):
         except UnicodeDecodeError:
             pass
         # now actually match the strings (intersection and symmetric difference)
-        for string in src_ctx.strings.intersection(bin_ctx.strings):
+        for string in src_ctx.strings & bin_ctx.strings:
             score += len(string) * STRING_MATCH_SCORE
             # duplicate the bonus in this case
             if string in src_ctx.name:
@@ -201,12 +201,12 @@ class ComparableContext(object):
         """
         score = -1 * abs(len(src_ctx.calls) - len(bin_ctx.calls)) * CALL_COUNT_SCORE
         # penalty for missing matched calls
-        src_matched = list(filter(lambda x: x.matched(), src_ctx.calls))
-        bin_matched = list(filter(lambda x: x.matched(), bin_ctx.calls))
+        src_matched = [x for x in src_ctx.calls if x.matched()]
+        bin_matched = [x for x in bin_ctx.calls if x.matched()]
         mismatching  = []
-        mismatching += list(filter(lambda x: x.match not in bin_ctx.calls, src_matched))
-        mismatching += list(filter(lambda x: x.match not in src_ctx.calls, bin_matched))
-        matching = list(filter(lambda x: x.match in bin_ctx.calls, src_matched))
+        mismatching += [x for x in src_matched if x.match not in bin_ctx.calls]
+        mismatching += [x for x in bin_matched if x.match not in src_ctx.calls]
+        matching = [x for x in src_matched if x.match in bin_ctx.calls]
         # the penalty is halved because we the list will most probably contain duplicates
         score -= CALL_COUNT_SCORE * len(mismatching) * 1.0 / 2
         score += MATCHED_CALL_SCORE * len(matching)
@@ -228,7 +228,7 @@ class ComparableContext(object):
         """
         # penalty for number of missing external calls
         score = -1 * abs(len(src_ctx.externals) - len(bin_ctx.externals)) * EXTERNAL_COUNT_SCORE
-        for external in filter(lambda x: x.matched(), src_ctx.externals):
+        for external in [x for x in src_ctx.externals if x.matched()]:
             # check for a hit
             if external.match in bin_ctx.externals:
                 if external.name in libc.libc_function_names:
@@ -547,11 +547,11 @@ class SourceContext(SrcFileFunction, FunctionContext):
             source file name string hint iff found one, None otherwise
         """
         for string in self.strings:
-            name_parts = string.split('.')
+            name_parts = string.split(".")
             if len(name_parts) != 2:
                 continue
-            file_name = self.file.split(os.path.sep)[-1].split('.')[0]
-            if name_parts[0] == file_name and name_parts[1].lower() in ['c', 'cpp', 'c++']:
+            file_name = self.file.split(os.path.sep)[-1].split(".")[0]
+            if name_parts[0] == file_name and name_parts[1].lower() in ["c", "cpp", "c++"]:
                 self.file_hint = string
                 return self.file_hint
         return None
@@ -641,7 +641,7 @@ class SourceContext(SrcFileFunction, FunctionContext):
         call_hints_score = 0
         merged_hints = 0
         if bin_ctx.call_hints is not None and len(bin_ctx.call_hints) > 0 and self in bin_ctx.call_hints:
-            merged_hints = len(list(filter(lambda x: x.hash == self.hash, bin_ctx.call_hints)))
+            merged_hints = len([x for x in bin_ctx.call_hints if x.hash == self.hash])
             # prioritize merged hints
             call_hints_score += FUNC_HINT_SCORE * 1.0 * (merged_hints ** 1.5) / len(bin_ctx.call_hints)
         logger.debug("Call hints score: %f", call_hints_score)
@@ -682,19 +682,19 @@ class SourceContext(SrcFileFunction, FunctionContext):
         Return Value:
             dict representing the context instance, prepared for a future JSON dump
         """
-        result = collections.OrderedDict()
-        result['Function Name']     = self.name
-        result['Instruction Count'] = self.instrs
-        result['Stack Frame Size']  = self.frame
-        result['Hash']              = self.hash
-        result['Is Static']         = self.is_static
-        result['Numeric Consts']    = list(self.consts)
-        result['Strings']           = list(self.strings)
-        result['Calls']             = list(self.calls)
-        result['Unknown Functions'] = list(self.unknown_funcs)
-        result['Unknown Globals']   = list(self.unknown_fptrs)
-        result['Code Block Sizes']  = self.blocks
-        result['Call Order']        = self.call_order
+        result = {}
+        result["Function Name"]     = self.name
+        result["Instruction Count"] = self.instrs
+        result["Stack Frame Size"]  = self.frame
+        result["Hash"]              = self.hash
+        result["Is Static"]         = self.is_static
+        result["Numeric Consts"]    = list(self.consts)
+        result["Strings"]           = list(self.strings)
+        result["Calls"]             = list(self.calls)
+        result["Unknown Functions"] = list(self.unknown_funcs)
+        result["Unknown Globals"]   = list(self.unknown_fptrs)
+        result["Code Block Sizes"]  = self.blocks
+        result["Call Order"]        = self.call_order
         return result
 
     @staticmethod
@@ -708,28 +708,28 @@ class SourceContext(SrcFileFunction, FunctionContext):
         Return value:
             The newly created context instance, built according to the serialized form
         """
-        context = SourceContext(serialized_ctx['Function Name'], source_index)
+        context = SourceContext(serialized_ctx["Function Name"], source_index)
         # Numeric Consts
-        list(map(lambda x: context.recordConst(int(x)), serialized_ctx['Numeric Consts']))
+        [context.recordConst(int(x)) for x in serialized_ctx["Numeric Consts"]]
         # Strings
-        list(map(lambda x: context.recordString(x), serialized_ctx['Strings']))
+        [context.recordString(x) for x in serialized_ctx["Strings"]]
         # Function Calls
-        list(map(lambda x: context.recordCall(x), serialized_ctx['Calls']))
+        [context.recordCall(x) for x in serialized_ctx["Calls"]]
         # Unknowns
-        list(map(lambda x: context.recordUnknown(x, False), serialized_ctx['Unknown Functions']))
-        list(map(lambda x: context.recordUnknown(x, True), serialized_ctx['Unknown Globals']))
+        [context.recordUnknown(x, False) for x in serialized_ctx["Unknown Functions"]]
+        [context.recordUnknown(x, True) for x in serialized_ctx["Unknown Globals"]]
         # Hash
-        context.setHash(serialized_ctx['Hash'])
+        context.setHash(serialized_ctx["Hash"])
         # Frame size
-        context.setFrame(serialized_ctx['Stack Frame Size'])
+        context.setFrame(serialized_ctx["Stack Frame Size"])
         # Function size
-        context.setInstrCount(serialized_ctx['Instruction Count'])
+        context.setInstrCount(serialized_ctx["Instruction Count"])
         # Function Blocks
-        list(map(lambda x: context.recordBlock(x), serialized_ctx['Code Block Sizes']))
+        [context.recordBlock(x) for x in serialized_ctx["Code Block Sizes"]]
         # Call order
-        context.setCallOrder(serialized_ctx['Call Order'])
+        context.setCallOrder(serialized_ctx["Call Order"])
         # Is static
-        if serialized_ctx['Is Static']:
+        if serialized_ctx["Is Static"]:
             context.markStatic()
         # Now rank the consts
         context.rankConsts()
@@ -832,7 +832,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
     # Overridden base function
     def selfCheck(self):
         """Double checks our hints, and keeps only those who match our possible file candidates."""
-        for hint in set(self.xref_hints).union(self.call_hints if self.call_hints is not None else set()):
+        for hint in set(self.xref_hints) | (self.call_hints if self.call_hints is not None else set()):
             # bye bye, hint
             if not hint.isValidCandidate(self):
                 self.removeHint(hint)
@@ -873,7 +873,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
         Return value:
             True iff this is a merged function with growth potential
         """
-        return self.matched() and (not self.match.isPartial()) and len(list(filter(lambda x: not x.matched(), self.match.collision_candidates))) > 0
+        return self.matched() and (not self.match.isPartial()) and len([x for x in self.match.collision_candidates if not x.matched()]) > 0
 
     def isHinted(self):
         """Check if our function was hinted at sometimes - meaning we should suspect it is a valid function.
@@ -890,7 +890,7 @@ class BinaryContext(BinFileFunction, FunctionContext):
             hint (collection): a collection of (source) function potential matches (containing FunctionContext instances)
             is_call (bool): True iff call hints, otherwise xref hints
         """
-        new_hints = list(filter(lambda x: x.isValidCandidate(self), hints))
+        new_hints = [x for x in hints if x.isValidCandidate(self)]
 
         # Saw a collision candidate, after was already matched to one of his friends
         if self.matched():
@@ -909,24 +909,24 @@ class BinaryContext(BinFileFunction, FunctionContext):
                     hint.addFollower(self)
             else:
                 # linker optimizations edge case
-                new_hashes = list(map(lambda x: x.hash, new_hints))
-                cur_hashes = set(map(lambda x: x.hash, self.call_hints))
-                for dropped in filter(lambda x: x.hash not in new_hashes, self.call_hints):
+                new_hashes = [x.hash for x in new_hints]
+                cur_hashes = set(x.hash for x in self.call_hints)
+                for dropped in [x for x in self.call_hints if x.hash not in new_hashes]:
                     dropped.removeFollower(self)
                 # check for a possibile collision option
-                context_intersection = self.call_hints.intersection(new_hints)
-                context_union        = self.call_hints.union(new_hints)
-                hashes_intersection  = cur_hashes.intersection(new_hashes)
-                remaining_hashes     = list(map(lambda x: x.hash, context_intersection))
+                context_intersection = self.call_hints & set(new_hints)
+                context_union        = self.call_hints | set(new_hints)
+                hashes_intersection  = cur_hashes & set(new_hashes)
+                remaining_hashes     = [x.hash for x in context_intersection]
                 if len(hashes_intersection) > len(remaining_hashes):
                     collision_candidates = []
-                    for collision_hash in set(hashes_intersection).difference(remaining_hashes):
-                        cur_collision_candidates = list(filter(lambda x: x.hash == collision_hash, context_union))
+                    for collision_hash in set(hashes_intersection) - set(remaining_hashes):
+                        cur_collision_candidates = [x for x in context_union if x.hash == collision_hash]
                         self.collision_map[collision_hash].update(cur_collision_candidates)
                         collision_candidates += cur_collision_candidates
-                    self.call_hints = context_intersection.union(collision_candidates)
+                    self.call_hints = context_intersection | set(collision_candidates)
                 else:
-                    self.call_hints = self.call_hints.intersection(new_hints)
+                    self.call_hints = self.call_hints & set(new_hints)
         else:
             self.xref_hints += new_hints
             for hint in new_hints:

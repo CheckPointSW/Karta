@@ -4,7 +4,7 @@ class NetSNMPSeeker(Seeker):
     """Seeker (Identifier) for the net-snmp open source library."""
 
     # Library Name
-    NAME = 'net-snmp'
+    NAME = "net-snmp"
 
     # Overridden base function
     def searchLib(self, logger):
@@ -23,7 +23,7 @@ class NetSNMPSeeker(Seeker):
         for idx, bin_str in enumerate(self._all_strings):
             # we have a match
             if key_string in str(bin_str):
-                logger.debug("Located a key string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a key string of {self.NAME} in address 0x{bin_str.ea:x}")
                 key_indices.append(idx)
                 break
 
@@ -33,7 +33,7 @@ class NetSNMPSeeker(Seeker):
             for bin_str in self._all_strings[max(key_index - 10000, 0):min(key_index + 10000, len(self._all_strings))]:
                 cur_str = str(bin_str)
                 if cur_str.startswith("5."):
-                    logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
+                    logger.debug(f"Located a version string of {self.NAME} in address 0x{bin_str.ea:x}")
                     self._version_strings.append(cur_str)
                     break
         # return the result

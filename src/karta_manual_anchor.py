@@ -28,7 +28,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
     prompter.addIndent()
     files_config = library_config[JSON_TAG_FILES]
     for full_file_path in files_config:
-        prompter.debug("Parsing the canonical representation of file: %s", full_file_path.split(os.path.sep)[-1])
+        prompter.debug(f"Parsing the canonical representation of file: {full_file_path.split(os.path.sep)[-1]}")
         src_file_names.append(full_file_path)
         parseFileStats(full_file_path, files_config[full_file_path])
     prompter.removeIndent()
@@ -53,7 +53,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
             function_name = prompter.input("Function Name (case sensitive): ")
             # check existence
             if src_functions_list.count(function_name) == 0:
-                prompter.error("Function \"%s\" does not exist", function_name)
+                prompter.error(f"Function \"{function_name}\" does not exist")
                 parsed_correctly = False
                 break
             # check uniqueness
@@ -61,7 +61,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
                 file_name = prompter.input("File Name (case sensitive): ")
                 src_indices = list(filter(lambda x: src_functions_ctx[x].file == file_name, func_indices[function_name]))
                 if len(src_indices) == 0:
-                    prompter.error("Function \"%s\" does not exist in file \"%s\"", file_name)
+                    prompter.error(f"Function \"{function_name}\" does not exist in file \"{file_name}\"")
                     parsed_correctly = False
                     break
                 src_index = src_indices[0]
@@ -76,7 +76,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
             try:
                 bin_ea = int(bin_ea_str, 16)
             except ValueError:
-                prompter.error("Illegal hexa address: \"%s\"", bin_ea_str_raw)
+                prompter.error(f"Illegal hexa address: \"{bin_ea_str_raw}\"")
                 parsed_correctly = False
                 break
             # finished successfully :)
@@ -84,7 +84,7 @@ def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
             break
 
         should_continue = prompter.input("Do you want to add another manual anchor? <Y/N>: ")
-        finished = should_continue.lower() != 'y'
+        finished = should_continue.lower() != "y"
     prompter.removeIndent()
 
     # add the info to the json
@@ -113,17 +113,17 @@ def main(args):
     global disas_cmd
 
     # argument parser
-    parser = argparse.ArgumentParser(description='Enables the user to manually defined matches, acting as manual anchors, later to be used by %s\'s Matcher.' % (LIBRARY_NAME))
-    parser.add_argument('bin', metavar='bin', type=str,
-                        help='path to the disassembler\'s database for the wanted binary')
-    parser.add_argument('name', metavar='lib-name', type=str,
-                        help='name (case sensitive) of the relevant open source library')
-    parser.add_argument('version', metavar='lib-version', type=str,
-                        help='version string (case sensitive) as used by the identifier')
-    parser.add_argument('config', metavar='configs', type=str,
-                        help='path to the *.json "configs" directory')
-    parser.add_argument('-D', '--debug', action='store_true', help='set logging level to logging.DEBUG')
-    parser.add_argument('-W', '--windows', action='store_true', help='signals that the binary was compiled for Windows')
+    parser = argparse.ArgumentParser(description=f"Enables the user to manually defined matches, acting as manual anchors, later to be used by {LIBRARY_NAME}'s Matcher.")
+    parser.add_argument("bin", metavar="bin", type=str,
+                        help="path to the disassembler's database for the wanted binary")
+    parser.add_argument("name", metavar="lib-name", type=str,
+                        help="name (case sensitive) of the relevant open source library")
+    parser.add_argument("version", metavar="lib-version", type=str,
+                        help="version string (case sensitive) as used by the identifier")
+    parser.add_argument("config", metavar="configs", type=str,
+                        help="path to the *.json \"configs\" directory")
+    parser.add_argument("-D", "--debug", action="store_true", help="set logging level to logging.DEBUG")
+    parser.add_argument("-W", "--windows", action="store_true", help="signals that the binary was compiled for Windows")
 
     # parse the args
     args = parser.parse_args(args)
@@ -136,7 +136,7 @@ def main(args):
 
     # open the log
     prompter = Prompter(min_log_level=logging.INFO if not is_debug else logging.DEBUG)
-    prompter.info('Starting the Script')
+    prompter.info("Starting the Script")
 
     # use the user supplied flag
     if is_windows:
@@ -149,34 +149,34 @@ def main(args):
 
     # Load the information from the relevant library
     lib_config_file = constructConfigPath(library_name, library_version)
-    prompter.debug('Loading the configuration file for library: %s', library_name)
+    prompter.debug(f"Loading the configuration file for library: {library_name}")
     prompter.addIndent()
     cur_config_path = os.path.join(config_path, lib_config_file)
     if not os.path.exists(cur_config_path):
-        prompter.error('Missing configuration file (%s) for \"%s\" Version: \"%s\"', lib_config_file, library_name, library_version)
+        prompter.error(f"Missing configuration file ({lib_config_file}) for \"{library_name}\" Version: \"{library_version}\"")
         return
     # Load the configuration file
-    fd = open(cur_config_path, 'r')
-    library_config = json.load(fd, object_pairs_hook=collections.OrderedDict)
+    fd = open(cur_config_path, "r")
+    library_config = json.load(fd)
     fd.close()
     prompter.removeIndent()
 
     # Load the existing knowledge config, if exists
-    prompter.debug('Opening knowledge configuration file from path: %s', accumulatedKnowledgePath(bin_path))
+    prompter.debug(f"Opening knowledge configuration file from path: {accumulatedKnowledgePath(bin_path)}")
     prompter.addIndent()
     knowledge_config = loadKnowledge(bin_path)
     if knowledge_config is None:
-        prompter.debug('Failed to find an existing configuration file')
+        prompter.debug("Failed to find an existing configuration file")
         knowledge_config = {}
     prompter.removeIndent()
 
     # receive all of the couples from the user
     knowledge_config = recordManualAnchors(library_config, knowledge_config, library_name, prompter)
-    prompter.info('Storing the data to the knowledge configuration file')
+    prompter.info("Storing the data to the knowledge configuration file")
     storeKnowledge(knowledge_config, bin_path)
 
     # finished
-    prompter.info('Finished Successfully')
+    prompter.info("Finished Successfully")
 
 
 if __name__ == "__main__":

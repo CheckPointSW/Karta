@@ -4,7 +4,7 @@ class libvpxSeeker(Seeker):
     """Seeker (Identifier) for the libvpx (codec) open source library."""
 
     # Library Name
-    NAME = 'libvpx'
+    NAME = "libvpx"
     # version string marker
     VERSION_STRING_VP8 = "WebM Project VP8 Decoder v"
     VERSION_STRING_VP9 = "WebM Project VP9 Decoder v"
@@ -26,7 +26,7 @@ class libvpxSeeker(Seeker):
             if str(bin_str).startswith(self.VERSION_STRING_VP8) or str(bin_str).startswith(self.VERSION_STRING_VP9):
                 version_string = str(bin_str)
                 # valid match
-                logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a version string of {self.NAME} in address 0x{bin_str.ea:x}")
                 # save the string for later (only if not a duplicate)
                 present_string = self.VERSION_STRING_VP8 if self.VERSION_STRING_VP8 in version_string else self.VERSION_STRING_VP9
                 other_string   = self.VERSION_STRING_VP9 if self.VERSION_STRING_VP8 in version_string else self.VERSION_STRING_VP9

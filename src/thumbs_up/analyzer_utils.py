@@ -45,7 +45,7 @@ def cleanStart(analyzer, scs, undef=False):
     """
     for sc in scs:
         if undef:
-            analyzer.logger.info("Undefining code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+            analyzer.logger.info(f"Undefining code segment: 0x{sc.start_ea:x} - 0x{sc.end_ea:x}")
             sark.data.undefine(sc.start_ea, sc.end_ea)
             if analyzer.switch_identifier.hasSwithTables(sc):
                 analyzer.logger.info("Marking all known switch tables in the segment")
@@ -58,7 +58,7 @@ def cleanStart(analyzer, scs, undef=False):
     else:
         analyzer.logger.debug("No known fptr functions")
     for sc in scs:
-        analyzer.logger.info("Re-Analyzing code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+        analyzer.logger.info(f"Re-Analyzing code segment: 0x{sc.start_ea:x} - 0x{sc.end_ea:x}")
         idc.plan_and_wait(sc.start_ea, sc.end_ea)
         idaapi.auto_wait()
 
@@ -133,7 +133,7 @@ def functionScan(analyzer, scs):
         2. Unknown after a previous function - and it looks like the beginning of a function of the estimated code type
     """
     for sc in scs:
-        analyzer.logger.info("Function scanning code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+        analyzer.logger.info(f"Function scanning code segment: 0x{sc.start_ea:x} - 0x{sc.end_ea:x}")
         search_func = False
         just_started = True
         line = sark.Line(sc.start_ea)
@@ -166,7 +166,7 @@ def functionScan(analyzer, scs):
                 if not ida_funcs.add_func(line.start_ea):
                     line = line.next
                 else:
-                    analyzer.logger.debug("Declared a function at: 0x%x", line.start_ea)
+                    analyzer.logger.debug(f"Declared a function at: 0x{line.start_ea:x}")
                 continue
             # Code, and doesn't look like a function's start
             if line.is_code:
@@ -184,7 +184,7 @@ def functionScan(analyzer, scs):
                             analyzer.setCodeType(line.start_ea, line.start_ea + 1, original_code_type)
                         line = line.next
                     else:
-                        analyzer.logger.debug("Declared a function at: 0x%x (Type %d, Local type %d)", line.start_ea, guess_code_type, original_code_type)
+                        analyzer.logger.debug(f"Declared a function at: 0x{line.start_ea:x} (Type {guess_code_type}, Local type {original_code_type})")
                     continue
                 # otherwise, do nothing
                 line = line.next
@@ -198,7 +198,7 @@ def aggressiveFunctionScan(analyzer, scs):
         scs (list): list of (sark) code segments
     """
     for sc in scs:
-        analyzer.logger.info("Aggressively scanning code segment: 0x%x - 0x%x", sc.start_ea, sc.end_ea)
+        analyzer.logger.info(f"Aggressively scanning code segment: 0x{sc.start_ea:x} - 0x{sc.end_ea:x}")
         search_func = False
         just_started = True
         line = sark.Line(sc.start_ea)
@@ -228,7 +228,7 @@ def aggressiveFunctionScan(analyzer, scs):
             if not ida_funcs.add_func(line.start_ea):
                 line = line.next
             else:
-                analyzer.logger.debug("Declared a function at: 0x%x", line.start_ea)
+                analyzer.logger.debug(f"Declared a function at: 0x{line.start_ea:x}")
 
 def dataScan(analyzer, scs):
     """Scan the code segments for orphan data blobs that represent analysis errors.
@@ -271,7 +271,7 @@ def dataScan(analyzer, scs):
                     pass
                 # data chunk in the middle of a function, and not at it's end - convert it to code
                 else:
-                    analyzer.logger.debug("In-Function data chunk at: 0x%x - 0x%x (%d)", chunk_start, chunk_end, chunk_end - chunk_start)
+                    analyzer.logger.debug(f"In-Function data chunk at: 0x{chunk_start:x} - 0x{chunk_end:x} ({chunk_end - chunk_start})")
                     ida_bytes.del_items(chunk_start, 0, chunk_end - chunk_start)
                     idc.create_insn(chunk_start)
                 # reset the vars
@@ -280,7 +280,7 @@ def dataScan(analyzer, scs):
 
     # Second scan - unreffed data chunks outside of functions ==> new functions, possibly of different code type
     size_limit = analyzer.func_classifier.functionStartSize()
-    analyzer.logger.debug("Size limit for data scan is: %d", size_limit)
+    analyzer.logger.debug(f"Size limit for data scan is: {size_limit}")
     conversion_candidates = []
     # recon pass
     for sc in scs:
@@ -367,7 +367,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
         region_code_type = None
         if not first_round:
             interesting_regions = regions.changedRegions()
-            analyzer.logger.debug("%d interesting regions", len(interesting_regions))
+            analyzer.logger.debug(f"{len(interesting_regions)} interesting regions")
             # edge case, if we have nothing to do
             if len(interesting_regions) == 0:
                 break
@@ -393,7 +393,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
                 # in dummy mode, don't do a thing
                 if dummy_mode:
                     metrics = []
-                    analyzer.logger.debug("Dummy region of code type %d in range 0x%x - 0x%x", region_code_type, region_start, region_end)
+                    analyzer.logger.debug(f"Dummy region of code type {region_code_type} in range 0x{region_start:x} - 0x{region_end:x}")
                 # actually do something
                 else:
                     # get the metrics
@@ -547,7 +547,7 @@ def thumbsUp(analyzer, sc, aggressive=False, align=False):
             if first_round:
                 line = line.next
         # log the result
-        analyzer.logger.info("Fixed %d code regions in this iteration", regions_fixed)
+        analyzer.logger.info(f"Fixed {regions_fixed} code regions in this iteration")
         first_round = False
 
 def negotiateRegions(analyzer, sc):
@@ -611,7 +611,7 @@ def resolveFunctionChunks(analyzer, scs):
                         outer_blocks.append(block)
                     # Function chunks which are switch cases, should be fixed
                     elif block_function is not None and analyzer.switch_identifier.isSwitchCase(block.start_ea):
-                        analyzer.logger.debug("Deleted switch case function: 0x%x", block.start_ea)
+                        analyzer.logger.debug(f"Deleted switch case function: 0x{block.start_ea:x}")
                         idc.del_func(block.start_ea)
                         outer_blocks.append(block)
             # check if there is something to scan
@@ -635,7 +635,7 @@ def resolveFunctionChunks(analyzer, scs):
                         outer_blocks.append(block)
                     # Function chunks which are switch cases, should be fixed
                     elif block_function is not None and analyzer.switch_identifier.isSwitchCase(block.start_ea):
-                        analyzer.logger.debug("Deleted switch case function: 0x%x", block.start_ea)
+                        analyzer.logger.debug(f"Deleted switch case function: 0x{block.start_ea:x}")
                         idc.del_func(block.start_ea)
                         outer_blocks.append(block)
             # check if there is something to scan
@@ -683,11 +683,11 @@ def resolveFunctionChunks(analyzer, scs):
                         func = sark.Function(original_end + offset)
                         if func.end_ea != original_end:
                             idc.del_func(func.start_ea)
-                            analyzer.logger.debug("Deleted function at: 0x%x", func.end_ea)
+                            analyzer.logger.debug(f"Deleted function at: 0x{func.end_ea:x}")
                     except sark.exceptions.SarkNoFunction:
                         pass
                 # now re-define the original function
-                analyzer.logger.debug("Re-defined the (switch) function at: 0x%x", original_start)
+                analyzer.logger.debug(f"Re-defined the (switch) function at: 0x{original_start:x}")
                 idc.del_func(original_start)
                 ida_funcs.add_func(original_start)
                 # can move on to the next function
@@ -706,7 +706,7 @@ def resolveFunctionChunks(analyzer, scs):
                     try:
                         func = sark.Function(candidate)
                         # If our chunk is the legit ending of a given function, don't ruin it
-                        contained_chunk = func.start_ea <= candidate and candidate < func.end_ea
+                        contained_chunk = func.start_ea <= candidate < func.end_ea
                         if func.start_ea != original_start and not contained_chunk:
                             external_func = func.start_ea
                             idc.del_func(func.start_ea)
@@ -720,4 +720,4 @@ def resolveFunctionChunks(analyzer, scs):
                 # If needed, restore the external (container) function
                 if external_func is not None:
                     ida_funcs.add_func(external_func)
-                analyzer.logger.debug("Re-defined the function at: 0x%x, candidate at: 0x%x", original_start, candidate)
+                analyzer.logger.debug(f"Re-defined the function at: 0x{original_start:x}, candidate at: 0x{candidate:x}")

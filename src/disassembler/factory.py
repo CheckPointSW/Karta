@@ -1,4 +1,3 @@
-import collections
 import traceback
 
 ######################################################################################################################
@@ -9,8 +8,8 @@ import traceback
 ## Global Variables ##
 ######################
 
-disassembler_factory        = collections.OrderedDict()         # Mapping from disassembler name => DisasVerifier of the respective API object
-disassembler_cmd_factory    = []                                # list of couples of the form (identifier_handler, class initializer)
+disassembler_factory        = {}     # Mapping from disassembler name => DisasVerifier of the respective API object
+disassembler_cmd_factory    = []     # list of couples of the form (identifier_handler, class initializer)
 
 def registerDisassembler(disas_verifier):
     """Register the disassembler in the overall factory.
@@ -48,14 +47,14 @@ def createDisassemblerHandler(logger):
             if not verifier.identify():
                 continue
         except Exception as err:
-            logger.error("Failed to identify disassembler \"%s\": %s", disas_name, err)
+            logger.error(f"Failed to identify disassembler \"{disas_name}\": {err}")
             logger.error(traceback.format_exc())
             continue
-        logger.info("Chose the %s handler", disas_name)
+        logger.info(f"Chose the {disas_name} handler")
         try:
             return verifier.disas()
         except Exception as err:
-            logger.error("Failed to create disassembler handler \"%s\": %s", disas_name, err)
+            logger.error(f"Failed to create disassembler handler \"{disas_name}\": {err}")
             logger.error(traceback.format_exc())
             return None
     logger.error("Failed to find a matching disassembler handler!")
@@ -74,7 +73,7 @@ def identifyDisassemblerHandler(program_path, logger):
     for identifier, init in disassembler_cmd_factory:
         if identifier(program_path):
             disas = init(program_path)
-            logger.debug("Chose the %s handler", disas.name())
+            logger.debug(f"Chose the {disas.name()} handler")
             return disas
 
     logger.error("Failed to create a disassembler handler!")

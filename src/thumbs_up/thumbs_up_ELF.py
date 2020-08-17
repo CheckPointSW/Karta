@@ -145,7 +145,7 @@ def analysisStart(analyzer, scs, sds):
 def main():
     """Start Thumbs Up IDA plugin - ELF version."""
     # Init the logger
-    logger = Logger("Thumbs Up Logger", [("thumbs_up.log", "w", logging.DEBUG)], use_stdout=False, min_log_level=logging.INFO)
+    logger = Logger("Thumbs Up Logger", [("thumbs_up.log", "w", logging.INFO)], use_stdout=False, min_log_level=logging.INFO)
     logger.linkHandler(IdaLogHandler())
     # Locate the segments
     code_segments = [sc for sc in sark.segments() if sc.type == 2]

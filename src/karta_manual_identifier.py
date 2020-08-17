@@ -33,7 +33,7 @@ def recordManualVersions(knowledge_config, prompter):
             lib_name = prompter.input("Library Name (case sensitive): ")
             # check existence
             if lib_name not in libraries_factory:
-                prompter.error("Library \"%s\" does not exist", lib_name)
+                prompter.error(f"Library \"{lib_name}\" does not exist")
                 parsed_correctly = False
                 break
             # get the manual version
@@ -43,7 +43,7 @@ def recordManualVersions(knowledge_config, prompter):
             break
 
         should_continue = prompter.input("Do you want to identify another library version? <Y/N>: ")
-        finished = should_continue.lower() != 'y'
+        finished = should_continue.lower() != "y"
     prompter.removeIndent()
 
     # add the info to the json
@@ -73,10 +73,10 @@ def main(args):
     global disas_cmd
 
     # argument parser
-    parser = argparse.ArgumentParser(description='Enables the user to manually identify the versions of located but unknown libraries, later to be used by %s\'s Matcher.' % (LIBRARY_NAME))
-    parser.add_argument('bin', metavar='bin', type=str,
-                        help='path to the disassembler\'s database for the wanted binary')
-    parser.add_argument('-D', '--debug', action='store_true', help='set logging level to logging.DEBUG')
+    parser = argparse.ArgumentParser(description=f"Enables the user to manually identify the versions of located but unknown libraries, later to be used by {LIBRARY_NAME}'s Matcher.")
+    parser.add_argument("bin", metavar="bin", type=str,
+                        help="path to the disassembler's database for the wanted binary")
+    parser.add_argument("-D", "--debug", action="store_true", help="set logging level to logging.DEBUG")
 
     # parse the args
     args = parser.parse_args(args)
@@ -85,27 +85,27 @@ def main(args):
 
     # open the log
     prompter = Prompter(min_log_level=logging.INFO if not is_debug else logging.DEBUG)
-    prompter.info('Starting the Script')
+    prompter.info("Starting the Script")
 
     # always init the utils before we start
     initUtils(prompter, None, invoked_before=True)
 
     # Load the existing knowledge config, if exists
-    prompter.debug('Opening knowledge configuration file from path: %s', accumulatedKnowledgePath(bin_path))
+    prompter.debug(f"Opening knowledge configuration file from path: {accumulatedKnowledgePath(bin_path)}")
     prompter.addIndent()
     knowledge_config = loadKnowledge(bin_path)
     if knowledge_config is None:
-        prompter.debug('Failed to find an existing configuration file')
+        prompter.debug("Failed to find an existing configuration file")
         knowledge_config = {}
     prompter.removeIndent()
 
     # receive all of the couples from the user
     knowledge_config = recordManualVersions(knowledge_config, prompter)
-    prompter.info('Storing the data to the knowledge configuration file')
+    prompter.info("Storing the data to the knowledge configuration file")
     storeKnowledge(knowledge_config, bin_path)
 
     # finished
-    prompter.info('Finished Successfully')
+    prompter.info("Finished Successfully")
 
 
 if __name__ == "__main__":

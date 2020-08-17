@@ -28,9 +28,9 @@ def createAnalyzer(logger, is_elf):
 
     # Check if we support this CPU
     proc_name = info.procName
-    logger.info("Processor: %s, %dbit", proc_name, bits)
+    logger.info(f"Processor: {proc_name}, {bits}bit")
     if proc_name not in analyzers_factory:
-        logger.error("Processor %s is NOT supported yet :(", proc_name)
+        logger.error(f"Processor {proc_name} is NOT supported yet :(")
         return None
     # Can now create the analyzer instance
     return analyzers_factory[proc_name](logger, bits, is_elf)

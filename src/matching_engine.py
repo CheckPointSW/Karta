@@ -86,23 +86,19 @@ class KartaMatcher(MatchEngine):
             bin_ctx = self.bin_functions_ctx[func_ea]
             # double check the match
             if not bin_ctx.isPartial() and not src_ctx.isValidCandidate(bin_ctx):
-                self.logger.error("Cancelled an invalid match: %s (%d) != 0x%x (%s)",
-                                            src_ctx.name, src_index, func_ea, function_name)
+                self.logger.error(f"Cancelled an invalid match: {src_ctx.name} ({src_index}) != 0x{func_ea:x} ({function_name})")
                 raise AssumptionException()
             # no need to declare it twice for anchors
-            self.logger.info("Declared a match: %s (%d) == 0x%x (%s)",
-                                            src_ctx.name, src_index, func_ea, function_name)
-            self.logger.debug("Matching reason is: %s", reason)
+            self.logger.info(f"Declared a match: {src_ctx.name} ({src_index}) == 0x{func_ea:x} ({function_name})")
+            self.logger.debug(f"Matching reason is: {reason}")
 
         # debug sanity checks
         if function_name not in [src_ctx.name, libraryName() + "_" + src_ctx.name]:
             # check if this is an unnamed IDA functions
             if function_name.startswith("sub_") or function_name.startswith("nullsub_") or function_name.startswith("j_"):
-                self.logger.debug("Matched to an unknown function: %s (%d) == 0x%x (%s)",
-                                            src_ctx.name, src_index, func_ea, function_name)
+                self.logger.debug(f"Matched to an unknown function: {src_ctx.name} ({src_index}) == 0x{func_ea:x} ({function_name})")
             elif is_anchor or self.bin_functions_ctx[func_ea].isPartial() or (not self.bin_functions_ctx[func_ea].merged()):
-                self.logger.warning("Probably matched a False Positive: %s (%d) == 0x%x (%s)",
-                                            src_ctx.name, src_index, func_ea, function_name)
+                self.logger.warning(f"Probably matched a False Positive: {src_ctx.name} ({src_index}) == 0x{func_ea:x} ({function_name})")
 
         # register the match
         duplicate_match = func_ea in self._bin_matched_ea
@@ -136,7 +132,7 @@ class KartaMatcher(MatchEngine):
             match_file = None
             for merged_source_ctx in bin_ctx.merged_sources:
                 for file_option in file_list:
-                    if file_option._src_index_start <= merged_source_ctx.index and merged_source_ctx.index <= file_option._src_index_end:
+                    if file_option._src_index_start <= merged_source_ctx.index <= file_option._src_index_end:
                         match_file = file_option
                         # make sure to update that this is the "correct" match (all collisions in the same file are equivalent)
                         src_index = merged_source_ctx.index
@@ -177,7 +173,7 @@ class KartaMatcher(MatchEngine):
         self.logger.info("Loading the information regarding the compiled source files")
         self.logger.addIndent()
         for full_file_path in files_config:
-            self.logger.debug("Parsing the canonical representation of file: %s", full_file_path.split(os.path.sep)[-1])
+            self.logger.debug(f"Parsing the canonical representation of file: {full_file_path.split(os.path.sep)[-1]}")
             src_file_names.append(full_file_path)
             parseFileStats(full_file_path, files_config[full_file_path])
         self.logger.removeIndent()
@@ -215,7 +211,7 @@ class KartaMatcher(MatchEngine):
                     # duplicate symbol in *other* files, we won't know what to pick up :(
                     if len(candidates) == 0:
                         self.logger.error("Found duplicate implementations of function \"%s\" in files: %s, can't pick one to use :(",
-                                                    call, ', '.join(map(lambda idx: self.src_functions_ctx[idx].file, func_indices[call])))
+                                                    call, ', '.join(self.src_functions_ctx[idx].file for idx in func_indices[call]))
                         raise KartaException()
                     call_src_ctx = self.src_functions_ctx[candidates[0]]
                 call_name_to_ctx[call] = call_src_ctx
@@ -320,16 +316,16 @@ class KartaMatcher(MatchEngine):
         """
         # How many functions we've matched?
         num_src_functions  = len(self._src_functions_list) - len(self._src_unused_functions)
-        num_act_functions  = num_src_functions - len(list(filter(lambda x: x.active() and (not x.used()), self.src_functions_ctx)))
+        num_act_functions  = num_src_functions - len([x for x in self.src_functions_ctx if x.active() and not x.used()])
         num_ext_functions  = len(self._src_external_functions) - len(self._ext_unused_functions)
         self.logger.info("Matched Functions: %d/%d(/%d) (%d/%d)",
-                                len(self.function_matches), num_src_functions, num_act_functions, len(list(filter(lambda x: x.matched(), self._src_external_functions.values()))), num_ext_functions)
+                                len(self.function_matches), num_src_functions, num_act_functions, len([x for x in self._src_external_functions.values() if x.matched()]), num_ext_functions)
         num_files = 0
         num_ref_files = 0
         located_files = 0
         filled_files  = 0
         filled_ref_files = 0
-        for match_file in filter(lambda x: x.valid, self._match_files):
+        for match_file in [x for x in self._match_files if x.valid]:
             num_files += 1
             located_files += (1 if match_file.located   else 0)
             filled_files  += (1 if match_file.matched() else 0)
@@ -347,31 +343,24 @@ class KartaMatcher(MatchEngine):
         self.logger.info("------------------------------------------------------------------------")
         printed_ghost = False
         # Source map, by files
-        for match_file in filter(lambda x: x.valid, self._match_files):
-            self.logger.info("File: %s (%d %d %d %d)",
-                                match_file.name, match_file._remain_size, len(match_file._locked_eas), len(match_file._lower_locked_eas), len(match_file._upper_locked_eas))
+        for match_file in [x for x in self._match_files if x.valid]:
+            self.logger.info(f"File: {match_file.name} ({match_file._remain_size} {len(match_file._locked_eas)} {len(match_file._lower_locked_eas)} {len(match_file._upper_locked_eas)})")
             self.logger.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             self.logger.info("Src map:")
             for src_index in range(match_file._src_index_start, match_file._src_index_end + 1):
-                candidate_string = ', '.join(map(lambda x: "0x%x" % x.ea, self.src_functions_ctx[src_index].followers))
+                candidate_string = ", ".join(f"0x{x.ea:x}" for x in self.src_functions_ctx[src_index].followers)
                 if src_index in self._src_anchor_list:
-                    self.logger.info("%03d: * (0x%x) - %s",
-                                src_index, self.function_matches[src_index], self.src_functions_ctx[src_index].name)
+                    self.logger.info(f"{src_index:03d}: * (0x{self.function_matches[src_index]:x}) - {self.src_functions_ctx[src_index].name}")
                 elif src_index in self.function_matches:
-                    self.logger.info("%03d: + (0x%x) - %s",
-                                src_index, self.function_matches[src_index], self.src_functions_ctx[src_index].name)
+                    self.logger.info(f"{src_index:03d}: + (0x{self.function_matches[src_index]:x}) - {self.src_functions_ctx[src_index].name}")
                 elif src_index in self._src_unused_functions:
-                    self.logger.info("%03d: - %s",
-                                src_index, self.src_functions_ctx[src_index].name)
+                    self.logger.info(f"{src_index:03d}: - {self.src_functions_ctx[src_index].name}")
                 elif not self.src_functions_ctx[src_index].used():
-                    self.logger.info("%03d: _ - %s",
-                                src_index, self.src_functions_ctx[src_index].name)
+                    self.logger.info(f"{src_index:03d}: _ - {self.src_functions_ctx[src_index].name}")
                 elif self.src_functions_ctx[src_index].is_static:
-                    self.logger.info("%03d: , - %s",
-                                src_index, self.src_functions_ctx[src_index].name)
+                    self.logger.info(f"{src_index:03d}: , - {self.src_functions_ctx[src_index].name}")
                 else:
-                    self.logger.info("%03d: . [%s] - %s",
-                                src_index, candidate_string, self.src_functions_ctx[src_index].name)
+                    self.logger.info(f"{src_index:03d}: . [{candidate_string}] - {self.src_functions_ctx[src_index].name}")
             self.logger.info("----------------------------------")
             # Bin map
             self.logger.info("Bin map")
@@ -385,35 +374,29 @@ class KartaMatcher(MatchEngine):
                 bin_index = bin_ctx.index
                 bin_ea = bin_ctx.ea
                 if bin_ctx.call_hints is not None:
-                    hints_options = ', '.join(map(lambda x: str(x.index), set(bin_ctx.call_hints)))
+                    hints_options = ", ".join(str(x.index) for x in set(bin_ctx.call_hints))
                 else:
-                    hints_options = ''
+                    hints_options = ""
                 if bin_index in self._bin_anchor_list:
-                    self.logger.info("%03d: * (0x%x - %s) - (%s)",
-                                bin_index, bin_ea, bin_ctx.name, str(match_file.index(bin_ctx)))
+                    self.logger.info(f"{bin_index:03d}: * (0x{bin_ea:x} - {bin_ctx.name}) - ({match_file.index(bin_ctx)})")
                 elif bin_ea in self._bin_matched_ea:
-                    self.logger.info("%03d: + (0x%x - %s) - (%s)",
-                                bin_index, bin_ea, bin_ctx.name, str(match_file.index(bin_ctx)))
+                    self.logger.info(f"{bin_index:03d}: + (0x{bin_ea:x} - {bin_ctx.name}) - ({match_file.index(bin_ctx)})")
                 elif not bin_ctx.used():
-                    self.logger.info("%03d: _ (0x%x - %s) [%s]",
-                                bin_index, bin_ea, bin_ctx.name, hints_options)
+                    self.logger.info(f"{bin_index:03d}: _ (0x{bin_ea:x} - {bin_ctx.name}) - [{hints_options}]")
                 elif not bin_ctx.is_static:
-                    self.logger.info("%03d: & (0x%x - %s)",
-                                bin_index, bin_ea, bin_ctx.name)
+                    self.logger.info(f"{bin_index:03d}: & (0x{bin_ea:x} - {bin_ctx.name})")
                 else:
-                    self.logger.info("%03d: . (0x%x - %s) [%s]",
-                                bin_index, bin_ea, bin_ctx.name, hints_options)
+                    self.logger.info(f"{bin_index:03d}: * (0x{bin_ea:x} - {bin_ctx.name}) - [{hints_options}]")
             self.logger.info("==================================")
         self.logger.info("External Functions:")
         for external_func in self._src_external_functions:
             ext_ctx = self._src_external_functions[external_func]
             if ext_ctx.matched():
-                self.logger.info("+ %s - 0x%x (%s)",
-                                ext_ctx.name, ext_ctx.match, self.disas.funcNameEA(ext_ctx.match))
+                self.logger.info(f"+ {ext_ctx.name} - 0x{ext_ctx.match:x} ({self.disas.funcNameEA(ext_ctx.match)})")
             elif external_func in self._ext_unused_functions:
-                self.logger.info("- %s", ext_ctx.name)
+                self.logger.info(f"- {ext_ctx.name}")
             else:
-                self.logger.info(". %s", ext_ctx.name)
+                self.logger.info(f". {ext_ctx.name}")
         # exit on error
         if error:
             self.logger.error("Internal assumption was broken - probably matched a false positive - exiting")
@@ -444,15 +427,15 @@ class KartaMatcher(MatchEngine):
             recordInstrRatio(self.src_functions_ctx[src_index].instrs, bin_ctx.instrs)
 
         # record the neighbour statistics
-        for src_neighbour in filter(lambda x: 0 <= x and x < len(self._src_functions_list), (src_index - 1, src_index + 1)):
+        for src_neighbour in [x for x in (src_index - 1, src_index + 1) if 0 <= x and x < len(self._src_functions_list)]:
             # check if the neighbour was matched
             if self.src_functions_ctx[src_neighbour].matched() and not bin_ctx.isPartial():
                 lower = src_neighbour < src_index
                 recordNeighbourMatch(is_neighbour=(self.src_functions_ctx[src_neighbour].match.index + (1 if lower else -1)) == bin_ctx.index)
 
         # function calls
-        bin_calls = list(filter(lambda x: x.active(), bin_ctx.calls))
-        src_calls = list(filter(lambda x: x.active(), src_ctx.calls))
+        bin_calls = [x for x in bin_ctx.calls if x.active()]
+        src_calls = [x for x in src_ctx.calls if x.active()]
         if len(bin_calls) > 0 and len(src_calls) > 0:
             # can only continue if this condition does NOT apply because it will cause duplicate "single call" matches
             if not (len(bin_calls) > 1 and len(src_calls) == 1):
@@ -460,35 +443,34 @@ class KartaMatcher(MatchEngine):
                 for call_bin_ctx in bin_calls:
                     call_bin_ctx.addHints(src_calls, True)
             for call_src_ctx in src_calls:
-                self._changed_functions[call_src_ctx.index].update(list(filter(lambda x: call_src_ctx.isValidCandidate(x), bin_calls)))
+                self._changed_functions[call_src_ctx.index].update(x for x in bin_calls if call_src_ctx.isValidCandidate(x))
         # function xrefs
-        bin_xrefs = list(filter(lambda x: x.active(), bin_ctx.xrefs))
-        src_xrefs = list(filter(lambda x: x.active(), src_ctx.xrefs))
+        bin_xrefs = [x for x in bin_ctx.xrefs if x.active()]
+        src_xrefs = [x for x in src_ctx.xrefs if x.active()]
         if len(bin_xrefs) > 0 and len(src_xrefs) > 0:
             # can only continue if this condition does NOT apply because it will cause duplicate "single call" matches
             if not (len(bin_xrefs) > 1 and len(src_xrefs) == 1):
                 for xref_bin_ctx in bin_xrefs:
                     xref_bin_ctx.addHints(src_xrefs, False)
             for xref_src_ctx in src_xrefs:
-                self._changed_functions[xref_src_ctx.index].update(list(filter(lambda x: xref_src_ctx.isValidCandidate(x), bin_xrefs)))
+                self._changed_functions[xref_src_ctx.index].update(x for x in bin_xrefs if xref_src_ctx.isValidCandidate(x))
         # external functions
-        bin_exts = list(filter(lambda ea: ea not in self._bin_matched_ea, bin_ctx.externals))
-        src_exts = list(filter(lambda x: x.active(), src_ctx.externals))
+        bin_exts = [x for x in bin_ctx.externals if x not in self._bin_matched_ea]
+        src_exts = [x for x in src_ctx.externals if x.active()]
         if len(bin_exts) > 0 and len(src_exts) > 0:
             self._call_hints_records.append((src_exts, bin_exts, src_ctx, bin_ctx, True))
             # can't continue because it will cause duplicate matches for the same binary
             if len(bin_exts) == 1 and len(src_exts) > 1:
                 return
             for src_ext in src_exts:
-                src_ext.addHints(filter(lambda x: self.disas.funcNameEA(x) not in libc.skip_function_names, bin_exts))
+                src_ext.addHints([x for x in bin_exts if self.disas.funcNameEA(x) not in libc.skip_function_names])
                 # Check for matches
                 matched_ea = src_ext.match
                 if matched_ea is not None and matched_ea not in self._bin_matched_ea:
                     self._bin_matched_ea[matched_ea] = self._src_external_functions[src_ext.name]
                     src_ext.ea = matched_ea
                     self._matching_reasons[src_ext.name] = REASON_SINGLE_CALL
-                    self.logger.info("Matched external function: %s == 0x%x (%s)",
-                                     src_ext.name, matched_ea, self.disas.funcNameEA(matched_ea))
+                    self.logger.info(f"Matched external function: {src_ext.name} == 0x{matched_ea:x} ({self.disas.funcNameEA(matched_ea)})")
 
     #####################
     ## Matching Rounds ##
@@ -506,8 +488,8 @@ class KartaMatcher(MatchEngine):
         # scan all of the records and decide which will be a real match
         for match_record in self._match_round_candidates:
             # 0. Prepare the variables for easy use
-            src_index = match_record['src_index']
-            func_ea   = match_record['func_ea']
+            src_index = match_record["src_index"]
+            func_ea   = match_record["func_ea"]
             src_candidate = self.src_functions_ctx[src_index]
             bin_candidate = self.bin_functions_ctx[func_ea]
             self.logger.debug("Round match attempt: %s (%d) vs %s (0x%x): %f (+%f = %f)",
@@ -516,15 +498,15 @@ class KartaMatcher(MatchEngine):
             if not src_candidate.isValidCandidate(bin_candidate):
                 continue
             # 2. Are we high enough for a match?
-            elif match_record['score'] < MINIMAL_MATCH_SCORE:
+            elif match_record["score"] < MINIMAL_MATCH_SCORE:
                 # record the loser
                 self._match_round_losers.append(match_record)
             # 3. We have a match :)
             else:
                 # actually match the couple
                 self.logger.debug("Matching in a round match according to score: %f (%f)",
-                                    match_record['score'] - match_record['boost'], match_record['score'])
-                self.declareMatch(src_index, func_ea, match_record['reason'])
+                                    match_record["score"] - match_record["boost"], match_record["score"])
+                self.declareMatch(src_index, func_ea, match_record["reason"])
                 declared_match = True
                 # store them for a later filter
                 matched_src_index.add(src_index)
@@ -537,11 +519,11 @@ class KartaMatcher(MatchEngine):
             matching_couples = {}
             # We are only searching for used neighbours
             for match_record in self._match_round_losers:
-                src_index = match_record['src_index']
-                func_ea   = match_record['func_ea']
+                src_index = match_record["src_index"]
+                func_ea   = match_record["func_ea"]
                 src_candidate = self.src_functions_ctx[src_index]
                 bin_candidate = self.bin_functions_ctx[func_ea]
-                if match_record['boost'] > 0 and src_candidate.used() and bin_candidate.used():
+                if match_record["boost"] > 0 and src_candidate.used() and bin_candidate.used():
                     # if they are not unique, they both will get disqualified
                     if src_candidate in matching_src_candidates or bin_candidate in matching_bin_candidates:
                         if src_candidate in matching_src_candidates:
@@ -558,13 +540,13 @@ class KartaMatcher(MatchEngine):
             for src_candidate in matching_couples:
                 bin_candidate = matching_couples[src_candidate]
                 # Check the followers hints
-                if len(list(filter(lambda x: x not in matching_bin_candidates, src_candidate.followers))) > 0:
+                if len([x for x in src_candidate.followers if x not in matching_bin_candidates]) > 0:
                     continue
                 # Check the xrefs hints
-                if len(list(filter(lambda x: x not in matching_src_candidates, bin_candidate.xref_hints))) > 0:
+                if len([x for x in bin_candidate.xref_hints if x not in matching_src_candidates]) > 0:
                     continue
                 # Check the call hints (if have any)
-                if bin_candidate.call_hints is not None and len(list(filter(lambda x: x not in matching_src_candidates, bin_candidate.call_hints))) > 0:
+                if bin_candidate.call_hints is not None and len([x for x in bin_candidate.call_hints if x not in matching_src_candidates]) > 0:
                     continue
                 # We found a match couple
                 self.logger.debug("Matching in a round match using the last matching step")
@@ -578,10 +560,10 @@ class KartaMatcher(MatchEngine):
         # filter the losers
         final_loser_list = []
         for loser_record in self._match_round_losers:
-            if loser_record['src_index'] in matched_src_index or loser_record['func_ea'] in matched_bin_ea:
+            if loser_record["src_index"] in matched_src_index or loser_record["func_ea"] in matched_bin_ea:
                 continue
             # check for validity
-            if not self.src_functions_ctx[loser_record['src_index']].isValidCandidate(self.bin_functions_ctx[loser_record['func_ea']]):
+            if not self.src_functions_ctx[loser_record["src_index"]].isValidCandidate(self.bin_functions_ctx[loser_record["func_ea"]]):
                 continue
             final_loser_list.append(loser_record)
         self._match_round_losers = final_loser_list
@@ -605,13 +587,13 @@ class KartaMatcher(MatchEngine):
             reason (enum): matching reason, taken from the string enum
         """
         match_record = {
-                            'src_index': src_index,
-                            'func_ea':   func_ea,
-                            'boost':     score_boost,
-                            'score':     score,
-                            'gap-safe':  True,
-                            'gap':       None,
-                            'reason':    reason,
+                            "src_index": src_index,
+                            "func_ea":   func_ea,
+                            "boost":     score_boost,
+                            "score":     score,
+                            "gap-safe":  True,
+                            "gap":       None,
+                            "reason":    reason,
                        }
 
         # check using the src_index
@@ -622,23 +604,23 @@ class KartaMatcher(MatchEngine):
         else:
             prev_record = self._match_round_src_index[src_index]
             # toss duplicates (both ways)
-            if prev_record['func_ea'] == match_record['func_ea']:
-                if match_record['score'] <= prev_record['score']:
+            if prev_record["func_ea"] == match_record["func_ea"]:
+                if match_record["score"] <= prev_record["score"]:
                     return
                 # we will need this update anyway
-                prev_record['score']  = match_record['score']
-                prev_record['boost']  = match_record['boost']
-                prev_record['reason'] = match_record['reason']
+                prev_record["score"]  = match_record["score"]
+                prev_record["boost"]  = match_record["boost"]
+                prev_record["reason"] = match_record["reason"]
                 # be safe with the gaps
-                if prev_record['gap-safe']:
+                if prev_record["gap-safe"]:
                     # nothing more to be done
                     return
                 # still the winner in the binary match - had a gap in the binary or the source
                 elif self._match_round_bin_ea[func_ea] == prev_record:
                     # If we won the gap
-                    if abs(score - prev_record['gap']) > SAFTEY_GAP_SCORE:
-                        prev_record['gap-safe'] = True
-                        prev_record['gap'] = None
+                    if abs(score - prev_record["gap"]) > SAFTEY_GAP_SCORE:
+                        prev_record["gap-safe"] = True
+                        prev_record["gap"] = None
                         # revive us back
                         self._match_round_candidates.append(prev_record)
                         self._match_round_losers.remove(prev_record)
@@ -647,54 +629,54 @@ class KartaMatcher(MatchEngine):
                 else:
                     prev_bin_record = self._match_round_bin_ea[func_ea]
                     # If we won the gap
-                    if abs(score - prev_bin_record['score']) > SAFTEY_GAP_SCORE:
-                        prev_record['gap-safe'] = True
-                        prev_record['gap'] = None
+                    if abs(score - prev_bin_record["score"]) > SAFTEY_GAP_SCORE:
+                        prev_record["gap-safe"] = True
+                        prev_record["gap"] = None
                         # revive us back (and throw the previous winner)
-                        if prev_bin_record['gap-safe']:
-                            prev_bin_record['gap-safe'] = False
+                        if prev_bin_record["gap-safe"]:
+                            prev_bin_record["gap-safe"] = False
                             self._match_round_candidates.remove(prev_bin_record)
                             self._match_round_losers.append(prev_bin_record)
                         self._match_round_bin_ea[func_ea] = prev_record
                         self._match_round_candidates.append(prev_record)
                         self._match_round_losers.remove(prev_record)
                     # check if we are now back the winners of the binary match
-                    elif prev_bin_record['score'] < score:
+                    elif prev_bin_record["score"] < score:
                         self._match_round_bin_ea[func_ea] = prev_record
-                        prev_record['gap'] = prev_bin_record['score']
-                        if prev_bin_record['gap-safe']:
-                            prev_bin_record['gap-safe'] = False
+                        prev_record["gap"] = prev_bin_record["score"]
+                        if prev_bin_record["gap-safe"]:
+                            prev_bin_record["gap-safe"] = False
                             self._match_round_candidates.remove(prev_bin_record)
                             self._match_round_losers.append(prev_bin_record)
             # check if our candidate even needs to compete
-            if score + SAFTEY_GAP_SCORE < prev_record['score']:
+            if score + SAFTEY_GAP_SCORE < prev_record["score"]:
                 # tough luck, we should get rejected
-                match_record['gap-safe'] = False
+                match_record["gap-safe"] = False
                 self._match_round_losers.append(match_record)
             # both of us lost
-            elif abs(score - prev_record['score']) <= SAFTEY_GAP_SCORE:
-                match_record['gap-safe'] = False
+            elif abs(score - prev_record["score"]) <= SAFTEY_GAP_SCORE:
+                match_record["gap-safe"] = False
                 self._match_round_losers.append(match_record)
                 # remove him only once
-                if prev_record['gap-safe']:
-                    prev_record['gap-safe'] = False
+                if prev_record["gap-safe"]:
+                    prev_record["gap-safe"] = False
                     self._match_round_candidates.remove(prev_record)
                     self._match_round_losers.append(prev_record)
                 # check who will be marked as the best loser
-                if prev_record['score'] < score:
+                if prev_record["score"] < score:
                     self._match_round_src_index[src_index] = match_record
-                    match_record['gap'] = prev_record['score']
-                elif prev_record['gap'] is None:
-                    prev_record['gap'] = score
+                    match_record["gap"] = prev_record["score"]
+                elif prev_record["gap"] is None:
+                    prev_record["gap"] = score
                 else:
-                    prev_record['gap'] = max(score, prev_record['gap'])
+                    prev_record["gap"] = max(score, prev_record["gap"])
             # we won, and we should remember the seen record
             else:
                 self._match_round_src_index[src_index] = match_record
                 self._match_round_candidates.append(match_record)
                 # remove him only once
-                if prev_record['gap-safe']:
-                    prev_record['gap-safe'] = False
+                if prev_record["gap-safe"]:
+                    prev_record["gap-safe"] = False
                     self._match_round_candidates.remove(prev_record)
                     self._match_round_losers.append(prev_record)
 
@@ -705,38 +687,38 @@ class KartaMatcher(MatchEngine):
         else:
             prev_record = self._match_round_bin_ea[func_ea]
             # check if our candidate even needs to compete
-            if score + SAFTEY_GAP_SCORE < prev_record['score']:
+            if score + SAFTEY_GAP_SCORE < prev_record["score"]:
                 # tough luck, we should get rejected
-                if match_record['gap-safe']:
-                    match_record['gap-safe'] = False
+                if match_record["gap-safe"]:
+                    match_record["gap-safe"] = False
                     self._match_round_candidates.remove(match_record)
                     self._match_round_losers.append(match_record)
             # both of us lost
-            elif abs(score - prev_record['score']) <= SAFTEY_GAP_SCORE:
+            elif abs(score - prev_record["score"]) <= SAFTEY_GAP_SCORE:
                 # remove him only once
-                if prev_record['gap-safe']:
-                    prev_record['gap-safe'] = False
+                if prev_record["gap-safe"]:
+                    prev_record["gap-safe"] = False
                     self._match_round_candidates.remove(prev_record)
                     self._match_round_losers.append(prev_record)
                 # remove me only once
-                if match_record['gap-safe']:
-                    match_record['gap-safe'] = False
+                if match_record["gap-safe"]:
+                    match_record["gap-safe"] = False
                     self._match_round_candidates.remove(match_record)
                     self._match_round_losers.append(match_record)
                 # check who will be marked as the best loser
-                if prev_record['score'] < score:
+                if prev_record["score"] < score:
                     self._match_round_bin_ea[func_ea] = match_record
-                    match_record['gap'] = prev_record['score']
-                elif prev_record['gap'] is None:
-                    prev_record['gap'] = score
+                    match_record["gap"] = prev_record["score"]
+                elif prev_record["gap"] is None:
+                    prev_record["gap"] = score
                 else:
-                    prev_record['gap'] = max(score, prev_record['gap'])
+                    prev_record["gap"] = max(score, prev_record["gap"])
             # we won, and we should remember the seen record
             else:
                 self._match_round_bin_ea[func_ea] = match_record
                 # remove him only once
-                if prev_record['gap-safe']:
-                    prev_record['gap-safe'] = False
+                if prev_record["gap-safe"]:
+                    prev_record["gap-safe"] = False
                     self._match_round_candidates.remove(prev_record)
                     self._match_round_losers.append(prev_record)
                 # don't add me twice, and don't add me if failed before
@@ -823,8 +805,8 @@ class KartaMatcher(MatchEngine):
 
         # merge the results into the changed functions list
         for loser_record in self._match_round_losers:
-            src_index = loser_record['src_index']
-            func_ea   = loser_record['func_ea']
+            src_index = loser_record["src_index"]
+            func_ea   = loser_record["func_ea"]
             self._changed_functions[src_index].add(self.bin_functions_ctx[func_ea])
         # reset the losers list
         self._match_round_losers = []
@@ -843,8 +825,8 @@ class KartaMatcher(MatchEngine):
 
         # merge the results into the changed functions list
         for loser_record in self._match_round_losers:
-            src_index = loser_record['src_index']
-            func_ea   = loser_record['func_ea']
+            src_index = loser_record["src_index"]
+            func_ea   = loser_record["func_ea"]
             self._changed_functions[src_index].add(self.bin_functions_ctx[func_ea])
         # reset the losers list
         self._match_round_losers = []
@@ -884,7 +866,7 @@ class KartaMatcher(MatchEngine):
                                 finished = False
                                 continue
                             # check for a single call hint (collision case) - this should be a sure match
-                            if bin_ctx.call_hints is not None and len(bin_ctx.collision_map) > 0 and len(set(map(lambda x: x.hash, bin_ctx.call_hints))) == 1:
+                            if bin_ctx.call_hints is not None and len(bin_ctx.collision_map) > 0 and len(set(x.hash for x in bin_ctx.call_hints)) == 1:
                                 # the rest will be taken care by updateHints
                                 self.declareMatch(list(bin_ctx.call_hints)[0].index, bin_ctx.ea, REASON_SINGLE_CALL)
                                 finished = False
@@ -904,19 +886,19 @@ class KartaMatcher(MatchEngine):
                         if scoped_functions == self._changed_functions:
                             for match_record in self._match_round_candidates:
                                 # source candidates
-                                if match_record['src_index'] in self._once_seen_couples_src:
-                                    for bin_ctx in list(self._once_seen_couples_src[match_record['src_index']]):
-                                        if self.src_functions_ctx[match_record['src_index']].isValidCandidate(bin_ctx):
-                                            self.matchAttempt(match_record['src_index'], bin_ctx.ea)
+                                if match_record["src_index"] in self._once_seen_couples_src:
+                                    for bin_ctx in list(self._once_seen_couples_src[match_record["src_index"]]):
+                                        if self.src_functions_ctx[match_record["src_index"]].isValidCandidate(bin_ctx):
+                                            self.matchAttempt(match_record["src_index"], bin_ctx.ea)
                                         else:
-                                            self._once_seen_couples_src[match_record['src_index']].remove(bin_ctx)
+                                            self._once_seen_couples_src[match_record["src_index"]].remove(bin_ctx)
                                 # binary candidates
-                                if match_record['func_ea'] in self._once_seen_couples_bin:
-                                    for src_index in list(self._once_seen_couples_bin[match_record['func_ea']]):
+                                if match_record["func_ea"] in self._once_seen_couples_bin:
+                                    for src_index in list(self._once_seen_couples_bin[match_record["func_ea"]]):
                                         if self.src_functions_ctx[src_index].isValidCandidate(self.bin_functions_ctx[match_record['func_ea']]):
-                                            self.matchAttempt(src_index, match_record['func_ea'])
+                                            self.matchAttempt(src_index, match_record["func_ea"])
                                         else:
-                                            self._once_seen_couples_bin[match_record['func_ea']].remove(src_index)
+                                            self._once_seen_couples_bin[match_record["func_ea"]].remove(src_index)
                             # now reset the dict of changed functions
                             self._changed_functions = defaultdict(set)
 
@@ -925,8 +907,8 @@ class KartaMatcher(MatchEngine):
 
                         # merge the results into the seen couples
                         for loser_record in self._match_round_losers:
-                            src_index = loser_record['src_index']
-                            func_ea   = loser_record['func_ea']
+                            src_index = loser_record["src_index"]
+                            func_ea   = loser_record["func_ea"]
                             bin_ctx = self.bin_functions_ctx[func_ea]
                             self._once_seen_couples_src[src_index].add(bin_ctx)
                             self._once_seen_couples_bin[bin_ctx.ea].add(src_index)
@@ -949,11 +931,11 @@ class KartaMatcher(MatchEngine):
                     for src_calls, bin_calls, src_parent, bin_parent, is_ext in self._call_hints_records:
                         # start with a filter
                         if is_ext:
-                            src_calls = list(filter(lambda x: self._src_external_functions[x.name].active() and self._src_external_functions[x.name].used(), src_calls))
-                            bin_calls = list(filter(lambda ea: ea not in self._bin_matched_ea, bin_calls))
+                            src_calls = [x for x in src_calls if self._src_external_functions[x.name].active() and self._src_external_functions[x.name].used()]
+                            bin_calls = [x for x in bin_calls if x not in self._bin_matched_ea]
                         else:
-                            src_calls = list(filter(lambda x: x.active() and x in src_parent.call_order, src_calls))
-                            bin_calls = list(filter(lambda x: x.active() and x in bin_parent.call_order, bin_calls))
+                            src_calls = [x for x in src_calls if x.active() and x in src_parent.call_order]
+                            bin_calls = [x for x in bin_calls if x.active() and x in bin_parent.call_order]
                         if len(src_calls) > 0 and len(bin_calls) > 0:
                             new_call_hints_records.append((src_calls, bin_calls, src_parent, bin_parent, is_ext))
                         # now continue to the actual logic
@@ -963,20 +945,19 @@ class KartaMatcher(MatchEngine):
                         for bin_ctx in bin_calls:
                             if bin_ctx not in bin_parent.call_order:
                                 if not is_ext:
-                                    self.logger.warning("Found a probable Island inside function: 0x%x (%s)",
-                                                                bin_ctx.ea, bin_ctx.name)
+                                    self.logger.warning(f"Found a probable Island inside function: 0x{bin_ctx.ea:x} ({bin_ctx.name})")
                                 continue
                             for call_path in bin_parent.call_order[bin_ctx]:
-                                order_score = len(call_path.intersection(bin_calls))
+                                order_score = len(call_path & set(bin_calls))
                                 order_bins[order_score].add(bin_ctx)
                         # build the src order
                         for src_ctx in src_calls:
                             for call_path in src_parent.call_order[src_ctx]:
-                                order_score = len(call_path.intersection(src_calls))
+                                order_score = len(call_path & set(src_calls))
                                 order_srcs[order_score].add(src_ctx)
                         # check that both orders match
                         agreed_order_index = -1
-                        order_intersection = set(order_bins.keys()).intersection(set(order_srcs.keys()))
+                        order_intersection = set(order_bins.keys()) & set(order_srcs.keys())
                         if len(order_intersection) > 0:
                             for order in range(max(order_intersection) + 1):
                                 if order not in order_srcs and order not in order_bins:
@@ -1010,21 +991,19 @@ class KartaMatcher(MatchEngine):
                                 self._bin_matched_ea[bin_candidate] = src_candidate
                                 src_candidate.ea = bin_candidate
                                 self._matching_reasons[src_candidate.name] = REASON_CALL_ORDER
-                                self.logger.debug("Matched external through sequential call hints: %s, 0x%x",
-                                                            src_candidate.name, src_candidate.ea)
+                                self.logger.debug(f"Matched external through sequential call hints: {src_candidate.name}, 0x{src_candidate.ea:x}")
                                 finished = False
                                 if src_candidate.hints is not None:
-                                    updated_ext_hints = filter(lambda ea: ea not in self._bin_matched_ea, src_candidate.hints)
+                                    updated_ext_hints = [x for x in src_candidate.hints if x not in self._bin_matched_ea]
                                     for src_ext in src_calls:
-                                        src_ext.addHints(filter(lambda x: self.disas.funcNameEA(x) not in libc.skip_function_names, updated_ext_hints))
+                                        src_ext.addHints([x for x in updated_ext_hints if self.disas.funcNameEA(x) not in libc.skip_function_names])
                                         # Check for matches
                                         matched_ea = src_ext.match
                                         if matched_ea is not None and matched_ea not in self._bin_matched_ea:
                                             self._bin_matched_ea[matched_ea] = self._src_external_functions[src_ext.name]
                                             src_ext._ea = matched_ea
                                             self._matching_reasons[src_ext.name] = REASON_SINGLE_CALL
-                                            self.logger.info("Matched external function: %s == 0x%x (%s)",
-                                                             src_ext.name, matched_ea, self.disas.funcNameEA(matched_ea))
+                                            self.logger.info(f"Matched external function: {src_ext.name} == 0x{matched_ea:x} ({self.disas.funcNameEA(matched_ea)})")
                             else:
                                 # continue on only if the match is valid
                                 if src_candidate.isValidCandidate(bin_candidate):
@@ -1050,8 +1029,8 @@ class KartaMatcher(MatchEngine):
             return
 
         # check if we actually finished
-        success_finish = len(list(filter(lambda x: x.active(), self._match_files))) == 0
-        success_finish = success_finish and len(list(filter(lambda x: x.active(), self._src_external_functions))) == 0
+        success_finish = len([x for x in self._match_files if x.active()]) == 0
+        success_finish = success_finish and len([x for x in self._src_external_functions if x.active()]) == 0
         if not success_finish:
             # If matched nothing, debug and exit
             self.logger.warning("Completed a full scan without any improvement")
@@ -1070,12 +1049,12 @@ class KartaMatcher(MatchEngine):
             (list of source contexts - according to the wanted GUI presentation order, list of similar external contexts)
         """
         # Start with perfect files (sorted by name)
-        perfect_files = list(filter(lambda x: x.matched(), self._match_files))
+        perfect_files = [x for x in self._match_files if x.matched()]
         perfect_files.sort(key=lambda x: x.name)
 
         # Now sort the rest according to the number of unmatched "used" source functions
-        non_perfect_files = list(filter(lambda x: x.located and not x.matched(), self._match_files))
-        non_perfect_files.sort(key=lambda x: len(list(filter(lambda c: c.used() and not c.matched(), self.src_functions_ctx[x._src_index_start:x._src_index_end + 1]))))
+        non_perfect_files = [x for x in self._match_files if x.located and not x.matched()]
+        non_perfect_files.sort(key=lambda x: len([x for x in self.src_functions_ctx[x._src_index_start:x._src_index_end + 1] if x.used() and not x.matched()]))
 
         # now extract the functions, according to their order
         entries = []
@@ -1083,7 +1062,7 @@ class KartaMatcher(MatchEngine):
             entries += self.src_functions_ctx[match_file._src_index_start:match_file._src_index_end + 1]
 
         # now the external functions
-        external_entries = list(filter(lambda x: x.matched(), map(lambda x: self._src_external_functions[x], self._src_external_functions)))
+        external_entries = list(filter(lambda x: x.matched(), (self._src_external_functions[x] for x in self._src_external_functions)))
 
         return entries, external_entries
 
@@ -1095,35 +1074,35 @@ class KartaMatcher(MatchEngine):
         # 2. Best effort #1 - use file name if known, and function name isn't
         # 3. Best effort #2 - use lib name if a locked function
 
-        rename_file = lambda x: '.'.join(x.split('.')[:-1]).replace(os.path.sep, '_')
+        rename_file = lambda x: ".".join(x.split(".")[:-1]).replace(os.path.sep, "_")
         self.logger.info("Generating the suggested names for the located functions")
 
         # 1. check which (matched) functions share the same name
-        matched_src_ctxs = filter(lambda x: x.matched(), self.src_functions_ctx)
-        all_match_name = list(map(lambda x: x.name, matched_src_ctxs))
-        duplicate_match_names = list(filter(lambda x: all_match_name.count(x) > 1, all_match_name))
+        matched_src_ctxs = [x for x in self.src_functions_ctx if x.matched()]
+        all_match_name = [x.name for x in matched_src_ctxs]
+        duplicate_match_names = [x for x in all_match_name if all_match_name.count(x) > 1]
 
         # 2. Now rename them if necessary
-        for src_ctx in filter(lambda x: x.name in duplicate_match_names, matched_src_ctxs):
-            src_ctx.name = rename_file(src_ctx.file.name) + '_' + src_ctx.name
+        for src_ctx in [x for x in matched_src_ctxs if x.name in duplicate_match_names]:
+            src_ctx.name = rename_file(src_ctx.file.name) + "_" + src_ctx.name
 
         # 3. Scan all of the files, and name their functions
-        for match_file in filter(lambda x: x.valid and x.located, self._match_files):
+        for match_file in [x for x in self._match_files if x.valid and x.located]:
             file_name = rename_file(match_file.name)
             for bin_ctx in match_file._bin_functions_ctx:
                 # 1. Matched
                 if bin_ctx.matched():
-                    self._bin_suggested_names[bin_ctx.ea] = libraryName() + '_' + bin_ctx.match.name
+                    self._bin_suggested_names[bin_ctx.ea] = libraryName() + "_" + bin_ctx.match.name
                 # 2. Single file
                 elif len(bin_ctx.files) == 1:
-                    self._bin_suggested_names[bin_ctx.ea] = libraryName() + '_' + file_name.replace("/", "_").replace("\\", "_") + '_' + ('%X' % (bin_ctx.ea))
+                    self._bin_suggested_names[bin_ctx.ea] = libraryName() + "_" + file_name.replace("/", "_").replace("\\", "_") + "_" + ("%X" % (bin_ctx.ea))
                 # 3. Library related
                 else:
-                    self._bin_suggested_names[bin_ctx.ea] = libraryName() + '_' + ('%X' % (bin_ctx.ea))
+                    self._bin_suggested_names[bin_ctx.ea] = libraryName() + "_" + ("%X" % (bin_ctx.ea))
 
         # 4. Sepcial case for swallows
-        for src_ctx in filter(lambda x: self._matching_reasons[x.index] == REASON_SWALLOW, matched_src_ctxs):
-            self._bin_suggested_names[src_ctx.match.ea] = libraryName() + '_' + src_ctx.name
+        for src_ctx in [x for x in matched_src_ctxs if self._matching_reasons[x.index] == REASON_SWALLOW]:
+            self._bin_suggested_names[src_ctx.match.ea] = libraryName() + "_" + src_ctx.name
 
     def showResultsGUIWindow(self, match_entries, external_match_entries):
         """Create and show the GUI window containing the match result entries.
@@ -1135,7 +1114,7 @@ class KartaMatcher(MatchEngine):
         prepared_entries = []
         # Prepare the (normal) entries
         for entry in match_entries:
-            file_name = '.'.join(entry.file.name.split('.')[:-1])
+            file_name = ".".join(entry.file.name.split(".")[:-1])
             src_name  = entry.name
             if entry.matched():
                 bin_match = entry.match
@@ -1148,12 +1127,12 @@ class KartaMatcher(MatchEngine):
                     color = GUI_COLOR_GREEN
             else:
                 address = None
-                bin_name = 'N/A'
+                bin_name = "N/A"
                 if entry.index in self._src_unused_functions:
                     reason = REASON_DISABLED
                     color = GUI_COLOR_GRAY
                 elif entry.used():
-                    reason = 'N/A'
+                    reason = "N/A"
                     color = GUI_COLOR_RED
                 elif not entry.is_static:
                     reason = REASON_LIBRARY_UNUSED
@@ -1194,7 +1173,7 @@ class KartaMatcher(MatchEngine):
         for bin_ea in bin_eas:
             # sanity check
             if bin_ea not in suggested_names:
-                self.logger.warning("Failed to rename function at 0x%x, has no name for it", bin_ea)
+                self.logger.warning(f"Failed to rename function at 0x{bin_ea:x}, has no name for it")
                 continue
             # rename it
             self.disas.renameFunction(bin_ea, suggested_names[bin_ea])

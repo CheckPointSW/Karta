@@ -4,7 +4,7 @@ class OpensshSeeker(Seeker):
     """Seeker (Identifier) for the OpenSSH open source library."""
 
     # Library Name
-    NAME = 'OpenSSH'
+    NAME = "OpenSSH"
     # version string marker
     VERSION_STRING = "OpenSSH_"
 
@@ -25,12 +25,12 @@ class OpensshSeeker(Seeker):
             if self.VERSION_STRING in str(bin_str):
                 version_string = str(bin_str)
                 # catch false / duplicates
-                if '*' in version_string or \
+                if "*" in version_string or \
                         (self._version_string is not None and version_string in self._version_string) or \
                         (self._version_string is not None and self._version_string in version_string):
                     continue
                 # valid match
-                logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a version string of {self.NAME} in address 0x{bin_str.ea:x}")
                 # save the string for later
                 self._version_strings.append(version_string)
 

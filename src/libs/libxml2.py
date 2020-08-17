@@ -4,7 +4,7 @@ class Libxml2Seeker(Seeker):
     """Seeker (Identifier) for the libxml(2) open source library."""
 
     # Library Name
-    NAME = 'libxml2'
+    NAME = "libxml2"
 
     # Overridden base function
     def searchLib(self, logger):
@@ -16,7 +16,7 @@ class Libxml2Seeker(Seeker):
         Return Value:
             number of library instances that were found in the binary
         """
-        extra_parts = ['CVS', 'SVN', 'GIT']
+        extra_parts = ["CVS", "SVN", "GIT"]
         key_string = ": program compiled against libxml %d using older %d\n"
 
         # Now search
@@ -24,7 +24,7 @@ class Libxml2Seeker(Seeker):
         for idx, bin_str in enumerate(self._all_strings):
             # we have a match
             if key_string in str(bin_str):
-                logger.debug("Located a key string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a key string of {self.NAME} in address 0x{bin_str.ea:x}")
                 key_indices.append(idx)
                 break
 
@@ -33,8 +33,8 @@ class Libxml2Seeker(Seeker):
         for key_index in key_indices:
             for bin_str in self._all_strings[max(key_index - 10000, 0):min(key_index + 10000, len(self._all_strings))]:
                 cur_str = str(bin_str)
-                if cur_str.find('-') != -1 and cur_str.split('-')[1][:3] in extra_parts:
-                    logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
+                if cur_str.find("-") != -1 and cur_str.split("-")[1][:3] in extra_parts:
+                    logger.debug(f"Located a version string of {self.NAME} in address 0x{bin_str.ea:x}")
                     self._version_strings.append(cur_str)
                     break
         # return the result

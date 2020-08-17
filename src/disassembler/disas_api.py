@@ -362,9 +362,9 @@ class DisasAPI(object):
             # carry on the tasks that were leftover by previous references
             working_set.update(block_to_reach[block_ea])
             # build a list of BFS nodes
-            search_list = map(lambda x: (x, set(working_set)), self.nextBlocks(start_block))
+            search_list = [(x, set(working_set)) for x in self.nextBlocks(start_block)]
             # Sanity hook around analysis problem in r2 - TODO: remove in the future
-            search_list = list(filter(lambda x: self.blockStart(x[0]) in block_to_reach, search_list))
+            search_list = [x for x in search_list if self.blockStart(x[0]) in block_to_reach]
             seen_blocks = set()
             # BFS Scan - until the list is empty
             while len(search_list) > 0:
@@ -372,7 +372,7 @@ class DisasAPI(object):
                 for cur_block, working_set in search_list:
                     cur_block_ea = self.blockStart(cur_block)
                     # check for loops
-                    if cur_block_ea in seen_blocks and len(block_to_reach[cur_block_ea].difference(working_set)) == 0:
+                    if cur_block_ea in seen_blocks and len(block_to_reach[cur_block_ea] - working_set) == 0:
                         continue
                     # mark as seen
                     seen_blocks.add(cur_block_ea)
@@ -385,9 +385,9 @@ class DisasAPI(object):
                     # learn, and keep going
                     else:
                         working_set.update(block_to_reach[cur_block_ea])
-                        new_search_list += list(map(lambda x: (x, set(working_set)), self.nextBlocks(cur_block)))
+                        new_search_list += [(x, set(working_set)) for x in self.nextBlocks(cur_block)]
                         # Sanity hook around analysis problem in r2 - TODO: remove in the future
-                        new_search_list = list(filter(lambda x: self.blockStart(x[0]) in block_to_reach, new_search_list))
+                        new_search_list = [x for x in new_search_list if self.blockStart(x[0]) in block_to_reach]
                 search_list = new_search_list
 
         # 3rd scan, sum up the results - O(k) time, O(k*k) storage
@@ -395,10 +395,10 @@ class DisasAPI(object):
             reffed_block_ea = self.blockStart(ref_to_block[ref])
             reachable_from = block_to_reach[reffed_block_ea]
             # add a filter to prevent collisions from the same block
-            reachable_from = reachable_from.difference(list(filter(lambda x: x > ref, block_to_ref[reffed_block_ea])))
+            reachable_from = reachable_from - set(x for x in block_to_ref[reffed_block_ea] if x > ref)
             if ref_to_call[ref] not in call_to_reach:
                 call_to_reach[ref_to_call[ref]] = []
-            current_record = set(filter(lambda x: x != ref_to_call[ref], map(lambda x: ref_to_call[x], reachable_from)))
+            current_record = set(filter(lambda x: x != ref_to_call[ref], (ref_to_call[x] for x in reachable_from)))
             if current_record not in call_to_reach[ref_to_call[ref]]:
                 call_to_reach[ref_to_call[ref]].append(list(current_record))
 

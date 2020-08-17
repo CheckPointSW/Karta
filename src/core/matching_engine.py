@@ -181,14 +181,14 @@ class MatchEngine(object):
             # sanity check
             if anchor_clues is None:
                 self._src_anchor_list.remove(src_anchor_index)
-                self.logger.warning("Anchor candidate %s (%d) failed as an anchor function", src_func_ctx.name, src_anchor_index)
+                self.logger.warning(f"Anchor candidate {src_func_ctx.name} ({src_anchor_index}) failed as an anchor function")
                 continue
             anchor_stats.append((src_anchor_index, src_func_ctx, is_str, threshold, anchor_clues))
             if is_str:
-                all_string_clues = all_string_clues.union(anchor_clues)
+                all_string_clues |= set(anchor_clues)
             else:
                 num_const_clues += len(anchor_clues)
-                all_const_clues = all_const_clues.union(anchor_clues)
+                all_const_clues |= set(anchor_clues)
 
         # Traverse all of the strings only once, it is heavy
         anchor_bin_strs = defaultdict(list)
@@ -216,7 +216,7 @@ class MatchEngine(object):
                                 if caller_func is None:
                                     continue
                                 callar_func_start = self.disas.funcStart(caller_func)
-                                if lower_border_ea <= callar_func_start and callar_func_start <= upper_border_ea:
+                                if lower_border_ea <= callar_func_start <= upper_border_ea:
                                     current_set.add(callar_func_start)
                 # consts
                 else:
@@ -269,8 +269,8 @@ class MatchEngine(object):
                     for candidate_set in candidate_sets:
                         for candidate in candidate_set:
                             candidate_attempt[candidate] += 1
-                    candidates = list(filter(lambda x: candidate_attempt[x] >= threshold, candidate_attempt.keys()))
-                    future_candidates = list(filter(lambda x: candidate_attempt[x] >= threshold - (len(anchor_clues) - (clue_idx + 1)), candidate_attempt.keys()))
+                    candidates = [x for x in candidate_attempt.keys() if candidate_attempt[x] >= threshold]
+                    future_candidates = [x for x in candidate_attempt.keys() if candidate_attempt[x] >= threshold - (len(anchor_clues) - (clue_idx + 1))]
                     # stop condition
                     if len(candidates) == 1 and len(future_candidates) == 0:
                         break
@@ -285,12 +285,12 @@ class MatchEngine(object):
 
             # check if we have any candidate left
             if candidates is None or len(candidates) == 0:
-                self.logger.warning("Anchor function - %s: Failed to find a match", self._src_functions_list[src_anchor_index])
+                self.logger.warning(f"Anchor function - {self._src_functions_list[src_anchor_index]}: Failed to find a match")
                 self._src_anchor_list.remove(src_anchor_index)
             elif len(candidates) == 1:
                 caller_func = self.disas.funcAt(candidates.pop())
                 caller_func_start = self.disas.funcStart(caller_func)
-                self.logger.info("Anchor function - %s: Matched at 0x%x (%s)", self._src_functions_list[src_anchor_index], caller_func_start, self.disas.funcName(caller_func))
+                self.logger.info(f"Anchor function - {self._src_functions_list[src_anchor_index]}: Matched at 0x{caller_func_start:x} ({self.disas.funcName(caller_func)})")
                 self._matched_anchors_ea[src_anchor_index] = caller_func_start
                 anchor_eas.append(caller_func_start)
                 self.declareMatch(src_anchor_index, caller_func_start, REASON_ANCHOR)
@@ -329,8 +329,7 @@ class MatchEngine(object):
                     lower_border_ea = all_bin_functions[max(lower_match_index - (overall_num_functions - locked_gap), 0)]
                     upper_border_ea = all_bin_functions[min(upper_match_index + (overall_num_functions - locked_gap), len(all_bin_functions) - 1)]
             else:
-                self.logger.warning("Anchor function - %s: Found several matches (%d), will check it again later",
-                                                self._src_functions_list[src_anchor_index], len(candidates))
+                self.logger.warning(f"Anchor function - {self._src_functions_list[src_anchor_index]}: Found several matches ({len(candidates)}), will check it again later")
                 multiple_option_candidates.append((src_anchor_index, candidates))
         self.logger.removeIndent()
 
@@ -339,28 +338,24 @@ class MatchEngine(object):
             # check for user errors
             func_ctx = self.disas.funcAt(bin_ea)
             if func_ctx is None or self.disas.funcStart(func_ctx) != bin_ea:
-                self.logger.warning("User defined anchor function %s should be matched to a *start* of a function, not to 0x%x (%s)",
-                                                self._src_functions_list[src_index], bin_ea, self.disas.funcNameEA(bin_ea))
+                self.logger.warning(f"User defined anchor function {self._src_functions_list[src_index]} should be matched to a *start* of a function, not to 0x{bin_ea:x} ({self.disas.funcNameEA(bin_ea)})")
                 continue
             # check for duplicates
             if src_index in self._matched_anchors_ea:
                 # contradiction
                 if bin_ea != self._matched_anchors_ea[src_index]:
                     actual_ea = self._matched_anchors_ea[src_index]
-                    self.logger.warning("User defined anchor function %s contradicts match at 0x%x (%s), ignoring user definition",
-                                                self._src_functions_list[src_index], actual_ea, self.disas.funcNameEA(actual_ea))
+                    self.logger.warning(f"User defined anchor function {self._src_functions_list[src_index]} contradicts match at 0x{actual_ea:x} ({self.disas.funcNameEA(actual_ea)}), ignoring user definition")
                     continue
                 # duplicate
                 else:
                     continue
             # duplicate at this point could only be a contradiction
             if bin_ea in anchor_eas and src_index not in self._matched_anchors_ea:
-                self.logger.warning("User defined anchor function %s contradicts match at 0x%x (%s), ignoring user definition",
-                                                self._src_functions_list[src_index], bin_ea, self.disas.funcNameEA(bin_ea))
+                self.logger.warning(f"User defined anchor function {self._src_functions_list[src_index]} contradicts match at 0x{bin_ea:x} ({self.disas.funcNameEA(bin_ea)}), ignoring user definition")
                 continue
             # can now safely declare this match
-            self.logger.info("User defined anchor function - %s: Matched at 0x%x (%s)",
-                                                self._src_functions_list[src_index], bin_ea, self.disas.funcNameEA(bin_ea))
+            self.logger.info(f"User defined anchor function - {self._src_functions_list[src_index]}: Matched at 0x{bin_ea:x} ({self.disas.funcNameEA(bin_ea)})")
             self._matched_anchors_ea[src_index] = bin_ea
             anchor_eas.append(bin_ea)
             self._src_anchor_list.append(src_index)
@@ -406,19 +401,17 @@ class MatchEngine(object):
                 # check if the manual definitions already defined this one
                 if src_anchor_index in self._matched_anchors_ea:
                     continue
-                filterred_candidates = list(filter(lambda x: lower_match_ea <= x and x <= upper_match_ea, candidates))
+                filterred_candidates = [x for x in candidates if lower_match_ea <= x <= upper_match_ea]
                 # matched
                 if len(filterred_candidates) == 1:
                     bin_ea = filterred_candidates.pop()
                     if bin_ea in anchor_eas:
-                        self.logger.warning("User defined anchor function at 0x%x (%s), blocked revived anchor: %s, dropped the anchor",
-                                                            bin_ea, self.disas.funcNameEA(bin_ea), self._src_functions_list[src_anchor_index])
+                        self.logger.warning(f"User defined anchor function at 0x{bin_ea:x} ({self.disas.funcNameEA(bin_ea)}), blocked revived anchor: {self._src_functions_list[src_anchor_index]}, dropped the anchor")
                         self._src_anchor_list.remove(src_anchor_index)
                         continue
                     caller_func = self.disas.funcAt(bin_ea)
                     caller_func_start = self.disas.funcStart(caller_func)
-                    self.logger.info("Anchor function (revived) - %s: Matched at 0x%x (%s)",
-                                                            self._src_functions_list[src_anchor_index], caller_func_start, self.disas.funcName(caller_func))
+                    self.logger.info(f"Anchor function (revived) - {self._src_functions_list[src_anchor_index]}: Matched at 0x{caller_func_start:x} ({self.disas.funcName(caller_func)})")
                     self._matched_anchors_ea[src_anchor_index] = caller_func_start
                     anchor_eas.append(caller_func_start)
                     self.declareMatch(src_anchor_index, caller_func_start, REASON_ANCHOR)
@@ -453,13 +446,13 @@ class MatchEngine(object):
             started = False
 
         # remove empty files (wierd edge case)
-        self._src_file_names = list(filter(lambda x: len(self._src_file_mappings[x]) != 0, self._src_file_mappings.keys()))
-        removed_names  = list(filter(lambda x: len(self._src_file_mappings[x]) == 0, self._src_file_mappings.keys()))
+        self._src_file_names = [x for x in self._src_file_mappings.keys() if len(self._src_file_mappings[x]) != 0]
+        removed_names        = [x for x in self._src_file_mappings.keys() if len(self._src_file_mappings[x]) == 0]
         for name in removed_names:
             self._src_file_mappings.pop(name)
 
         # Now sort the src file names list according to the sorted anchors
-        self._src_file_names = anchor_files + list(set(self._src_file_names).difference(anchor_files))
+        self._src_file_names = anchor_files + list(set(self._src_file_names) - set(anchor_files))
 
     def locateFileBoundaries(self):
         """Use the anchors to create initial file borders in the binary address space."""
@@ -491,8 +484,8 @@ class MatchEngine(object):
                 first_anchor_index = file_index
             last_anchor_index = file_index
             # else, we have an anchor, and we can have basic bounds for now
-            min_anchor = min(map(lambda x: self._matched_anchors_ea[x.index], file_to_anchor_mapping[file_name]))
-            max_anchor = max(map(lambda x: self._matched_anchors_ea[x.index], file_to_anchor_mapping[file_name]))
+            min_anchor = min(self._matched_anchors_ea[x.index] for x in file_to_anchor_mapping[file_name])
+            max_anchor = max(self._matched_anchors_ea[x.index] for x in file_to_anchor_mapping[file_name])
             min_anchor_bin_index = all_bin_functions.index(min_anchor)
             max_anchor_bin_index = all_bin_functions.index(max_anchor)
             if overall_min_bin_anchor_index is None:
@@ -571,7 +564,7 @@ class MatchEngine(object):
                 if len(file_to_anchor_mapping[file_name]) == 0:
                     # a "floating" file that will hold the entire binary functions as possible candidates
                     if self._floating_bin_functions is None:
-                        self._floating_bin_functions = list(map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[bin_start_index:bin_end_index + 1]))
+                        self._floating_bin_functions = [self.bin_functions_ctx[ea] for ea in all_bin_functions[bin_start_index:bin_end_index + 1]]
                     file_match = file_class(file_name, src_start_index, src_end_index, None, bin_start_index, bin_end_index, remain_source_funcs, self)
                     self._floating_files.append(file_match)
                 else:
@@ -580,11 +573,10 @@ class MatchEngine(object):
                     local_bin_end_index   = file_max_bound[file_index]
                     # sanity check
                     if local_bin_start_index > local_bin_end_index:
-                        self.logger.error("File \"%s\" was found at 0x%x, but contains negative amount of functions. Please improve the function analysis",
-                                                        file_name, all_bin_functions[local_bin_start_index])
+                        self.logger.error(f"File \"{file_name}\" was found at 0x{all_bin_functions[local_bin_start_index]:x}, but contains negative amount of functions. Please improve the function analysis")
                         raise KartaException
                     # scoped binary functions
-                    local_bins_ctx = list(map(lambda ea: self.bin_functions_ctx[ea], all_bin_functions[local_bin_start_index:local_bin_end_index + 1]))
+                    local_bins_ctx = [self.bin_functions_ctx[ea] for ea in all_bin_functions[local_bin_start_index:local_bin_end_index + 1]]
                     file_match = file_class(file_name, src_start_index, src_end_index, local_bins_ctx, local_bin_start_index, local_bin_end_index, src_end_index - src_start_index + 1, self)
                 # add this file instance to the list
                 self._match_files.append(file_match)

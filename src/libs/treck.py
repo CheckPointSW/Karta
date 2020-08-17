@@ -25,7 +25,7 @@ class TreckSeeker(Seeker):
         Return Value:
             number of library instances that were found in the binary
         """
-        key_string = 'tfRecvFromTo'
+        key_string = "tfRecvFromTo"
 
         # Now search
         self._version_strings = []
@@ -34,7 +34,7 @@ class TreckSeeker(Seeker):
             if key_string in str(bin_str):
                 version_string = str(bin_str)
                 # valid match
-                logger.debug("Located a key string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a key string of {self.NAME} in address 0x{bin_str.ea:x}")
                 # save the string for later
                 self._version_strings.append(version_string)
 

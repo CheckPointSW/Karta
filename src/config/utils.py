@@ -1,14 +1,13 @@
 from .score_config import *
 import json
-import collections
 import os
 
 #################################
 ## Basic Global Configurations ##
 #################################
 
-DISASSEMBLER_PATH = '/opt/ida-7.4/ida'
-SCRIPT_PATH = os.path.abspath('analyze_src_file.py')
+DISASSEMBLER_PATH = "/opt/ida-7.4/ida"
+SCRIPT_PATH = os.path.abspath("analyze_src_file.py")
 
 LIBRARY_NAME            = "Karta"
 STATE_FILE_SUFFIX       = "_file_state.json"
@@ -19,11 +18,11 @@ KNOWLEDGE_FILE_SUFFIX   = "_knowledge.json"
 ## JSON Structure ##
 ####################
 
-JSON_TAG_ANCHORS            = 'Anchors (Src Index)'
-JSON_TAG_FILES              = 'Files'
-JSON_TAG_MANUAL_ANCHORS     = 'Manual Anchors'
-JSON_TAG_MANUAL_VERSIONS    = 'Manual Versions'
-JSON_TAG_LIBRARY            = 'Library Name'
+JSON_TAG_ANCHORS            = "Anchors (Src Index)"
+JSON_TAG_FILES              = "Files"
+JSON_TAG_MANUAL_ANCHORS     = "Manual Anchors"
+JSON_TAG_MANUAL_VERSIONS    = "Manual Versions"
+JSON_TAG_LIBRARY            = "Library Name"
 
 ####################
 ## GUI Parameters ##
@@ -54,32 +53,32 @@ GUI_MATCH_REASONS       = [REASON_MANUAL_ANCHOR, REASON_ANCHOR, REASON_FILE_HINT
 GUI_CMD_IMPORT_SELECTED = "Import Selected"
 GUI_CMD_IMPORT_MATCHED  = "Import ALL Matches"
 
-GUI_COLOR_DARK_GREEN    = 0x0f6000
-GUI_COLOR_GREEN         = 0x3c8e38
-GUI_COLOR_GRAY          = 0x9e9e9e
-GUI_COLOR_DARK_RED      = 0x0d00ba
-GUI_COLOR_RED           = 0x3643f4
+GUI_COLOR_DARK_GREEN    = 0x0F6000
+GUI_COLOR_GREEN         = 0x3C8E38
+GUI_COLOR_GRAY          = 0x9E9E9E
+GUI_COLOR_DARK_RED      = 0x0D00BA
+GUI_COLOR_RED           = 0x3643F4
 
 ######################
 ## Global Variables ##
 ######################
 
-windows_config              = False                         # Configuration flag - are we handling a binary that was compiled to windows?
-matching_mode               = False                         # Configuration flag - are we running the matching script now?
+windows_config              = False     # Configuration flag - are we handling a binary that was compiled to windows?
+matching_mode               = False     # Configuration flag - are we running the matching script now?
 
-global_logger               = None                          # Global logger instance (from elementals)
-disas_layer                 = None                          # Disassembler API layer (according to the program we use for our disassembling)
-matched_library_name        = None                          # Name of the matched open source library
+global_logger               = None      # Global logger instance (from elementals)
+disas_layer                 = None      # Disassembler API layer (according to the program we use for our disassembling)
+matched_library_name        = None      # Name of the matched open source library
 
-src_func_class              = None                          # Source function context layer
-bin_func_class              = None                          # Binary function context layer
-island_func_class           = None                          # Island function context layer
+src_func_class              = None      # Source function context layer
+bin_func_class              = None      # Binary function context layer
+island_func_class           = None      # Island function context layer
 
 src_seen_consts             = []
 src_seen_strings            = []
 src_functions_list          = []
 src_functions_ctx           = []
-src_file_mappings           = collections.OrderedDict()
+src_file_mappings           = {}
 
 src_instr_count             = 0
 bin_instr_count             = 0
@@ -114,7 +113,7 @@ def initUtils(logger, disas, invoked_before=False):
     src_seen_strings    = []
     src_functions_list  = []
     src_functions_ctx   = []
-    src_file_mappings   = collections.OrderedDict()
+    src_file_mappings   = {}
     # don't forget the instruction ratio
     resetRatio()
     # don't forget the neighbour scoring
@@ -158,7 +157,7 @@ def functionsToFile(file_name, contexts):
     """
     # Temporary JSON (later will be merged to a single JSON)
     fd = open(file_name + STATE_FILE_SUFFIX, "w")
-    json.dump(list(map(lambda c: c.serialize(), contexts)), fd)
+    json.dump([c.serialize() for c in contexts], fd)
     fd.close()
 
 def parseFileStats(file_name, functions_config):
@@ -239,8 +238,8 @@ def loadKnowledge(bin_path=None):
     if not os.path.exists(json_path):
         return None
 
-    fd = open(json_path, 'r')
-    config_dict = json.load(fd, object_pairs_hook=collections.OrderedDict)
+    fd = open(json_path, "r")
+    config_dict = json.load(fd)
     fd.close()
     return config_dict
 
@@ -252,7 +251,7 @@ def storeKnowledge(json_config, bin_path=None):
         bin_path (str, Optional): path to the compiled binary file (None by default)
     """
     json_path = accumulatedKnowledgePath(bin_path)
-    fd = open(json_path, 'w')
+    fd = open(json_path, "w")
     json.dump(json_config, fd)
     fd.close()
 
@@ -288,9 +287,9 @@ def resetRatio():
     """Prepare the ratio variables for a new script execution."""
     global src_instr_count, bin_instr_count, num_instr_samples
     # same as the init list on the top of the file
-    src_instr_count         = 0
-    bin_instr_count         = 0
-    num_instr_samples       = 0
+    src_instr_count   = 0
+    bin_instr_count   = 0
+    num_instr_samples = 0
 
 def resetScoring():
     """Prepare the scoring variables for a new script execution."""
@@ -343,7 +342,7 @@ def countSetBits(const):
     if const < 0:
         const += 2 ** NUM_BITS_IN_CONST
     # simply count them
-    return bin(const).count('1')
+    return bin(const).count("1")
 
 def measureBitsVariance(const):
     """Measures the bits "entropy", i.e. the variance of the bit flips.
@@ -357,14 +356,14 @@ def measureBitsVariance(const):
     variance = 0
     level = 1
     const = bin(const)[2:]
-    while const.count('0') != len(const) and level < 4:
-        cur_const = '1' if const[0] != const[-1] else '0'
+    while const.count("0") != len(const) and level < 4:
+        cur_const = "1" if const[0] != const[-1] else "0"
         last_bit = const[0]
         for bit in const[1:]:
-            cur_const += '1' if bit != last_bit else '0'
+            cur_const += "1" if bit != last_bit else "0"
             last_bit = bit
         const = cur_const
-        variance += level * abs(NUM_BITS_IN_CONST * 0.5 - abs(cur_const.count('1') - NUM_BITS_IN_CONST * 0.5))
+        variance += level * abs(NUM_BITS_IN_CONST * 0.5 - abs(cur_const.count("1") - NUM_BITS_IN_CONST * 0.5))
         level += 1
     return variance
 
@@ -464,7 +463,7 @@ def setDisassemblerPath(prompter):
     """
     global DISASSEMBLER_PATH
 
-    new_path = prompter.input("Please insert the command (path) needed in order to execute your disassembler (IDA for instance) (%s): " % (DISASSEMBLER_PATH))
+    new_path = prompter.input(f"Please insert the command (path) needed in order to execute your disassembler (IDA for instance) ({DISASSEMBLER_PATH}): ")
     if len(new_path.strip()) != 0:
         DISASSEMBLER_PATH = new_path
 
@@ -498,9 +497,9 @@ def registerContexts(src_func, bin_func, island_func):
     """
     global src_func_class, bin_func_class, island_func_class
 
-    src_func_class      = src_func
-    bin_func_class      = bin_func
-    island_func_class   = island_func
+    src_func_class    = src_func
+    bin_func_class    = bin_func
+    island_func_class = island_func
 
 def sourceContext():
     """Return the registered context for the source functions.

@@ -175,7 +175,7 @@ class BinFileFunction(BinaryCodeContext):
         else:
             # double inclusion means total ownership
             self.file = file_match
-            for iter_file in self.files.difference(set([file_match])):
+            for iter_file in self.files - set([file_match]):
                 iter_file.remove(self)
             self.files = set([file_match])
             # propagate this new information internally

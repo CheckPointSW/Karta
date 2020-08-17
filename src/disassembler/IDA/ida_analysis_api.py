@@ -123,7 +123,7 @@ class AnalyzerIDA(object):
             instr_count += 1
             # Numeric Constants
             data_refs = list(line.drefs_from)
-            for oper in filter(lambda x: x.type.is_imm, line.insn.operands):
+            for oper in [x for x in line.insn.operands if x.type.is_imm]:
                 if oper.imm not in data_refs:
                     context.recordConst(oper.imm)
             # Data Refs (strings, fptrs)
@@ -150,7 +150,7 @@ class AnalyzerIDA(object):
                     call_candidates.add(called_func_start)
             # in binary mode don't let the call_candidates expand too much
             if not src_mode:
-                list(map(lambda x: context.recordCall(x), call_candidates))
+                [context.recordCall(x) for x in call_candidates]
                 call_candidates = set()
             # hash the instruction (only in source mode)
             else:
@@ -246,7 +246,7 @@ class AnalyzerIDA(object):
                 if candidate_block in island_blocks:
                     continue
                 island_blocks.append(candidate_block)
-                new_candidate_list += list(filter(lambda succs: range_start <= succs.start_ea and succs.end_ea <= range_end, candidate_block.succs()))
+                new_candidate_list += [s for s in candidate_block.succs() if range_start <= s.start_ea and s.end_ea <= range_end]
             candidate_list = new_candidate_list
         # return the results
         return island_blocks
@@ -268,7 +268,7 @@ class AnalyzerIDA(object):
             for line in sark.CodeBlock(block.start_ea).lines:
                 # Numeric Constants
                 data_refs = list(line.drefs_from)
-                for oper in filter(lambda x: x.type.is_imm, line.insn.operands):
+                for oper in [x for x in line.insn.operands if x.type.is_imm]:
                     if oper.imm not in data_refs:
                         context.recordConst(oper.imm)
                 # Data Refs (strings, fptrs)
@@ -307,7 +307,7 @@ class AnalyzerIDA(object):
         for line in sark.Function(func_ea).lines:
             # Numeric Constants
             data_refs = list(line.drefs_from)
-            for oper in filter(lambda x: x.type.is_imm, line.insn.operands):
+            for oper in [x for x in line.insn.operands if x.type.is_imm]:
                 if oper.imm in const_set and oper.imm not in data_refs:
                     results.add(oper.imm)
         return results

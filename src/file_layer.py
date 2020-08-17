@@ -38,13 +38,13 @@ class FileMatcher(FileMatch):
         all_consts  = set()
         for src_ctx in self._engine.src_functions_ctx[self._src_index_start:self._src_index_end + 1]:
             # strings
-            self._unique_strings = self._unique_strings.union(src_ctx.strings.difference(all_strings))
-            self._unique_strings = self._unique_strings.difference(all_strings.intersection(src_ctx.strings))
-            all_strings = all_strings.union(src_ctx.strings)
+            self._unique_strings |= src_ctx.strings - all_strings
+            self._unique_strings -= all_strings & src_ctx.strings
+            all_strings |= src_ctx.strings
             # (numeric) consts
-            self._unique_consts = self._unique_consts.union(src_ctx.consts.difference(all_consts))
-            self._unique_consts = self._unique_consts.difference(all_consts.intersection(src_ctx.consts))
-            all_consts = all_consts.union(src_ctx.consts)
+            self._unique_consts |= src_ctx.consts - all_consts
+            self._unique_consts -= all_consts & src_ctx.consts
+            all_consts |= src_ctx.consts
 
     def attemptMatches(self):
         """Attempt to match new functions in the scope of the file.
@@ -60,20 +60,19 @@ class FileMatcher(FileMatch):
         if not self.located:
             return match_result
         # sanity check
-        src_index_options = list(filter(lambda x: x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1)))
+        src_index_options = [x for x in range(self._src_index_start, self._src_index_end + 1) if x not in self._engine.function_matches]
         if self._remain_size != len(src_index_options):
-            self._engine.logger.error("File \"%s\" in attemptMatches(): remain_size (%d) != remaining unmatched src functions (%d)",
-                                                    self.name, self._remain_size, len(src_index_options))
+            self._engine.logger.error(f"File \"{self.name}\" in attemptMatches(): remain_size ({self._remain_size}) != remaining unmatched src functions ({len(src_index_options)})")
             raise AssumptionException()
         # check for a full (src + bin) singleton
-        active_bins = list(filter(lambda ctx: ctx.active(), self._bin_functions_ctx))
+        active_bins = [ctx for ctx in self._bin_functions_ctx if ctx.active()]
         if self._remain_size == 1 and len(active_bins) == 1:
             # we have a singleton - check if it has hints / is it locked
             singleton_ctx = active_bins[0]
             singleton_bin_index = self._bin_functions_ctx.index(singleton_ctx)
             # if used, just match it
-            if singleton_ctx.isHinted() or (0 < singleton_bin_index and singleton_bin_index < len(self._bin_functions_ctx) - 1):
-                singleton_index = list(filter(lambda x: x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1)))[0]
+            if singleton_ctx.isHinted() or (0 < singleton_bin_index < len(self._bin_functions_ctx) - 1):
+                singleton_index = [x for x in range(self._src_index_start, self._src_index_end + 1) if x not in self._engine.function_matches][0]
                 # check for validity first
                 if self._engine.src_functions_ctx[singleton_index].isValidCandidate(singleton_ctx):
                     match_result = self._engine.declareMatch(singleton_index, singleton_ctx.ea, REASON_FILE_SINGLETON) or match_result
@@ -82,8 +81,8 @@ class FileMatcher(FileMatch):
             singleton_ctx = active_bins[0]
             singleton_bin_index = self._bin_functions_ctx.index(singleton_ctx)
             # indeed locked
-            if 0 < singleton_bin_index and singleton_bin_index < len(self._bin_functions_ctx) - 1:
-                singleton_index_options = list(filter(lambda x: x not in self._engine.function_matches, range(self._src_index_start, self._src_index_end + 1)))
+            if 0 < singleton_bin_index < len(self._bin_functions_ctx) - 1:
+                singleton_index_options = [x for x in range(self._src_index_start, self._src_index_end + 1) if x not in self._engine.function_matches]
                 if len(singleton_index_options) > 0:
                     singleton_index = singleton_index_options[0]
                     # try to match it to all remaining source options, and pick the best one
@@ -149,8 +148,7 @@ class FileMatcher(FileMatch):
         try:
             matched_bin_index = self._bin_functions_ctx.index(sequence.bin_lower_ctx)
         except ValueError:
-            self._engine.logger.error("Sanity check failed in FileMatch.attemptMatchStart(): lower ctx (%s) not in bin_ctxs",
-                                                sequence.bin_lower_ctx.name)
+            self._engine.logger.error(f"Sanity check failed in FileMatch.attemptMatchStart(): lower ctx ({sequence.bin_lower_ctx.name}) not in bin_ctxs")
             raise AssumptionException()
         # can't extend the binary downard
         if matched_bin_index == 0:
@@ -174,8 +172,7 @@ class FileMatcher(FileMatch):
         try:
             matched_bin_index = self._bin_functions_ctx.index(sequence.bin_upper_ctx)
         except ValueError:
-            self._engine.logger.error("Sanity check failed in FileMatch.attemptMatchEnd(): lower ctx (%s) not in bin_ctxs",
-                                                sequence.bin_upper_ctx.name)
+            self._engine.logger.error(f"Sanity check failed in FileMatch.attemptMatchEnd(): lower ctx ({sequence.bin_upper_ctx.name}) not in bin_ctxs")
             raise AssumptionException()
         # can't extend the binary upward
         if matched_bin_index == len(self._bin_functions_ctx) - 1:
@@ -195,7 +192,7 @@ class FileMatcher(FileMatch):
         # check if there is a hint pointing at my file
         our_str_hint = None
         for file_hint in self._engine._str_file_hints:
-            if self.name.split(os.path.sep)[-1].split('.')[0] == file_hint.split('.')[0]:
+            if self.name.split(os.path.sep)[-1].split(".")[0] == file_hint.split(".")[0]:
                 our_str_hint = file_hint
                 break
         if our_str_hint is None:
@@ -240,7 +237,7 @@ class FileMatcher(FileMatch):
                 if not bin_ctx.active():
                     continue
                 # check if the same criteria works
-                if len(set(agent_criteria).intersection(bin_ctx.strings if is_string else bin_ctx.consts)) < threshold:
+                if len(set(agent_criteria) & set(bin_ctx.strings if is_string else bin_ctx.consts)) < threshold:
                     continue
                 # be careful with the score boost
                 effective_unique_strings = self._unique_strings
@@ -248,10 +245,10 @@ class FileMatcher(FileMatch):
                 for file_options in bin_ctx.files:
                     if file_options == self:
                         continue
-                    effective_unique_strings = effective_unique_strings.difference(file_options._unique_strings)
-                    effective_unique_consts  = effective_unique_consts.difference(file_options._unique_consts)
+                    effective_unique_strings -= file_options._unique_strings
+                    effective_unique_consts  -= file_options._unique_consts
                 double_is_string, double_threshold, double_agent_criteria = anchor.isAgent(src_candidate, effective_unique_strings, effective_unique_consts, self._engine.logger)
-                if double_agent_criteria is None or len(set(agent_criteria).intersection(double_agent_criteria)) < double_threshold:
+                if double_agent_criteria is None or len(set(agent_criteria) & set(double_agent_criteria)) < double_threshold:
                     score_boost = 0
                 else:
                     score_boost = AGENT_BOOST_SCORE
@@ -334,7 +331,7 @@ class FileMatcher(FileMatch):
             # now check if there is a floating chunk inside this gap
             bin_parent = src_parent.match
             # make sure (sanity check) that bin_parent is not inside our gap
-            if lower_bound <= bin_parent.ea and bin_parent.ea <= upper_bound:
+            if lower_bound <= bin_parent.ea <= upper_bound:
                 continue
             island_blocks = self._engine.disas.searchIslands(bin_parent.ea, lower_bound, upper_bound)
             # Failed to find a match

@@ -4,7 +4,7 @@ class mDNSSeeker(Seeker):
     """Seeker (Identifier) for the mDNSResponder open source library."""
 
     # Library Name
-    NAME = 'mDNSResponder'
+    NAME = "mDNSResponder"
     VERSION_STRING = NAME
 
     # Overridden base function
@@ -24,7 +24,7 @@ class mDNSSeeker(Seeker):
             if self.VERSION_STRING in str(bin_str):
                 version_string = str(bin_str)
                 # valid match
-                logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a version string of {self.NAME} in address 0x{bin_str.ea:x}")
                 # save the string for later
                 self._version_strings.append(version_string)
 

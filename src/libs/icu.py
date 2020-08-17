@@ -1,11 +1,10 @@
 from .lib_template import *
-import string
 
 class icuSeeker(Seeker):
     """Seeker (Identifier) for the icu (unicode) open source library."""
 
     # Library Name
-    NAME = 'icu'
+    NAME = "icu"
 
     # Overridden base function
     def searchLib(self, logger):
@@ -24,7 +23,7 @@ class icuSeeker(Seeker):
         for idx, bin_str in enumerate(self._all_strings):
             # we have a match
             if key_string in str(bin_str):
-                logger.debug("Located a key string of %s in address 0x%x", self.NAME, bin_str.ea)
+                logger.debug(f"Located a key string of {self.NAME} in address 0x{bin_str.ea:x}")
                 key_indices.append(idx)
                 break
 
@@ -33,8 +32,8 @@ class icuSeeker(Seeker):
         for key_index in key_indices:
             for bin_str in self._all_strings[max(key_index - 10000, 0):min(key_index + 10000, len(self._all_strings))]:
                 cur_str = str(bin_str)
-                if cur_str.find('.') == 2 and len(cur_str) == 4 and cur_str[0] in string.digits and cur_str[1] in string.digits and cur_str[3] in string.digits:
-                    logger.debug("Located a version string of %s in address 0x%x", self.NAME, bin_str.ea)
+                if cur_str.find(".") == 2 and len(cur_str) == 4 and cur_str[0].isdigit() and cur_str[1].isdigit() and cur_str[3].isdigit():
+                    logger.debug(f"Located a version string of {self.NAME} in address 0x{bin_str.ea:x}")
                     self._version_strings.append(cur_str)
                     break
         # return the result

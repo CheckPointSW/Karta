@@ -69,8 +69,8 @@ class ConfigForm(idaapi.Form):
                           """ % (LIBRARY_NAME, LIBRARY_NAME)
         # argument parsing
         args = {
-                '_config_path': idaapi.Form.DirInput(swidth=65),
-                '_check_group': idaapi.Form.ChkGroupControl(("_is_windows",)),
+                "_config_path": idaapi.Form.DirInput(swidth=65),
+                "_check_group": idaapi.Form.ChkGroupControl(("_is_windows",)),
                }
         idaapi.Form.__init__(self, dialog_content, args)
 
@@ -100,8 +100,8 @@ class ChooseForm(idaapi.Choose):
             rename_fn (func): function handler for renaming the exported functions
         """
         # Using tuples causes this to crash...
-        columns = [['Line', 4], ['File Name', 20], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \\ Information', 35]]
-        idaapi.Choose.__init__(self, "%s Matching Results" % (libraryName()), columns, idaapi.Choose.CH_MULTI)
+        columns = [["Line", 4], ["File Name", 20], ["Source Function Name", 25], ["Binary Address", 14], ["Binary Function Name", 25], ["Matching Rule \\ Information", 35]]
+        idaapi.Choose.__init__(self, f"{libraryName()} Matching Results", columns, idaapi.Choose.CH_MULTI)
         self.deflt = 0
         self.icon = -1
         self.selcount = 0
@@ -112,7 +112,7 @@ class ChooseForm(idaapi.Choose):
         self._selected = []
         # build the table
         for idx, entry in enumerate(prepared_entries):
-            self.items.append(["%04d" % (idx + 1), entry[0], entry[1], ("0x%08X" % (entry[2])) if entry[2] is not None else 'N/A', entry[3], entry[4]])
+            self.items.append(["%04d" % (idx + 1), entry[0], entry[1], ("0x%08X" % (entry[2])) if entry[2] is not None else "N/A", entry[3], entry[4]])
         # register additional command handlers
         self._import_selected = self.AddCommand(GUI_CMD_IMPORT_SELECTED)
         self._import_matched  = self.AddCommand(GUI_CMD_IMPORT_MATCHED)
@@ -185,7 +185,7 @@ class ChooseForm(idaapi.Choose):
             imports = filter(lambda x: self._entries[x][4] in GUI_MATCH_REASONS, range(len(self.items)))
         # check if there is something to be done
         if imports is not None:
-            self._rename_handler(list(map(lambda x: self._entries[x][2], imports)), self._names)
+            self._rename_handler([self._entries[x][2] for x in imports], self._names)
         # always return true
         return True
 
@@ -217,8 +217,8 @@ class ExternalsChooseForm(idaapi.Choose):
             prepared_entries (list): list of UI rows, including the length for the different columns
         """
         # Using tuples causes this to crash...
-        columns = [['Line', 4], ['Source Function Name', 25], ['Binary Address', 14], ['Binary Function Name', 25], ['Matching Rule \\ Information', 35]]
-        idaapi.Choose.__init__(self, "%s Matched Externals (LibC)" % (libraryName()), columns, idaapi.Choose.CH_MULTI)
+        columns = [["Line", 4], ["Source Function Name", 25], ["Binary Address", 14], ["Binary Function Name", 25], ["Matching Rule \\ Information", 35]]
+        idaapi.Choose.__init__(self, f"{libraryName()} Matched Externals (LibC)", columns, idaapi.Choose.CH_MULTI)
         self.deflt = 0
         self.icon = -1
         self.selcount = 0
@@ -227,7 +227,7 @@ class ExternalsChooseForm(idaapi.Choose):
         self._entries  = prepared_entries
         # build the table
         for idx, entry in enumerate(prepared_entries):
-            self.items.append(["%04d" % (idx + 1), entry[0], ("0x%08X" % (entry[1])) if entry[1] is not None else 'N/A', entry[2], entry[3]])
+            self.items.append(["%04d" % (idx + 1), entry[0], ("0x%08X" % (entry[1])) if entry[1] is not None else "N/A", entry[2], entry[3]])
 
     # Overridden base function
     def OnClose(self):
@@ -329,7 +329,7 @@ class IDA(DisasAPI):
         Return Value:
             collection of all of the exported symbols in the program
         """
-        return list(map(lambda x: self._logic.funcNameInner(x[-1]), idautils.Entries()))
+        return [self._logic.funcNameInner(x[-1]) for x in idautils.Entries()]
 
     # Overridden base function
     def numSegments(self):
@@ -362,7 +362,7 @@ class IDA(DisasAPI):
         Return Value:
             collection of function addresses
         """
-        return list(map(lambda x: x.ea, sark.Segment(index=idx).functions))
+        return [x.ea for x in sark.Segment(index=idx).functions]
 
     # Overridden base function
     def inputFile(self):

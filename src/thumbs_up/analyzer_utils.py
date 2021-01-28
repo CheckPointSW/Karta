@@ -19,16 +19,8 @@ def gatherIntel(analyzer, scs, sds):
         True iff everything was successful
     """
     # calibrate the features needed for the function classifier
-    if not analyzer.func_classifier.calibrateFunctionClassifier(scs):
+    if not analyzer.func_classifier.prepare(scs):
         return False
-    # Observe function features from identified functions
-    analyzer.func_classifier.trainFunctionClassifier(scs)
-    # calibrate the features needed for the function type classifier
-    if analyzer.hasActiveCodeTypes():
-        if not analyzer.func_classifier.calibrateFunctionTypeClassifier(scs):
-            return False
-        # Observe function features from identified functions
-        analyzer.func_classifier.trainFunctionTypeClassifier(scs)
     # Observe the code features from all of the code
     if analyzer.isCodeContainsData() and analyzer.locals_identifier.observeLocalConstants(scs) is None:
         return False
@@ -43,8 +35,8 @@ def cleanStart(analyzer, scs, undef=False):
         scs (list): list of (sark) code segments to work on
         undef (bool, optional): True iff should undefine the code segments (False by default)
     """
-    for sc in scs:
-        if undef:
+    if undef:
+        for sc in scs:
             analyzer.logger.info(f"Undefining code segment: 0x{sc.start_ea:x} - 0x{sc.end_ea:x}")
             sark.data.undefine(sc.start_ea, sc.end_ea)
             if analyzer.switch_identifier.hasSwithTables(sc):
@@ -173,22 +165,23 @@ def functionScan(analyzer, scs):
                 # skip for now
                 line = line.next
                 continue
-            # If unknown, check if a function and don't try to keep the same code type
-            if line.is_unknown:
-                guess_code_type = analyzer.func_classifier.predictFunctionStartType(line.start_ea)
-                if analyzer.func_classifier.predictFunctionStart(line.start_ea, guess_code_type):
-                    if original_code_type != guess_code_type:
-                        analyzer.setCodeType(line.start_ea, line.start_ea + 1, guess_code_type)
-                    if not ida_funcs.add_func(line.start_ea):
-                        if original_code_type != guess_code_type:
-                            analyzer.setCodeType(line.start_ea, line.start_ea + 1, original_code_type)
-                        line = line.next
-                    else:
-                        analyzer.logger.debug(f"Declared a function at: 0x{line.start_ea:x} (Type {guess_code_type}, Local type {original_code_type})")
-                    continue
-                # otherwise, do nothing
-                line = line.next
+            # Only care about unknown lines from here onward
+            if not line.is_unknown:
                 continue
+            # If unknown, check if a function and don't try to keep the same code type
+            guess_code_type = analyzer.func_classifier.predictFunctionStartType(line.start_ea)
+            if analyzer.func_classifier.predictFunctionStart(line.start_ea, guess_code_type):
+                if original_code_type != guess_code_type:
+                    analyzer.setCodeType(line.start_ea, line.start_ea + 1, guess_code_type)
+                if not ida_funcs.add_func(line.start_ea):
+                    if original_code_type != guess_code_type:
+                        analyzer.setCodeType(line.start_ea, line.start_ea + 1, original_code_type)
+                    line = line.next
+                else:
+                    analyzer.logger.debug(f"Declared a function at: 0x{line.start_ea:x} (Type {guess_code_type}, Local type {original_code_type})")
+            # otherwise, do nothing
+            else:
+                line = line.next
 
 def aggressiveFunctionScan(analyzer, scs):
     """Aggressively scan the code segment and try to define functions.

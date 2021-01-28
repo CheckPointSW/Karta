@@ -6,12 +6,172 @@ import ida_nalt
 import sark
 import numpy
 import struct
+import time
 
 #######################
 ## Static Thresholds ##
 #######################
 
-CALIBRATION_LOWER_BOUND = 0.75  # Classifiers below this threshold are not stable enough :(
+CALIBRATION_LOWER_BOUND   = 0.75  # Classifiers below this threshold are not stable enough :(
+CALIBRATION_UPPER_BOUND   = 0.96  # Classifiers above this threshold shouldn't be calibrated any more
+CALIBRATION_TIME_ESTIMATE = 10    # Calibration that takes mora than this amount (in seconds) could get optimized
+
+class FeatureClassifier():
+    """A Random-Forest (Machine Learning) Based classifier for function related features.
+
+    Attributes
+    ----------
+        _analyzer (instance): analyzer instance that we are linked to
+        _name (str): name of the classified feature
+        _feature_size (int): size of the feature set that we use after calibration
+        _inner_offset (int): calibration offset between a feature to a non-feature
+        _classifier_offsets (list): feature byte offsets
+        _classifier (classifier): the actual classifier
+        _interest (lambda): sark function => interesting feature
+        _tag (lambda): ea => tagged meaning
+        _needs_calibration (bool): False iff no more calibration rounds are needed
+        _needs_training (bool): False iff no more training rounds are needed
+
+    Notes
+    -----
+        1. Testing shows that byte-based classifiers work good enough, we don't need anything fancy
+        2. We calibrate each classifier using a larger than needed feature set, and then dynamically pick
+           the most meaningful bytes until we reach the desired feature set size.
+        3. Step #2 enables us to partially handle endianness changes / architecture changes
+        4. Using any Machine Learning based classifier mandates that we have a large enough data data set.
+           In our case, if we don't have enough functions to calibrate to the CALIBRATION_LOWER_BOUND threshold,
+           we will need to abort to avoid taking risky decisions.
+    """
+
+    def __init__(self, analyzer, name, feature_size, inner_offset, classifier_offsets, interest, tag):
+        """Create the function classifier according to the architecture-based configurations.
+
+        Args:
+            analyzer (instance): analyzer instance that we are going to link against
+            name (str): Name for this classifier
+            feature_size (int): size of the feature set that we use after calibration
+            inner_offset (int): calibration offset between a feature and a non-feature
+            classifier_offsets (list): feature byte offsets
+            interest (lambda): sark function => interesting feature
+            tag (lambda): ea => tagged meaning
+        """
+        self._analyzer = analyzer
+        self._name = name
+        self._feature_size = feature_size
+        self._inner_offset = inner_offset
+        self._classifier_offsets = classifier_offsets
+        self._interest = interest
+        self._tag = tag
+        self._classifier = None
+        self._needs_calibration = True
+        self._needs_training = True
+
+    def extractSample(self, ea):
+        """Extract features for a sample.
+
+        Args:
+            ea (int): effective address to be sampled
+
+        Return Value:
+            feature set (list of byte values)
+        """
+        return [idc.get_wide_byte(ea + o) for o in self._classifier_offsets]
+
+    def train(self, scoped_functions):
+        """Train the classifier on the scoped functions.
+
+        Args:
+            scoped_functions (list): list of all relevant (scoped) functions
+
+        Note:
+            Training must happen *after* the calibration phase
+        """
+        # init
+        clf = RandomForestClassifier(n_estimators=100)
+        eas = [self._interest(x) for x in scoped_functions] + [self._interest(x) + self._inner_offset for x in scoped_functions]
+        data_set = [self.extractSample(x) for x in eas]
+        data_results = [self._tag(x) for x in eas]
+        # classify
+        clf.fit(data_set, data_results)
+        # store the result
+        self._classifier = clf
+
+    def calibrate(self, scoped_functions):
+        """Calibrate the classifier on the scoped functions.
+
+        Args:
+            scoped_functions (list): list of all relevant (scoped) functions
+
+        Notes
+        -----
+            1. Must include enough samples, otherwise an error will be raised
+
+        Return Value:
+            Calibration accuracy
+        """
+        round_names = ("Calibration", "Testing")
+        # 1st round - calibration
+        # 2nd round - test
+        for training_round in range(len(round_names)):
+            round_name = round_names[training_round]
+            # Start of function classifier
+            clf = RandomForestClassifier(n_estimators=100)
+            eas = [self._interest(x) for x in scoped_functions] + [self._interest(x) + self._inner_offset for x in scoped_functions]
+            data_set = [self.extractSample(x) for x in eas]
+            data_results = [self._tag(x) for x in eas]
+            # split to train and test (70%, 30%)
+            X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
+            # classify
+            clf.fit(X_train, Y_train)
+            # test
+            Y_pred = clf.predict(X_test)
+            accuracy = metrics.accuracy_score(Y_test, Y_pred)
+            self._analyzer.logger.info(f"{round_name}: {self._name} Accuracy: {accuracy * 100:.2f}%")
+            # Pick up the best features, and use only them (only needed in the first round)
+            if training_round == 0:
+                impact = list(zip(self._classifier_offsets, clf.feature_importances_))
+                impact.sort(key=lambda x: x[1], reverse=True)
+                self._classifier_offsets = [x[0] for x in impact[:self._feature_size]]
+            elif accuracy < CALIBRATION_LOWER_BOUND:
+                self._analyzer.logger.error(f"{self._name} Accuracy is too low, can't continue: {accuracy * 100:.2f}% < {CALIBRATION_LOWER_BOUND * 100:.2f}%")
+                raise ValueError
+
+        # Return the calibration accuracy
+        return accuracy
+
+    def prepare(self, scoped_functions):
+        """Calibrate and train the classifier on the scoped functions.
+
+        Args:
+            scoped_functions (list): list of all relevant (scoped) functions
+
+        Notes
+        -----
+            1. Raises a ValueError exception if the calibration failed
+        """
+        if not self._needs_training:
+            self._analyzer.logger.info(f"{self._name} Accuracy is good enough, skipping re-training")
+            return
+        if self._needs_calibration:
+            start_time = time.time()
+            accuracy = self.calibrate(scoped_functions)
+            end_time = time.time()
+            self._needs_calibration = False
+            if end_time - start_time >= CALIBRATION_TIME_ESTIMATE and accuracy >= CALIBRATION_UPPER_BOUND:
+                self._needs_training = False
+        self._analyzer.logger.info(f"{self._name} - re-train the model on the new dataset")
+        self.train(scoped_functions)
+
+    def predict(self, ea):
+        """Predict the feature of the function.
+
+        Args:
+            ea (int): effective address to query
+
+        Return Value:
+            Classifier determined result
+        """
+        return self._classifier.predict([self.extractSample(ea)])
 
 class FunctionClassifier():
     """A Random-Forest (Machine Learning) Based classifier for all function related features.
@@ -19,16 +179,10 @@ class FunctionClassifier():
     Attributes
     ----------
         _analyzer (instance): analyzer instance that we are linked to
-        _feature_size (int): size of the feature set that we use after calibration
-        _inner_offset (int): calibration offset between a feature to a non-feature
-        _classifiers_start_offsets (dict): function start mapping: code type ==> feature byte offsets
-        _classifiers_end_offsets (dict): function end mapping: code type ==> feature byte offsets
-        _classifiers_mixed_offsets (dict): function start/end mapping: code type ==> feature byte offsets
-        _classifiers_type_offsets (list): function type: feature byte offsets
-        _start_classifiers (dict): function start mapping: code type ==> classifier
-        _end_classifiers (dict): function end mapping: code type ==> classifier
-        _mixed_classifiers (dict): function start/end mapping: code type ==> classifier
-        _type_classifier (classifier): function code type classifier
+        _classifiers_start (dict): function start mapping: code type ==> classifier
+        _classifiers_end (dict): function end mapping: code type ==> classifier
+        _classifiers_mixed (dict): function start/end mapping: code type ==> classifier
+        _classifier_type (classifier): function code type classifier
 
     Notes
     -----
@@ -54,20 +208,26 @@ class FunctionClassifier():
             classifiers_type_offsets (list): initial function type: feature byte offsets
         """
         self._analyzer = analyzer
-        self._feature_size = feature_size
-        self._inner_offset = inner_offset
-        self._classifiers_start_offsets = classifiers_start_offsets
-        self._classifiers_end_offsets   = classifiers_end_offsets
-        self._classifiers_mixed_offsets = classifiers_mixed_offsets
-        self._classifier_type_offsets   = classifier_type_offsets
-        self._start_classifiers = {}
-        self._end_classifiers   = {}
-        self._mixed_classifiers = {}
-        self._type_classifier   = None
+
+        # Init all sub-classifiers
+        self._classifiers_start = {}
+        self._classifiers_end = {}
+        self._classifiers_mixed = {}
+        for code_type in self._analyzer.activeCodeTypes():
+            self._classifiers_start[code_type] = FeatureClassifier(analyzer, "Function Prologue", feature_size, inner_offset, \
+                                                                   classifiers_start_offsets[code_type], lambda x: x.start_ea, lambda x: int(FunctionClassifier.isFuncStart(x)))
+            self._classifiers_end[code_type] = FeatureClassifier(analyzer, "Function Epilogue", feature_size, inner_offset, \
+                                                                   classifiers_end_offsets[code_type], lambda x: x.end_ea, lambda x: int(FunctionClassifier.isFuncEnd(x)))
+            self._classifiers_mixed[code_type] = FeatureClassifier(analyzer, "Function Prologue/Epilogue", feature_size, inner_offset, \
+                                                                   classifiers_mixed_offsets[code_type], lambda x: x.start_ea, lambda x: int(FunctionClassifier.isFuncStart(x)))
+        # And now, the type classifier
+        if analyzer.hasActiveCodeTypes():
+            self._classifier_type = FeatureClassifier(analyzer, "Function Type", feature_size, inner_offset, classifier_type_offsets, lambda x: x.start_ea, lambda x: self._analyzer.codeType(x))
         # seed the random generator
         numpy.random.seed(seed=struct.unpack("!I", ida_nalt.retrieve_input_file_md5()[:4])[0])
 
-    def isFuncStart(self, ea):
+    @staticmethod
+    def isFuncStart(ea):
         """Check if the given effective address is the start of a known function.
 
         Args:
@@ -81,7 +241,8 @@ class FunctionClassifier():
         except sark.exceptions.SarkNoFunction:
             return False
 
-    def isFuncEnd(self, ea):
+    @staticmethod
+    def isFuncEnd(ea):
         """Check if the given effective address is the end of a known function.
 
         Args:
@@ -96,98 +257,8 @@ class FunctionClassifier():
         except sark.exceptions.SarkNoFunction:
             return False
 
-    def extractFunctionStartSample(self, ea, code_type):
-        """Extract features for a "function start" sample.
-
-        Args:
-            ea (int): effective address to be sampled
-            code_type (int): code type of the wanted sample
-
-        Return Value:
-            feature set (list of byte values)
-        """
-        return [idc.get_wide_byte(ea + o) for o in self._classifiers_start_offsets[code_type]]
-
-    def extractFunctionEndSample(self, ea, code_type):
-        """Extract features for a "function end" sample.
-
-        Args:
-            ea (int): effective address to be sampled
-            code_type (int): code type of the wanted sample
-
-        Return Value:
-            feature set (list of byte values)
-        """
-        return [idc.get_wide_byte(ea + o) for o in self._classifiers_end_offsets[code_type]]
-
-    def extractFunctionMixedSample(self, ea, code_type):
-        """Extract features for a "function start/end" sample.
-
-        Args:
-            ea (int): effective address to be sampled
-            code_type (int): code type of the wanted sample
-
-        Return Value:
-            feature set (list of byte values)
-        """
-        return [idc.get_wide_byte(ea + o) for o in self._classifiers_mixed_offsets[code_type]]
-
-    def extractFunctionTypeSample(self, ea):
-        """Extract features for a "code type" sample.
-
-        Args:
-            ea (int): effective address to be sampled
-
-        Return Value:
-            feature set (list of byte values)
-        """
-        return [idc.get_wide_byte(ea + o) for o in self._classifier_type_offsets]
-
-    def trainFunctionClassifier(self, scs):
-        """Train all function classifiers, according to all known code segments.
-
-        Args:
-            scs (list): list of all known (sark) code segments
-
-        Note:
-            Training must happen *after* the calibration phase
-        """
-        functions = []
-        for sc in scs:
-            functions += [f for f in sc.functions if not self._analyzer.fptr_identifier.isPointedFunction(f.start_ea)]
-        # Each code type is trained on it's own
-        for code_type in self._analyzer.activeCodeTypes():
-            scoped_functions = [x for x in functions if self._analyzer.codeType(x.start_ea) == code_type]
-            # Start of function classifier
-            clf = RandomForestClassifier(n_estimators=100)
-            eas = [x.start_ea for x in scoped_functions] + [x.start_ea + self._inner_offset for x in scoped_functions]
-            data_set = [self.extractFunctionStartSample(x, code_type) for x in eas]
-            data_results = [int(self.isFuncStart(x)) for x in eas]
-            # classify
-            clf.fit(data_set, data_results)
-            # store the results
-            self._start_classifiers[code_type] = clf
-            # End of function classifier
-            clf = RandomForestClassifier(n_estimators=100)
-            eas = [x.end_ea for x in scoped_functions] + [x.end_ea - self._inner_offset for x in scoped_functions]
-            data_set = [self.extractFunctionEndSample(x, code_type) for x in eas]
-            data_results = [int(self.isFuncEnd(x)) for x in eas]
-            # classify
-            clf.fit(data_set, data_results)
-            # store the results
-            self._end_classifiers[code_type] = clf
-            # Start/End of function classifier
-            clf = RandomForestClassifier(n_estimators=100)
-            eas = [x.start_ea for x in scoped_functions] + [x.start_ea + self._inner_offset for x in scoped_functions]
-            data_set = [self.extractFunctionMixedSample(x, code_type) for x in eas]
-            data_results = [int(self.isFuncStart(x)) for x in eas]
-            # classify
-            clf.fit(data_set, data_results)
-            # store the results
-            self._mixed_classifiers[code_type] = clf
-
-    def calibrateFunctionClassifier(self, scs):
-        """Calibrate all function classifiers, according to all known code segments.
+    def prepare(self, scs):
+        """Calibrate and train all function classifiers, according to all known code segments.
 
         Args:
             scs (list): list of all known (sark) code segments
@@ -204,145 +275,29 @@ class FunctionClassifier():
         functions = []
         for sc in scs:
             functions += [f for f in sc.functions if not self._analyzer.fptr_identifier.isPointedFunction(f.start_ea)]
-        for code_type in list(self._analyzer.activeCodeTypes()):
+        for code_type in self._analyzer.activeCodeTypes():
             scoped_functions = [x for x in functions if self._analyzer.codeType(x.start_ea) == code_type]
             self._analyzer.logger.info(f"There are {len(scoped_functions)} scoped functions for code type {code_type}")
-            # 1st round - calibration
-            # 2nd round - test
+
             try:
-                for training_round in range(2):
-                    round_name = "Calibration" if training_round == 0 else "Testing"
-                    # Start of function classifier
-                    clf = RandomForestClassifier(n_estimators=100)
-                    eas = [x.start_ea for x in scoped_functions] + [x.start_ea + self._inner_offset for x in scoped_functions]
-                    data_set = [self.extractFunctionStartSample(x, code_type) for x in eas]
-                    data_results = [int(self.isFuncStart(x)) for x in eas]
-                    # split to train and test (70%, 30%)
-                    X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
-                    # classify
-                    clf.fit(X_train, Y_train)
-                    # test
-                    Y_pred = clf.predict(X_test)
-                    accuracy = metrics.accuracy_score(Y_test, Y_pred)
-                    self._analyzer.logger.info("%s: Function Prologue Accuracy: %.2f%%", round_name, accuracy * 100)
-                    # Pick up the best features, and use only them (only needed in the first round)
-                    if training_round == 0:
-                        start_impact = list(zip(self._classifiers_start_offsets[code_type], clf.feature_importances_))
-                        start_impact.sort(key=lambda x: x[1], reverse=True)
-                        self._classifiers_start_offsets[code_type] = [x[0] for x in start_impact[:self._feature_size]]
-                    elif accuracy < CALIBRATION_LOWER_BOUND:
-                        self._analyzer.logger.error("Function Prologue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                        raise ValueError
-                    # End of function classifier
-                    clf = RandomForestClassifier(n_estimators=100)
-                    eas = [x.end_ea for x in scoped_functions] + [x.end_ea - self._inner_offset for x in scoped_functions]
-                    data_set = [self.extractFunctionEndSample(x, code_type) for x in eas]
-                    data_results = [int(self.isFuncEnd(x)) for x in eas]
-                    # split to train and test (70%, 30%)
-                    X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
-                    # classify
-                    clf.fit(X_train, Y_train)
-                    # test
-                    Y_pred = clf.predict(X_test)
-                    accuracy = metrics.accuracy_score(Y_test, Y_pred)
-                    self._analyzer.logger.info("%s: Function Epilogue Accuracy: %.2f%%", round_name, accuracy * 100)
-                    # Pick up the best features, and use only them (only needed in the first round)
-                    if training_round == 0:
-                        end_impact = list(zip(self._classifiers_end_offsets[code_type], clf.feature_importances_))
-                        end_impact.sort(key=lambda x: x[1], reverse=True)
-                        self._classifiers_end_offsets[code_type] = [x[0] for x in end_impact[:self._feature_size]]
-                    elif accuracy < CALIBRATION_LOWER_BOUND:
-                        self._analyzer.logger.error("Function Epilogue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                        raise ValueError
-                    # Start/End of function classifier
-                    clf = RandomForestClassifier(n_estimators=100)
-                    eas = [x.start_ea for x in scoped_functions] + [x.start_ea + self._inner_offset for x in scoped_functions]
-                    data_set = [self.extractFunctionMixedSample(x, code_type) for x in eas]
-                    data_results = [int(self.isFuncStart(x)) for x in eas]
-                    # split to train and test (70%, 30%)
-                    X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
-                    # classify
-                    clf.fit(X_train, Y_train)
-                    # test
-                    Y_pred = clf.predict(X_test)
-                    accuracy = metrics.accuracy_score(Y_test, Y_pred)
-                    self._analyzer.logger.info("%s: Function Prologue/Epilogue Accuracy: %.2f%%", round_name, accuracy * 100)
-                    # Pick up the best features, and use only them (only needed in the first round)
-                    if training_round == 0:
-                        mixed_impact = list(zip(self._classifiers_mixed_offsets[code_type], clf.feature_importances_))
-                        mixed_impact.sort(key=lambda x: x[1], reverse=True)
-                        self._classifiers_mixed_offsets[code_type] = [x[0] for x in mixed_impact[:self._feature_size]]
-                    elif accuracy < CALIBRATION_LOWER_BOUND:
-                        self._analyzer.logger.error("Function Prologue/Epilogue Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                        raise ValueError
-            # ValueError when we only have a single sample and we call fit()
+                self._classifiers_start[code_type].prepare(scoped_functions)
+                self._classifiers_end[code_type].prepare(scoped_functions)
+                self._classifiers_mixed[code_type].prepare(scoped_functions)
+            # ValueError when we only have a single sample and we call fit() / the accuracy is too low
             except ValueError:
                 self._analyzer.logger.warning(f"Not enough functions to calibrate the classifier for code type {code_type}")
                 self._analyzer.logger.warning(f"Disabling heuristics for code type {code_type}")
                 self._analyzer.disableCodeType(code_type)
 
+        # Don't forget the code types
+        if self._analyzer.hasActiveCodeTypes():
+            try:
+                self._classifier_type.prepare(scoped_functions)
+            except ValueError:
+                return False
+
         # If reached this point it means that all was OK, if we have some code types left
         return len(self._analyzer.activeCodeTypes()) > 0
-
-    def trainFunctionTypeClassifier(self, scs):
-        """Train the type classifier, according to all known code segments.
-
-        Args:
-            scs (list): list of all known (sark) code segments
-
-        Note:
-            Training must happen *after* the calibration phase
-        """
-        functions = []
-        for sc in scs:
-            functions += [f for f in sc.functions if not self._analyzer.fptr_identifier.isPointedFunction(f.start_ea)]
-        clf = RandomForestClassifier(n_estimators=100)
-        eas = [x.start_ea for x in functions]
-        data_set = [self.extractFunctionTypeSample(x) for x in eas]
-        data_results = [self._analyzer.codeType(x) for x in eas]
-        # classify
-        clf.fit(data_set, data_results)
-        # store the results
-        self._type_classifier = clf
-
-    def calibrateFunctionTypeClassifier(self, scs):
-        """Calibrate the type classifier, according to all known code segments.
-
-        Args:
-            scs (list): list of all known (sark) code segments
-
-        Return Value:
-            True iff the calibration was successfully and is more accurate than the assigned lower bound
-        """
-        functions = []
-        for sc in scs:
-            functions += [f for f in sc.functions if not self._analyzer.fptr_identifier.isPointedFunction(f.start_ea)]
-        # 1st round - calibration
-        # 2nd round - test
-        for training_round in range(2):
-            round_name = "Calibration" if training_round == 0 else "Testing"
-            clf = RandomForestClassifier(n_estimators=100)
-            eas = [x.start_ea for x in functions]
-            data_set = [self.extractFunctionTypeSample(x) for x in eas]
-            data_results = [self._analyzer.codeType(x) for x in eas]
-            # split to train and test (70%, 30%)
-            X_train, X_test, Y_train, Y_test = train_test_split(data_set, data_results, test_size=0.7, random_state=5)
-            # classify
-            clf.fit(X_train, Y_train)
-            # test
-            Y_pred = clf.predict(X_test)
-            accuracy = metrics.accuracy_score(Y_test, Y_pred)
-            self._analyzer.logger.info("%s: Function accuracy Type Accuracy: %.2f%%", round_name, accuracy * 100)
-            # Pick up the best features, and use only them (only needed in the first round)
-            if training_round == 0:
-                type_impact = list(zip(self._classifier_type_offsets, clf.feature_importances_))
-                type_impact.sort(key=lambda x: x[1], reverse=True)
-                self._classifier_type_offsets = [x[0] for x in type_impact[:self._feature_size]]
-            elif accuracy < CALIBRATION_LOWER_BOUND:
-                self._analyzer.logger.error("Function Prologue Type Accuracy is too low, can't continue: %.2f%% < %.2f%%", accuracy * 100, CALIBRATION_LOWER_BOUND * 100)
-                return False
-        # If reached this point it means that all was OK
-        return True
 
     def predictFunctionStart(self, ea, known_type=None):
         """Predict if the given address is a function start.
@@ -358,12 +313,8 @@ class FunctionClassifier():
         Return Value:
             True iff the classifier determined that this is a function start
         """
-        if known_type is None:
-            code_type = self._analyzer.codeType(ea)
-        else:
-            code_type = known_type
-        sample = self.extractFunctionStartSample(ea, code_type)
-        return self._start_classifiers[code_type].predict([sample])
+        code_type = self._analyzer.codeType(ea) if known_type is None else known_type
+        return self._classifiers_start[code_type].predict(ea)
 
     def predictFunctionEnd(self, ea, known_type=None):
         """Predict if the given address is a function end.
@@ -375,12 +326,8 @@ class FunctionClassifier():
         Return Value:
             True iff the classifier determined that this is a function end
         """
-        if known_type is None:
-            code_type = self._analyzer.codeType(ea)
-        else:
-            code_type = known_type
-        sample = self.extractFunctionEndSample(ea, code_type)
-        return self._end_classifiers[code_type].predict([sample])
+        code_type = self._analyzer.codeType(ea) if known_type is None else known_type
+        return self._classifiers_end[code_type].predict(ea)
 
     def predictFunctionStartMixed(self, ea, known_type=None):
         """Predict if the given address is a mixed function start/end.
@@ -392,12 +339,8 @@ class FunctionClassifier():
         Return Value:
             True iff the classifier determined that this is a function start/end
         """
-        if known_type is None:
-            code_type = self._analyzer.codeType(ea)
-        else:
-            code_type = known_type
-        sample = self.extractFunctionMixedSample(ea, code_type)
-        return self._mixed_classifiers[code_type].predict([sample])
+        code_type = self._analyzer.codeType(ea) if known_type is None else known_type
+        return self._classifiers_mixed[code_type].predict(ea)
 
     def predictFunctionStartType(self, ea):
         """Predict the code type of the function start.
@@ -412,8 +355,7 @@ class FunctionClassifier():
         if not self._analyzer.hasActiveCodeTypes():
             return self._analyzer.activeCodeTypes()[0]
         # Multiple types, now predict the right one
-        sample = self.extractFunctionTypeSample(ea)
-        return int(self._type_classifier.predict([sample]))
+        return int(self._classifier_type.predict(ea))
 
     def functionStartSize(self):
         """Get the function start size needed for a "start" sample.
@@ -421,4 +363,4 @@ class FunctionClassifier():
         Return Value:
             Number of chunk needed to properly extract a function "start" sample
         """
-        return max(map(max, self._classifiers_start_offsets.values())) + 1
+        return max([max(c._classifier_offsets) for c in self._classifiers_start.values()]) + 1

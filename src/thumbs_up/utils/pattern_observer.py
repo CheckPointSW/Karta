@@ -85,9 +85,9 @@ class AlignmentPattern:
         random.seed(struct.unpack("!I", ida_nalt.retrieve_input_file_md5()[:4])[0])
         while True:
             # Check against two random candidates, and always make sure the representative isn't rare
-            measure_candidate = seen_eas[random.randint(0, len(seen_eas) - 1)]
+            measure_candidate     = seen_eas[random.randint(0, len(seen_eas) - 1)]
             measure_candidate_alt = seen_eas[random.randint(0, len(seen_eas) - 1)]
-            gcds = [gcd(measure_candidate, x) for x in seen_eas]
+            gcds     = [gcd(measure_candidate, x)     for x in seen_eas]
             gcds_alt = [gcd(measure_candidate_alt, x) for x in seen_eas]
             alignment = min(gcds)
             alignment_alt = min(gcds_alt)
@@ -114,7 +114,7 @@ class AlignmentPattern:
             return (alignment, None)
         # Check if there is a common padding byte (skip the outliers)
         pad_byte = None
-        for ea, size in filter(lambda x: x[0] % alignment == 0, self._records):
+        for ea, size in [x for x in self._records if x[0] % alignment == 0]:
             for offset in range((alignment - ((ea + size) % alignment)) % alignment):
                 test_byte = idc.get_wide_byte(ea + size + offset)
                 if pad_byte is None:
@@ -122,12 +122,8 @@ class AlignmentPattern:
                 # Failed to find a single padding byte...
                 elif pad_byte != test_byte:
                     return (alignment, None)
-        # Found a padding byte :)
-        if pad_byte is not None:
-            return (alignment, pad_byte)
-        # There were no gaps to be padded, no padding is needed
-        else:
-            return (alignment, None)
+        # Found a padding byte :) / Padding is None
+        return (alignment, pad_byte)
 
 class CodePattern:
     """A class that extracts an assembly code pattern from a set of given assembly instructions.

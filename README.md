@@ -63,4 +63,5 @@ This project was developed by me (see contact details below) with help and suppo
 This repository was developed and maintained by me, Eyal Itkin, during my years at Check Point Research. Sadly, with my departure of the research group, I will no longer be able to maintain this repository. This is mainly because of the long list of requirements for running all of the regression tests, and the IDA Pro versions that are involved in the process.
 
 Please accept my sincere apology.
+
 [@EyalItkin](https://twitter.com/EyalItkin)

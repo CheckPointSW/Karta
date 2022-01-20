@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 from config.utils          import *
 from elementals            import Prompter

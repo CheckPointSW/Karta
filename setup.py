@@ -1,7 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 from setuptools import setup, find_packages
-from codecs     import open
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -17,6 +16,7 @@ setup(name='Karta',
       license='MIT',
       packages=find_packages(),
       install_requires=['elementals', 'sark', 'pydocstyle', 'flake8', 'click', 'scikit-learn'],
+      python_requires='>=3',
       classifiers=[
                     "Programming Language :: Python :: 3",
                     "License :: OSI Approved :: MIT License (MIT License)",

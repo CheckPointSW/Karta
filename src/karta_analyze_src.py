@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 from ar_parser             import getArchiveFiles
 from config.utils          import *

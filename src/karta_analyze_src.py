@@ -8,7 +8,7 @@ from disassembler.IDA      import ida_cmd_api
 from function_context      import SourceContext, BinaryContext, IslandContext
 import config.anchor           as anchor
 
-import os
+from os import path, walk
 import sys
 import argparse
 import logging
@@ -36,14 +36,14 @@ def locateFiles(bin_dir, file_list, suffix):
     Return Value:
         Generator for a tuples of the form: (abs_path, compiled_file file name)
     """
-    for root, dirs, files in os.walk(bin_dir):
+    for root, dirs, files in walk(bin_dir):
         if file_list is not None:
             for compiled_file in set(files) & set(file_list):
-                yield os.path.abspath(os.path.join(root, compiled_file)), compiled_file
+                yield path.abspath(path.join(root, compiled_file)), compiled_file
                 file_list.remove(compiled_file)
         else:
             for file in filter(lambda x: x.endswith("." + suffix), files):
-                yield os.path.abspath(os.path.join(root, file)), file
+                yield path.abspath(path.join(root, file)), file
 
 def analyzeFile(full_file_path, is_windows):
     """Analyze a single file using analyzer script.
@@ -220,12 +220,12 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
     file_dict = {}
     # find a common file prefix, and remove it form the file path
     if len(src_file_mappings) > 1:
-        base_value = list(src_file_mappings.keys())[0].split(os.path.sep)
-        comparison_value = list(src_file_mappings.keys())[-1].split(os.path.sep)
+        base_value = list(src_file_mappings.keys())[0].split(path.sep)
+        comparison_value = list(src_file_mappings.keys())[-1].split(path.sep)
         for index in range(min(len(comparison_value), len(base_value))):
             if base_value[index] != comparison_value[index]:
                 break
-        common_path_len = len(os.path.sep.join(base_value[:index])) + 1
+        common_path_len = len(path.sep.join(base_value[:index])) + 1
     else:
         common_path_len = len(bin_dirs[0]) + 1
 
@@ -242,6 +242,41 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
     prompter.info(f"Anchor to file ratio is: {len(anchors_files)}/{len(src_file_mappings)}")
     prompter.info(f"Anchor to function ratio is: {len(anchors_list)}/{len(src_functions_list)}")
     prompter.removeIndent()
+
+def verify_archives_and_objects(using_archives, couples, prompter):
+    bin_dirs = []
+    archive_paths = []
+    error_occured = False
+    if using_archives:
+        for i in range(0, len(couples), 2):
+            if not path.exists(couples[i]):
+                prompter.error(f"Error the path {couples[i]} does not exist!")
+                error_occured = True
+            elif not path.isdir(couples[i]):
+                prompter.error(f"Error the path {couples[i]} exists but is not a directory!")
+                error_occured = True
+            else:
+                bin_dirs.append(couples[i])
+            
+            if not path.exists(couples[i + 1]):
+                prompter.error(f"Error the path {couples[i + 1]} does not exist!")
+                error_occured = True
+            elif not path.isfile(couples[i + 1]):
+                prompter.error(f"Error the path {couples[i + 1]} exists but is not a file!")
+                error_occured = True
+            else:
+                archive_paths.append(couples[i + 1])
+    else:
+        for bin_dir in couples:
+            if not path.exists(bin_dir):
+                prompter.error(f"Error the path {bin_dir} does not exist!")
+                error_occured = True
+            elif not path.isdir(bin_dir):
+                prompter.error(f"Error the path {bin_dir} exists but is not a directory!")
+                error_occured = True
+        bin_dirs = couples
+
+    return (bin_dirs, archive_paths) if not error_occured else None
 
 def main(args):
     """Create a .json configuration for the open source library version.
@@ -272,19 +307,19 @@ def main(args):
     using_archives  = args.no_archive
     couples         = args.couples
 
-    bin_dirs      = []
-    archive_paths = []
+    # open the log
+    prompter = Prompter(min_log_level=logging.INFO if not is_debug else logging.DEBUG)
     if using_archives:
         if len(couples) % 2 != 0:
             parser.error("Odd length in list of dir,archive couples, should be: [(directory, archive name), ...]")
-        for i in range(0, len(couples), 2):
-            bin_dirs.append(couples[i])
-            archive_paths.append(couples[i + 1])
-    else:
-        bin_dirs = couples
+    
+    paths = verify_archives_and_objects(using_archives, couples, prompter)
 
-    # open the log
-    prompter = Prompter(min_log_level=logging.INFO if not is_debug else logging.DEBUG)
+    if paths is None:
+        return
+
+    bin_dirs, archive_paths = paths
+
     prompter.info("Starting the Script")
 
     # requesting the path to the chosen disassembler

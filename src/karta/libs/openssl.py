@@ -1,5 +1,6 @@
-from .lib_template import *
 import string
+
+from .lib_template import *
 
 class OpenSSLSeeker(Seeker):
     """Seeker (Identifier) for the OpenSSL open source library."""

@@ -4,8 +4,9 @@ import ida_bytes
 import ida_funcs
 import idaapi
 from collections            import defaultdict
-from utils.code_metric      import CodeMetric
-from utils.code_regions     import CodeRegion, CodeRegions
+
+from .utils.code_metric      import CodeMetric
+from .utils.code_regions     import CodeRegion, CodeRegions
 
 def gatherIntel(analyzer, scs, sds):
     """Gather all of the intelligence about the program's different features.

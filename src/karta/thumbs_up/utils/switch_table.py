@@ -3,6 +3,7 @@ import idc
 import ida_bytes
 import idaapi
 import sark
+
 from .pattern_observer import AlignmentPattern, CodePattern, pad
 
 ###########################

@@ -1,9 +1,9 @@
-from config.utils           import *
-from disassembler.factory   import createDisassemblerHandler
-from libs                   import lib_factory
-
-from elementals import Logger
 import logging
+from elementals import Logger
+
+from .config.utils           import *
+from .disassembler.factory   import createDisassemblerHandler
+from .libs                   import lib_factory
 
 ####################
 ## Global Configs ##

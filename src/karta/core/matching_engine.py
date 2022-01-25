@@ -1,7 +1,9 @@
-from config.utils    import *
-from collections     import defaultdict
-import config.anchor as anchor
 import time
+from collections       import defaultdict
+
+from ..config.utils    import *
+from ..config          import anchor
+
 
 class MatchEngine(object):
     """A class that handles the book-keeping for the matching process.

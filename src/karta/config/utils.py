@@ -1,6 +1,7 @@
-from .score_config import *
 import json
 import os
+
+from .score_config import *
 
 #################################
 ## Basic Global Configurations ##

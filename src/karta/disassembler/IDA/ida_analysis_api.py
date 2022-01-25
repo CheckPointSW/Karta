@@ -1,7 +1,8 @@
 import idaapi
 import sark
-from config.utils   import *
 from hashlib        import md5
+
+from ...config.utils   import *
 
 class AnalyzerIDA(object):
     """Logic instance for the IDA disassembler API. Contains the heart of Karta's canonical representation.

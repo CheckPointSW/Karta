@@ -1,7 +1,8 @@
-from core.function_context import *
-from config.utils          import *
 from collections           import defaultdict
-import config.libc_config      as libc
+
+from .core.function_context import *
+from .config.utils          import *
+from .config import libc_config as libc
 
 class ExternalFunction(CodeContext):
     """A context that describes a source-code point of view of an external function, using references from/to it.

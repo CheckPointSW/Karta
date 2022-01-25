@@ -1,7 +1,8 @@
-from .pattern_observer import pad
 import idc
 import ida_bytes
 import sark
+
+from .pattern_observer import pad
 
 class LocalsIdentifier:
     """A class that collects the information and holds the knowledge we know about local (in-code) constants in the program.

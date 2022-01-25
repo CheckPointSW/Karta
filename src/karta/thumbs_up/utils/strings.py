@@ -1,9 +1,10 @@
-from .pattern_observer import AlignmentPattern, pad, padSize
 import idc
 import ida_bytes
 import idautils
 import string
 import sark
+
+from .pattern_observer import AlignmentPattern, pad, padSize
 
 #######################
 ## String Heuristics ##

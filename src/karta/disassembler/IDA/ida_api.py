@@ -1,3 +1,5 @@
+import logging
+
 # Dependencies that only exist inside IDA
 import idautils
 import idaapi
@@ -9,9 +11,9 @@ import ida_nalt
 import sark
 from .ida_analysis_api      import AnalyzerIDA
 # Basic dependencies (only basic python packages)
-from config.utils           import *
-from disassembler.disas_api import DisasAPI
-import logging
+from ...config.utils           import *
+from ..disas_api import DisasAPI
+
 
 class IdaLogHandler(logging.Handler):
     """Integrate the log messages with IDA's output window."""

@@ -1,5 +1,3 @@
-from collections       import defaultdict
-from .pattern_observer import pad
 import pickle
 import struct
 import string
@@ -7,6 +5,9 @@ import idc
 import ida_bytes
 import ida_funcs
 import sark
+from collections       import defaultdict
+
+from .pattern_observer import pad
 
 ###########################
 ## Static Magic Constant ##

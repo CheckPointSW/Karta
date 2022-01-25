@@ -1,5 +1,6 @@
-from .lib_factory import registerLibrary
 import string
+
+from .lib_factory import registerLibrary
 
 class Seeker(object):
     """Abstract class that represents a basic library seeker.

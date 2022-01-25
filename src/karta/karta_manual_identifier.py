@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 
-from config.utils          import *
-from elementals            import Prompter
-
 import sys
 import argparse
 import logging
 from collections import defaultdict
-from libs        import lib_factory
+from elementals            import Prompter
+
+from .config.utils          import *
+from .libs        import lib_factory
+
 
 def recordManualVersions(knowledge_config, prompter):
     """Record the list of user defined manual library versions.

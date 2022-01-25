@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 
-from config.utils          import *
-from elementals            import Prompter
-from function_context      import SourceContext, BinaryContext, IslandContext
-
 import os
 import sys
 import argparse
 import logging
 from collections import defaultdict
+from elementals            import Prompter
+
+from .config.utils          import *
+from .function_context      import SourceContext, BinaryContext, IslandContext
 
 def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
     """Record the list of user defined manual anchor matches.

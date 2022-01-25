@@ -1,5 +1,6 @@
-from .lib_template import *
 import string
+
+from .lib_template import *
 
 class LibJPEGSeeker(Seeker):
     """Seeker (Identifier) for the libjpeg (ITU) open source library."""

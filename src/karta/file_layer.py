@@ -1,6 +1,6 @@
-from core.file_layer    import *
-from config.utils       import *
-import config.anchor    as anchor
+from .core.file_layer    import *
+from .config.utils       import *
+from .config import anchor
 
 class FileMatcher(FileMatch):
     """A wrapper for Matched Files with an additional matching logic layer.

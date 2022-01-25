@@ -1,5 +1,5 @@
-from disassembler.disas_api import DisasVerifier
-from disassembler.factory   import registerDisassembler
+from ..disas_api            import DisasVerifier
+from ..factory              import registerDisassembler
 from .ida_cmd_api           import IdaCMD
 
 class IdaVerifier(DisasVerifier):

@@ -1,6 +1,7 @@
-from disassembler.disas_api import DisasCMD
-from disassembler.factory   import registerDisassemblerCMD
 import os
+
+from ..disas_api import DisasCMD
+from ..factory   import registerDisassemblerCMD
 
 class IdaCMD(DisasCMD):
     """DisasCMD implementation for the IDA disassembler."""

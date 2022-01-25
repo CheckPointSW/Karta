@@ -1,5 +1,6 @@
-from .lib_template import *
 from collections  import defaultdict
+
+from .lib_template import *
 
 class ZlibSeeker(Seeker):
     """Seeker (Identifier) for the zlib open source library."""

@@ -2,8 +2,9 @@ import sark
 import idc
 import logging
 from elementals                 import Logger
-from analyzer_utils             import *
-from analyzers.analyzer_factory import createAnalyzer
+
+from .analyzer_utils             import *
+from .analyzers.analyzer_factory import createAnalyzer
 
 ##
 # Taken from Karta :)

@@ -1,5 +1,5 @@
 from .lib_template import *
-from config.utils import getDisas
+from ..config.utils import getDisas
 
 class LibpngSeeker(Seeker):
     """Seeker (Identifier) for the libpng open source library."""

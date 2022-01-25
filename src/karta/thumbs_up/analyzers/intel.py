@@ -1,10 +1,10 @@
 from .analyzer              import Analyzer
 from .analyzer_factory      import registerAnalyzer
-from utils.function         import FunctionClassifier
-from utils.strings          import StringIdentifier
-from utils.local_constants  import LocalsIdentifier
-from utils.fptr             import FptrIdentifier
-from utils.switch_table     import SwitchIdentifier
+from ..utils.function         import FunctionClassifier
+from ..utils.strings          import StringIdentifier
+from ..utils.local_constants  import LocalsIdentifier
+from ..utils.fptr             import FptrIdentifier
+from ..utils.switch_table     import SwitchIdentifier
 
 ###############################
 # Architecture Configurations #

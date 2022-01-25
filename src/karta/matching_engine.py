@@ -1,11 +1,13 @@
-from core.matching_engine   import MatchEngine
-from core.file_layer        import AssumptionException
-from config.utils           import *
-from file_layer             import FileMatcher
-from function_context       import ExternalFunction, SourceContext, BinaryContext, IslandContext
-from collections            import defaultdict
-import config.libc_config       as libc
 import sys
+from collections import defaultdict
+
+from .core.matching_engine   import MatchEngine
+from .core.file_layer        import AssumptionException
+from .config.utils           import *
+from .file_layer             import FileMatcher
+from .function_context       import ExternalFunction, SourceContext, BinaryContext, IslandContext
+from .config                 import libc_config  as libc
+
 
 class KartaMatcher(MatchEngine):
     """Complete matching engine logic for Karta, based on the file matching logic of the base MatchEngine.

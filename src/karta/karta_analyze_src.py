@@ -1,17 +1,18 @@
 #!/usr/bin/python3
 
-from ar_parser             import getArchiveFiles
-from config.utils          import *
-from elementals            import Prompter, ProgressBar
-from disassembler.factory  import identifyDisassemblerHandler
-from disassembler.IDA      import ida_cmd_api
-from function_context      import SourceContext, BinaryContext, IslandContext
-import config.anchor           as anchor
-
-from os import path, walk
 import sys
 import argparse
 import logging
+from os import path, walk
+from elementals             import Prompter, ProgressBar
+
+from .ar_parser             import getArchiveFiles
+from .config.utils          import *
+from .disassembler.factory  import identifyDisassemblerHandler
+from .disassembler.IDA      import ida_cmd_api
+from .function_context      import SourceContext, BinaryContext, IslandContext
+from .config                import anchor
+
 
 ####################
 ## Global Configs ##

@@ -1,5 +1,5 @@
 from .anchor_config import *
-from config.utils   import *
+from .utils         import *
 
 def isAnchor(context, seen_strings, seen_consts, functions_list, logger):
     """Check if the given context represents an Anchor function.

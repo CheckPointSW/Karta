@@ -2,9 +2,10 @@ import logging
 import traceback
 from elementals             import Logger
 
-from .config.utils           import *
-from .disassembler.factory   import createDisassemblerHandler
-from .function_context       import SourceContext, BinaryContext, IslandContext
+# cannot have realtive imports for a script running in ida
+from karta.config.utils           import *
+from karta.disassembler.factory   import createDisassemblerHandler
+from karta.function_context       import SourceContext, BinaryContext, IslandContext
 
 def analyzeFile():
     """Analyzes all of the (source) functions for a single compiled file."""

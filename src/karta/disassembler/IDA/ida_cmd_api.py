@@ -1,7 +1,15 @@
 import os
+import subprocess
 
 from ..disas_api import DisasCMD
 from ..factory   import registerDisassemblerCMD
+
+# machine type header of pe
+# specified in that order, amd64, arm64, ia64, loongarch64, riscv64
+ARCH64PE = [b"\x64\x86", b"\x64\xaa", b"\x00\x02", b"\x64\x62", b"\x64\x50"]
+
+# machine type header of elf
+ARCH64ELF64 = b"\x02"
 
 class IdaCMD(DisasCMD):
     """DisasCMD implementation for the IDA disassembler."""
@@ -41,10 +49,33 @@ class IdaCMD(DisasCMD):
             path to the created database file
         """
         type = "elf" if not is_windows else "coff"
-        suffix = ".i64" if self._path.endswith("64") else ".idb"
-        database_file = binary_file + suffix
+        # because we get the path to the folder of the dissasembler
+        # we need to define whether it is a 64 or 32 bit one
+        # so we check the respective fields in coff files and elf files
+        # and define the file ending and the ida to use based on tehm
+        if not hasattr(self, "is64"):
+            self._path = os.path.join(self._path,  "ida")
+            self.is64 = False
+            with open(binary_file, 'rb') as f:
+                if is_windows:
+                    # read machine type header and check whether it is in a list
+                    # of 64 bit architectures
+                    machine_type = f.read(2)
+                    if machine_type in ARCH64PE:
+                        self.is64 = True
+                else:
+                	# read the 32bit / 64bit field
+                    machine = f.read(5)[4:]
+                    if machine == ARCH64ELF64:
+                        self.is64 = True
+            self.suffix = ".i64" if self.is64 else ".idb"
+            self._path += "64" if self.is64 else ""
+        
+        database_file = binary_file + self.suffix
+
+
         # execute the program
-        os.system(f"{self._path} -A -B -T{type} -o{database_file} {binary_file}")
+        subprocess.run([self._path, "-A" , "-B", f"-T{type}" ,f"-o{database_file}", binary_file])
         # return back the (should be) created database file path
         return database_file
 
@@ -56,7 +87,7 @@ class IdaCMD(DisasCMD):
             database (path): path to a database file created by the same program
             script (path): python script to be executed once the database is loaded
         """
-        os.system(f"{self._path} -A -S{script} {database}")
+        subprocess.run([self._path, "-A", f"-S{script}", database])
 
 
 # Don't forget to register at the factory

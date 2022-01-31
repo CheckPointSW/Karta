@@ -7,8 +7,10 @@ from .score_config import *
 ## Basic Global Configurations ##
 #################################
 
-DISASSEMBLER_PATH = "/opt/ida-7.4/ida"
-SCRIPT_PATH = os.path.abspath("analyze_src_file.py")
+DISASSEMBLER_PATH = None
+CONFIG_DIR = os.path.dirname(os.path.realpath(__file__))
+DEFAULT_DISASSEMBLER = os.path.join(CONFIG_DIR, "default_disassembler_path")
+SCRIPT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)),"..","analyze_src_file.py")
 
 LIBRARY_NAME            = "Karta"
 STATE_FILE_SUFFIX       = "_file_state.json"
@@ -456,24 +458,43 @@ def isMatching():
     """
     return matching_mode
 
-def setDisassemblerPath(prompter):
-    """Update the disassembler path according to input from the user.
+def addDisassembler(name, path):
+    with open(os.path.join(CONFIG_DIR, name), "w") as f:
+        f.write(path)
 
-    Args:
-        prompter (prompter): prompter elementals instance
-    """
-    global DISASSEMBLER_PATH
+def disassemblerInstallationExists(name):
+    return os.path.exists(os.path.join(CONFIG_DIR, name))
 
-    new_path = prompter.input(f"Please insert the command (path) needed in order to execute your disassembler (IDA for instance) ({DISASSEMBLER_PATH}): ")
-    if len(new_path.strip()) != 0:
-        DISASSEMBLER_PATH = new_path
+def getDisassembler(name):
+    if disassemblerInstallationExists(name):
+        with open(os.path.join(CONFIG_DIR, name), "r") as f:
+            return f.read()
 
-def getDisasPath():
+def setDefaultDisassembler(name):
+    with open(os.path.join(CONFIG_DIR, DEFAULT_DISASSEMBLER), "w") as f:
+        if os.path.isfile(os.path.join(CONFIG_DIR, name)):
+            f.write(name)
+
+def getDisasPath(prompter):
     """Return the updated path to the disassembler.
 
     Return Value:
         The (updated) path to the disassembler program
     """
+    global DISASSEMBLER_PATH
+    if DISASSEMBLER_PATH is not None:
+        pass
+    elif os.path.isfile(DEFAULT_DISASSEMBLER):
+        actual_disas_path = None
+        with open(DEFAULT_DISASSEMBLER, 'r') as f:
+            actual_disas_path = f.read()
+        full_disas_name_path = os.path.join(CONFIG_DIR ,actual_disas_path)
+        if os.path.isfile(full_disas_name_path):
+            with open(full_disas_name_path, 'r') as f:
+                DISASSEMBLER_PATH = f.read()
+    else:
+        DISASSEMBLER_PATH = prompter.input("Please enter a path to your disassembler: ")
+        prompter.info("I may suggest using one of the installers to set a default disassembler")
     return DISASSEMBLER_PATH
 
 def libraryName():

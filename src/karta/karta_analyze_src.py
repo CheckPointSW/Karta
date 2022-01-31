@@ -124,7 +124,6 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
                 prompter.debug(f"{full_file_path} - {compiled_file}")
                 if progress_bar is None:
                     prompter.info(f"{compiled_file} - {full_file_path}")
-                # analyze the file
                 analyzeFile(full_file_path, is_windows)
                 # load the JSON data from it
                 try:
@@ -324,8 +323,7 @@ def main(args):
     prompter.info("Starting the Script")
 
     # requesting the path to the chosen disassembler
-    setDisassemblerPath(prompter)
-    disas_cmd = identifyDisassemblerHandler(getDisasPath(), prompter)
+    disas_cmd = identifyDisassemblerHandler(getDisasPath(prompter), prompter)
     if disas_cmd is None:
         return
 
@@ -336,11 +334,6 @@ def main(args):
     if is_windows:
         setWindowsMode()
 
-    # Check if launched from the src directory
-    if not os.path.exists(SCRIPT_PATH):
-        prompter.error("The script should be executed from Karta's src directory!")
-        prompter.error("Exiting")
-        return
 
     # analyze the open source library
     analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, prompter)

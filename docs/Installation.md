@@ -8,8 +8,10 @@ Prerequisites
 
 Using the ```setup.py``` script, one can install all of these prerequisites, and be ready to go:
 ```pip3 install .```
+To install the plugin for use in ida run
+```python -m karta.installers.ida_installer```
 
 Installing the Plugin
 ------------------------
-Nothing should be done :)aa
+Nothing should be done :)
 There is no need to copy the directory to some IDA plugin folder. Instead, once your binary is loaded to IDA, simply start the desired plugin by loading it using the ```File->Script File...``` menu. That's it.

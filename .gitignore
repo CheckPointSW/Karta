@@ -1,9 +1,9 @@
 *.pyc
 __pycache__
 
-/build/*
-/dist/*
-/Karta.egg-info/*
+/build
+/dist
+Karta.egg-info
 
 docs/_build/*
 docs/_static/*

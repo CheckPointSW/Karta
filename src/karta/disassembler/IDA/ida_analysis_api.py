@@ -23,6 +23,7 @@ class AnalyzerIDA(object):
             disas (disassembler): disassembler layer instance
         """
         self.disas = disas
+        idaapi.auto_wait()
 
     def funcNameInner(self, raw_func_name):
         """Return the name of the function (including windows name fixes).

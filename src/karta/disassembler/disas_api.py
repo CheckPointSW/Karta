@@ -2,6 +2,7 @@
 ## Note: This API is an indirection point, so we could (maybe) add support for more disassemblers in the future ##
 ##################################################################################################################
 
+import os
 from collections    import defaultdict
 
 class DisasAPI(object):
@@ -527,7 +528,7 @@ class DisasCMD(object):
         Args:
             path (path): command line path for the program
         """
-        self._path = path
+        self._path = os.path.normpath(path)
 
     @staticmethod
     def identify(path):
@@ -570,6 +571,9 @@ class DisasCMD(object):
             script (path): python script to be executed once the database is loaded
         """
         raise NotImplementedError("Subclasses should implement this!")
+    
+    def isSupported(self, feature_name):
+        return False
 
 class DisasVerifier(object):
     """Abstract class that verifies that we are running inside our matching disassembler.

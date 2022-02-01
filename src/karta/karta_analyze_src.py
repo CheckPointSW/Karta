@@ -53,8 +53,11 @@ def analyzeFile(full_file_path, is_windows):
         full_file_path (str): full path to the specific (*.obj / *.o) file
         is_windows (bool): True iff a windows compilation (*.obj or *.o)
     """
-    database_path = disas_cmd.createDatabase(full_file_path, is_windows)
-    disas_cmd.executeScript(database_path, SCRIPT_PATH)
+    if disas_cmd.isSupported("createAndExecute"):
+        disas_cmd.createAndExecute(full_file_path, is_windows, SCRIPT_PATH)
+    else:
+        database_path = disas_cmd.createDatabase(full_file_path, is_windows)
+        disas_cmd.executeScript(database_path, SCRIPT_PATH)
 
 def resolveUnknowns():
     """Resolve "unknown" references between the different compiled files."""

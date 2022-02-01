@@ -1,5 +1,5 @@
 import os
-import subprocess
+import asyncio
 
 from ..disas_api import DisasCMD
 from ..factory   import registerDisassemblerCMD
@@ -32,7 +32,7 @@ class IdaCMD(DisasCMD):
         return "IDA"
 
     # Overridden base function
-    def createDatabase(self, binary_file, is_windows):
+    async def createDatabase(self, binary_file, is_windows):
         """Create a database file for the given binary file, compiled to windows or linux as specified.
 
         Args:
@@ -49,31 +49,34 @@ class IdaCMD(DisasCMD):
 
         database_file = binary_file + self.suffix
         # execute the program
-        subprocess.run([self._path, "-A" , "-B", f"-T{type}" ,f"-o{database_file}", binary_file])
+        process = await asyncio.create_subprocess_exec(self._path, "-A" , "-B", f"-T{type}" ,f"-o{database_file}", binary_file)
+        await process.wait()
         # return back the (should be) created database file path
         return database_file
 
     # Overridden base function
-    def executeScript(self, database, script):
+    async def executeScript(self, database, script):
         """Execute the given script over the given database file that was created earlier.
 
         Args:
             database (path): path to a database file created by the same program
             script (path): python script to be executed once the database is loaded
         """
-        subprocess.run([self._path, "-A", f"-S{script}", database])
+        process = await asyncio.create_subprocess_exec(self._path, "-A", f"-S{script}", database)
+        await process.wait()
     
     def isSupported(self, feature_name):
         return hasattr(self, feature_name)
 
-    def createAndExecute(self, binary_file, is_windows, script):
+    async def createAndExecute(self, binary_file, is_windows, script):
         type = "elf" if not is_windows else "coff"
 
         if not hasattr(self, "is64"):
             self.decideArchitecureChoices(binary_file, is_windows)
 
         # execute the program
-        subprocess.run([self._path, "-A" , f"-S{script}", f"-T{type}", binary_file])
+        process = await asyncio.create_subprocess_exec(self._path, "-A", "-c" , f"-S{script}", f"-T{type}", binary_file)
+        await process.wait()
 
     def decideArchitecureChoices(self, binary_file, is_windows):
         # machine type header of pe

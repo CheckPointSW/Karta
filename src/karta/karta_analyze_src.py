@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 
+from multiprocessing import Semaphore
 import sys
 import argparse
 import logging
+import asyncio
 from os import path, walk
 from elementals             import Prompter, ProgressBar
 
@@ -46,7 +48,7 @@ def locateFiles(bin_dir, file_list, suffix):
             for file in filter(lambda x: x.endswith("." + suffix), files):
                 yield path.abspath(path.join(root, file)), file
 
-def analyzeFile(full_file_path, is_windows):
+async def analyzeFile(full_file_path, is_windows):
     """Analyze a single file using analyzer script.
 
     Args:
@@ -54,10 +56,40 @@ def analyzeFile(full_file_path, is_windows):
         is_windows (bool): True iff a windows compilation (*.obj or *.o)
     """
     if disas_cmd.isSupported("createAndExecute"):
-        disas_cmd.createAndExecute(full_file_path, is_windows, SCRIPT_PATH)
+        await disas_cmd.createAndExecute(full_file_path, is_windows, SCRIPT_PATH)
     else:
-        database_path = disas_cmd.createDatabase(full_file_path, is_windows)
-        disas_cmd.executeScript(database_path, SCRIPT_PATH)
+        database_path = await disas_cmd.createDatabase(full_file_path, is_windows)
+        await disas_cmd.executeScript(database_path, SCRIPT_PATH)
+
+async def processFile(full_file_path, is_windows, compiled_file, progress_bar, prompter, semaphore):
+    # run the analsys on the files in an asynchrnous way
+    prompter.debug(f"{full_file_path} - {compiled_file}")
+    if progress_bar is None:
+        prompter.info(f"{compiled_file} - {full_file_path}")
+    # no need to analyze the file again if the process was canceled and the file state was saved
+    if not os.path.exists(full_file_path + STATE_FILE_SUFFIX):
+        await analyzeFile(full_file_path, is_windows)
+    # load the JSON data from it
+    try:
+        fd = open(full_file_path + STATE_FILE_SUFFIX, "r")
+    except IOError:
+        prompter.error(f"Failed to create the .JSON file for file: {compiled_file}")
+        prompter.error("Read the log file for more information:")
+        prompter.addIndent()
+        prompter.error(constructInitLogPath(full_file_path))
+        prompter.error(constructLogPath(full_file_path))
+        prompter.removeIndent()
+        prompter.removeIndent()
+        prompter.removeIndent()
+        prompter.error("Encountered an error, exiting")
+        exit(1)
+    # all was OK, can continue
+    parseFileStats(full_file_path, json.load(fd))
+    fd.close()
+    if progress_bar is not None:
+        progress_bar.advance(1)
+    # release semaphore and allow an instance to run on another file
+    semaphore.release()
 
 def resolveUnknowns():
     """Resolve "unknown" references between the different compiled files."""
@@ -71,7 +103,7 @@ def resolveUnknowns():
             src_func_ctx.recordCall(resolved_call)
         src_func_ctx.unknown_fptrs.clear()
 
-def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
+async def analyzeLibrary(config_name, bin_dirs, compiled_ars, concurrency, prompter):
     """Analyze the open source library, file-by-file and merge the results.
 
     Args:
@@ -117,36 +149,20 @@ def analyzeLibrary(config_name, bin_dirs, compiled_ars, prompter):
                 progress_bar = None
             # it makes more sense to have a sorted list
             archive_files.sort()
-            # start the work itself
+            # analyze many files at the same time, actions are parallel
+            semaphore = asyncio.Semaphore(concurrency)
             for full_file_path, compiled_file in archive_files:
                 # ida has severe bugs, make sure to warn the user in advance
                 if disas_cmd.name() == "IDA" and ' ' in full_file_path:
                     prompter.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain)")
                     prompter.removeIndent()
                     return
-                prompter.debug(f"{full_file_path} - {compiled_file}")
-                if progress_bar is None:
-                    prompter.info(f"{compiled_file} - {full_file_path}")
-                analyzeFile(full_file_path, is_windows)
-                # load the JSON data from it
-                try:
-                    fd = open(full_file_path + STATE_FILE_SUFFIX, "r")
-                except IOError:
-                    prompter.error(f"Failed to create the .JSON file for file: {compiled_file}")
-                    prompter.error("Read the log file for more information:")
-                    prompter.addIndent()
-                    prompter.error(constructInitLogPath(full_file_path))
-                    prompter.error(constructLogPath(full_file_path))
-                    prompter.removeIndent()
-                    prompter.removeIndent()
-                    prompter.removeIndent()
-                    prompter.error("Encountered an error, exiting")
-                    exit(1)
-                # all was OK, can continue
-                parseFileStats(full_file_path, json.load(fd))
-                fd.close()
-                if progress_bar is not None:
-                    progress_bar.advance(1)
+                await semaphore.acquire()
+                # start the work itself
+                asyncio.create_task(processFile(full_file_path, is_windows, compiled_file, progress_bar, prompter, semaphore))
+            # we want to wait for all the disassemblers to finish
+            for _ in range(concurrency):
+                await semaphore.acquire()
             # wrap it up
             if progress_bar is not None:
                 progress_bar.finish()
@@ -297,6 +313,7 @@ def main(args):
                         help="version string (case sensitive) as used by the identifier")
     parser.add_argument("couples", metavar="dir archive", type=str, nargs="+",
                         help="directory with the compiled *.o / *.obj files + path to the matching *.a / *.lib file (if didn't use \"--no-archive\")")
+    parser.add_argument("-C", "--concurrency", default=5, type=int, help="number of disassemblers to run in parallel")
     parser.add_argument("-D", "--debug", action="store_true", help="set logging level to logging.DEBUG")
     parser.add_argument("-N", "--no-archive", action="store_false", help="extract data from all *.o / *.obj files in the directory")
     parser.add_argument("-W", "--windows", action="store_true", help="signals that the binary was compiled for Windows")
@@ -309,6 +326,7 @@ def main(args):
     is_windows      = args.windows
     using_archives  = args.no_archive
     couples         = args.couples
+    concurrency     = args.concurrency
 
     # open the log
     prompter = Prompter(min_log_level=logging.INFO if not is_debug else logging.DEBUG)
@@ -339,7 +357,7 @@ def main(args):
 
 
     # analyze the open source library
-    analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, prompter)
+    asyncio.run(analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, concurrency, prompter))
 
     # finished
     prompter.info("Finished Successfully")

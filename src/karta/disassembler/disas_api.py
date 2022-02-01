@@ -3,6 +3,7 @@
 ##################################################################################################################
 
 import os
+import asyncio
 from collections    import defaultdict
 
 class DisasAPI(object):
@@ -551,7 +552,7 @@ class DisasCMD(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def createDatabase(self, binary_file, is_windows):
+    async def createDatabase(self, binary_file, is_windows):
         """Create a database file for the given binary file, compiled to windows or linux as specified.
 
         Args:
@@ -563,7 +564,7 @@ class DisasCMD(object):
         """
         raise NotImplementedError("Subclasses should implement this!")
 
-    def executeScript(self, database, script):
+    async def executeScript(self, database, script):
         """Execute the given script over the given database file that was created earlier.
 
         Args:

@@ -24,9 +24,9 @@ setup(name='Karta',
                     "Operating System :: OS Independent",
                   ],
       entry_points={
-        'console_scripts': [
-          'karta_analyze_src = karta.karta_analyze_src:main'
-        ]
+            'console_scripts': [
+                  'karta_analyze_src = karta.karta_analyze_src:main'
+            ]
       },
       zip_safe=False
-)
+      )

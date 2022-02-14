@@ -2,24 +2,27 @@ import os
 import re
 from shutil import copyfile
 
-from .common_installer import detect_installation, set_default_disassembler
+from .common_installer import detectInstallation, commonSetDefaultDisassembler
 
 
 disassembler_name = "ida_path"
 
-def detect_ida(save_file):
+def detectIda(save_file):
+    """Find where ida is installed by this regex, should work for both windows and linux.
+
+    Args:
+        save_file (str): name of the file which will save the path to the disassembler directory
+
+    Return Value:
+        Installation folder for the ida pro disassembler
     """
-    find where ida is installed by this regex, should work for both windows and linux
-    """
-    pattern = re.compile("ida( pro )?-?\d\.\d", re.IGNORECASE)
-    return detect_installation(pattern, save_file)
+    pattern = re.compile("ida( pro )?-?\\d\\.\\d", re.IGNORECASE)
+    return detectInstallation(pattern, save_file)
 
 def main():
-    """
-    detect ida copy library files into its plugins directory and add the plugin to be run on start
-    """
-    path = detect_ida(disassembler_name)
-    set_default_disassembler(disassembler_name)
+    """Detect ida copy plugin file into its plugins directory."""
+    path = detectIda(disassembler_name)
+    commonSetDefaultDisassembler(disassembler_name)
     src_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
     ida_plugin = os.path.join(src_dir, "plugins", "ida_plugin.py")
     plugin_dst = os.path.join(path, "plugins", "ida_karta.py")
@@ -27,7 +30,6 @@ def main():
         ida_plugin,
         plugin_dst
     )
-
 
 
 if __name__ == "__main__":

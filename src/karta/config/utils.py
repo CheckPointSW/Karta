@@ -10,7 +10,7 @@ from .score_config import *
 DISASSEMBLER_PATH = None
 CONFIG_DIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_DISASSEMBLER = os.path.join(CONFIG_DIR, "default_disassembler_path")
-SCRIPT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)),"..","analyze_src_file.py")
+SCRIPT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "analyze_src_file.py")
 
 LIBRARY_NAME            = "Karta"
 STATE_FILE_SUFFIX       = "_file_state.json"
@@ -459,18 +459,42 @@ def isMatching():
     return matching_mode
 
 def addDisassembler(name, path):
+    """Add an installation of a dissasembler.
+
+    Args:
+        name (str): name of the installation file
+        path (str): directory of the disassembler installtion
+    """
     with open(os.path.join(CONFIG_DIR, name), "w") as f:
         f.write(path)
 
 def disassemblerInstallationExists(name):
+    """Check whether there is an existing installation with the filename.
+
+    Args:
+        name (str): filename of the installtion to check
+
+    Return Value:
+        return true if such installtion exists
+    """
     return os.path.exists(os.path.join(CONFIG_DIR, name))
 
 def getDisassembler(name):
+    """Get directory of disassembler from configuration by it's configuration file name.
+
+    Args:
+        name (str): name of the disassembler to search for
+    """
     if disassemblerInstallationExists(name):
         with open(os.path.join(CONFIG_DIR, name), "r") as f:
             return f.read()
 
 def setDefaultDisassembler(name):
+    """Set the default disassembler in the configuration file.
+
+    Args:
+        name (str): name of the file that contains the default disassembler to use.
+    """
     with open(os.path.join(CONFIG_DIR, DEFAULT_DISASSEMBLER), "w") as f:
         if os.path.isfile(os.path.join(CONFIG_DIR, name)):
             f.write(name)
@@ -488,7 +512,7 @@ def getDisasPath(prompter):
         actual_disas_path = None
         with open(DEFAULT_DISASSEMBLER, 'r') as f:
             actual_disas_path = f.read()
-        full_disas_name_path = os.path.join(CONFIG_DIR ,actual_disas_path)
+        full_disas_name_path = os.path.join(CONFIG_DIR, actual_disas_path)
         if os.path.isfile(full_disas_name_path):
             with open(full_disas_name_path, 'r') as f:
                 DISASSEMBLER_PATH = f.read()

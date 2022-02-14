@@ -33,7 +33,7 @@ class IdaCMD(DisasCMD):
 
     # Overridden base function
     async def createDatabase(self, binary_file, is_windows):
-        """Create a database file for the given binary file, compiled to windows or linux as specified.
+        """Create a database file asynchonously for the given binary file , compiled to windows or linux as specified.
 
         Args:
             binary_file (path): path to the input binary (*.o / *.obj) file
@@ -49,14 +49,14 @@ class IdaCMD(DisasCMD):
 
         database_file = binary_file + self.suffix
         # execute the program
-        process = await asyncio.create_subprocess_exec(self._path, "-A" , "-B", f"-T{type}" ,f"-o{database_file}", binary_file)
+        process = await asyncio.create_subprocess_exec(self._path, "-A", "-B", f"-T{type}", f"-o{database_file}", binary_file)
         await process.wait()
         # return back the (should be) created database file path
         return database_file
 
     # Overridden base function
     async def executeScript(self, database, script):
-        """Execute the given script over the given database file that was created earlier.
+        """Execute the given script asynchonously over the given database file that was created earlier.
 
         Args:
             database (path): path to a database file created by the same program
@@ -64,21 +64,42 @@ class IdaCMD(DisasCMD):
         """
         process = await asyncio.create_subprocess_exec(self._path, "-A", f"-S{script}", database)
         await process.wait()
-    
+
     def isSupported(self, feature_name):
+        """Check if feature is enabled.
+
+        Args:
+            feature_name (str): name of the feature to check if enabled
+
+        Return Value:
+            returns whether the current class has a member name "feature_name"
+        """
         return hasattr(self, feature_name)
 
     async def createAndExecute(self, binary_file, is_windows, script):
+        """Execute the given script over the given database asynchonously without closing it first.
+
+        Args:
+            binary_file (str): filename of the binary to analyze
+            is_windows (bool): whether the file is a windows compiled file or linux compiled file
+            script (str): filename of the script to use on the binary in ida
+        """
         type = "elf" if not is_windows else "coff"
 
         if not hasattr(self, "is64"):
             self.decideArchitecureChoices(binary_file, is_windows)
 
         # execute the program
-        process = await asyncio.create_subprocess_exec(self._path, "-A", "-c" , f"-S{script}", f"-T{type}", binary_file)
+        process = await asyncio.create_subprocess_exec(self._path, "-A", "-c", f"-S{script}", f"-T{type}", binary_file)
         await process.wait()
 
     def decideArchitecureChoices(self, binary_file, is_windows):
+        """Automate deciding whether to send the files to ida64 or ida.
+
+        Args:
+            binary_file (str): filename of the file to be a test case for analysis
+            is_windows (bool): whether the test file is a linux or windows binary
+        """
         # machine type header of pe
         # specified in that order, amd64, arm64, ia64, loongarch64, riscv64
         ARCH64PE = [b"\x64\x86", b"\x64\xaa", b"\x00\x02", b"\x64\x62", b"\x64\x50"]
@@ -106,6 +127,7 @@ class IdaCMD(DisasCMD):
                     self.is64 = True
         self.suffix = ".i64" if self.is64 else ".idb"
         self._path += "64" if self.is64 else ""
-        
+
+
 # Don't forget to register at the factory
 registerDisassemblerCMD(IdaCMD.identify, IdaCMD)

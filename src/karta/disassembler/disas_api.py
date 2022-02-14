@@ -3,7 +3,6 @@
 ##################################################################################################################
 
 import os
-import asyncio
 from collections    import defaultdict
 
 class DisasAPI(object):
@@ -553,7 +552,7 @@ class DisasCMD(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     async def createDatabase(self, binary_file, is_windows):
-        """Create a database file for the given binary file, compiled to windows or linux as specified.
+        """Create a database file asynchonously for the given binary file, compiled to windows or linux as specified.
 
         Args:
             binary_file (path): path to the input binary (*.o / *.obj) file
@@ -565,15 +564,20 @@ class DisasCMD(object):
         raise NotImplementedError("Subclasses should implement this!")
 
     async def executeScript(self, database, script):
-        """Execute the given script over the given database file that was created earlier.
+        """Execute the given script asynchonously over the given database file that was created earlier.
 
         Args:
             database (path): path to a database file created by the same program
             script (path): python script to be executed once the database is loaded
         """
         raise NotImplementedError("Subclasses should implement this!")
-    
+
     def isSupported(self, feature_name):
+        """Allow script to query whether a feature is enabled in it's disas_api.
+
+        Return Value:
+            False, no featue is supported on this Abstract class
+        """
         return False
 
 class DisasVerifier(object):

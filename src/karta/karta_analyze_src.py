@@ -48,7 +48,7 @@ def locateFiles(bin_dir, file_list, suffix):
                 yield path.abspath(path.join(root, file)), file
 
 async def analyzeFile(full_file_path, is_windows):
-    """Analyze a single file using analyzer script.
+    """Analyze a single file asynchonously using analyzer script.
 
     Args:
         full_file_path (str): full path to the specific (*.obj / *.o) file
@@ -61,6 +61,16 @@ async def analyzeFile(full_file_path, is_windows):
         await disas_cmd.executeScript(database_path, SCRIPT_PATH)
 
 async def processFile(full_file_path, is_windows, compiled_file, progress_bar, prompter, semaphore):
+    """Analyze a file asynchonously using a disassembler and parse the file stats.
+
+    Args:
+        full_file_path (str): full path to the specific (*.obj / *.o) file
+        is_windows (bool): True iff a windows compilation (*.obj or *.o)
+        compiled_file (str): file name of the compiled_file
+        progress_bar (progressBar): progress bar to update once file processing is finished
+        prompter (prompter): notify the user when an error occured
+        semaphore (semaphore): release it when the disassembler finished processing our file
+    """
     # run the analsys on the files in an asynchrnous way
     prompter.debug(f"{full_file_path} - {compiled_file}")
     if progress_bar is None:
@@ -261,7 +271,14 @@ async def analyzeLibrary(config_name, bin_dirs, compiled_ars, concurrency, promp
     prompter.info(f"Anchor to function ratio is: {len(anchors_list)}/{len(src_functions_list)}")
     prompter.removeIndent()
 
-def verify_archives_and_objects(using_archives, couples, prompter):
+def verifyArchivesAndObjects(using_archives, couples, prompter):
+    """Verify that the archive and object files karta processes are valid.
+
+    Args:
+        using_archives (bool): is karta analyzing object files only or library files too
+        couples (list): couples of dir and lib files or only bin dirs according to the using_archives parameter
+        prompter (prompter): prompter to notify the user if any error occures
+    """
     bin_dirs = []
     archive_paths = []
     error_occured = False
@@ -275,7 +292,7 @@ def verify_archives_and_objects(using_archives, couples, prompter):
                 error_occured = True
             else:
                 bin_dirs.append(couples[i])
-            
+
             if not path.exists(couples[i + 1]):
                 prompter.error(f"Error the path {couples[i + 1]} does not exist!")
                 error_occured = True
@@ -332,8 +349,8 @@ def main(args=None):
     if using_archives:
         if len(couples) % 2 != 0:
             parser.error("Odd length in list of dir,archive couples, should be: [(directory, archive name), ...]")
-    
-    paths = verify_archives_and_objects(using_archives, couples, prompter)
+
+    paths = verifyArchivesAndObjects(using_archives, couples, prompter)
 
     if paths is None:
         return
@@ -353,7 +370,6 @@ def main(args=None):
     # use the user supplied flag
     if is_windows:
         setWindowsMode()
-
 
     # analyze the open source library
     asyncio.run(analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, concurrency, prompter))

@@ -4,10 +4,8 @@ import platform
 from ..config.utils import addDisassembler, getDisassembler, setDefaultDisassembler
 
 
-def common_locations():
-    """
-        Gets a list of common places where a disassembler may be installed
-    """
+def commonLocations():
+    """Get a list of common places where a disassembler may be installed on any os."""
     location_list = list()
     # based on the operating system installation location may vary
     system_lower = platform.system().lower()
@@ -30,18 +28,21 @@ def common_locations():
     return location_list
 
 
-def detect_installation(pattern, installation_file):
-    """
-        If already installed get the installation path
-        Detect installation of a disassembler by a regex provided by its specific installer
-        Save it into a file so you may use it as a default
-        If its not in any of the common locations ask the user to enter it
+def detectInstallation(pattern, installation_file):
+    """Detect a disassembler's installation by regex, if not found get it with input.
+
+    Args:
+        pattern (re.Pattern): pattern to detect an installation
+        installation_file (str): name of the file to save the disassembler name in
+
+    Return Value:
+        Directory of the disassembler file
     """
     disassembler = getDisassembler(installation_file)
     if disassembler is not None:
         return disassembler
 
-    for location in common_locations():
+    for location in commonLocations():
         for directory in next(os.walk(location))[1]:
             if pattern.match(directory):
                 install_directory = os.path.join(location, directory)
@@ -59,5 +60,6 @@ def detect_installation(pattern, installation_file):
         exit(0)
 
 
-def set_default_disassembler(disassembler_name):
+def commonSetDefaultDisassembler(disassembler_name):
+    """Call config utils setDefaultDisassembler function."""
     setDefaultDisassembler(disassembler_name)

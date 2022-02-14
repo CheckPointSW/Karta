@@ -1,9 +1,9 @@
 import logging
 from elementals import Logger
 
-from .config.utils           import *
-from .disassembler.factory   import createDisassemblerHandler
-from .libs                   import lib_factory
+from karta.config.utils           import *
+from karta.disassembler.factory   import createDisassemblerHandler
+from karta.libs                   import lib_factory
 
 ####################
 ## Global Configs ##

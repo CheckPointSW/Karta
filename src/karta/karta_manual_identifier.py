@@ -6,8 +6,8 @@ import logging
 from collections import defaultdict
 from elementals            import Prompter
 
-from .config.utils          import *
-from .libs        import lib_factory
+from karta.config.utils          import *
+from karta.libs        import lib_factory
 
 
 def recordManualVersions(knowledge_config, prompter):

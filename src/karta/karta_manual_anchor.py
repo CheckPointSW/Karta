@@ -7,8 +7,8 @@ import logging
 from collections import defaultdict
 from elementals            import Prompter
 
-from .config.utils          import *
-from .function_context      import SourceContext, BinaryContext, IslandContext
+from karta.config.utils          import *
+from karta.function_context      import SourceContext, BinaryContext, IslandContext
 
 def recordManualAnchors(library_config, knowledge_config, lib_name, prompter):
     """Record the list of user defined manual anchor matches.

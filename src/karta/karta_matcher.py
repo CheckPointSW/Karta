@@ -1,10 +1,10 @@
 import logging
 from elementals import Logger
 
-from .config.utils           import *
-from .disassembler.factory   import createDisassemblerHandler
-from .matching_engine        import KartaMatcher
-from .libs                   import lib_factory
+from karta.config.utils           import *
+from karta.disassembler.factory   import createDisassemblerHandler
+from karta.matching_engine        import KartaMatcher
+from karta.libs                   import lib_factory
 
 ######################
 ## Global Variables ##

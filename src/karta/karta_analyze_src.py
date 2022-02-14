@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-from multiprocessing import Semaphore
 import sys
 import argparse
 import logging
@@ -297,7 +296,7 @@ def verify_archives_and_objects(using_archives, couples, prompter):
 
     return (bin_dirs, archive_paths) if not error_occured else None
 
-def main(args):
+def main(args=None):
     """Create a .json configuration for the open source library version.
 
     Args:

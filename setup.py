@@ -23,5 +23,10 @@ setup(name='Karta',
                     "License :: OSI Approved :: MIT License (MIT License)",
                     "Operating System :: OS Independent",
                   ],
+      entry_points={
+        'console_scripts': [
+          'karta_analyze_src = karta.karta_analyze_src:main'
+        ]
+      },
       zip_safe=False
 )

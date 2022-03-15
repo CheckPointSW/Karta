@@ -1,0 +1,13 @@
+name: SourceGuard Code Analysis
+on: [push]
+jobs:
+  code-analysis:
+    runs-on: ubuntu-latest
+    container:
+      image: sourceguard/sourceguard-cli
+    steps:
+      - name: Scan
+        uses: CheckPointSW/sourceguard-action@main
+        with:
+          SG_CLIENT_ID: ${{ secrets.SG_CLIENT_ID }}
+          SG_SECRET_KEY: ${{ secrets.SG_SECRET_KEY }}

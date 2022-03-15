@@ -7,7 +7,9 @@ Prerequisites
 * [sark](https://github.com/tmr232/Sark)
 
 Using the ```setup.py``` script, one can install all of these prerequisites, and be ready to go:
-```./setup.py install```
+```pip3 install .```
+To install the plugin for use in ida run
+```python -m karta.installers.ida_installer```
 
 Installing the Plugin
 ------------------------

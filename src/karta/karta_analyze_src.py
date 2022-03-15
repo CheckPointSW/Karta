@@ -1,0 +1,382 @@
+#!/usr/bin/python3
+
+import sys
+import argparse
+import logging
+import asyncio
+from os import path, walk
+from elementals             import Prompter, ProgressBar
+
+from .ar_parser             import getArchiveFiles
+from .config.utils          import *
+from .disassembler.factory  import identifyDisassemblerHandler
+from .disassembler.IDA      import ida_cmd_api
+from .function_context      import SourceContext, BinaryContext, IslandContext
+from .config                import anchor
+
+
+####################
+## Global Configs ##
+####################
+
+PROGRESS_BAR_THRESHOLD = 25
+
+######################
+## Global Variables ##
+######################
+
+disas_cmd = None  # Global disassembler command-line handler
+
+def locateFiles(bin_dir, file_list, suffix):
+    """Locate the inner path of the compiled (*.o / *.obj) files.
+
+    Args:
+        bin_dir (str): path to the binary folder containing the compiled files
+        file_list (list): list of *.o file names (None if has no filter list)
+        suffix (str): suffix for the binary files ("obj" or "o")
+
+    Return Value:
+        Generator for a tuples of the form: (abs_path, compiled_file file name)
+    """
+    for root, dirs, files in walk(bin_dir):
+        if file_list is not None:
+            for compiled_file in set(files) & set(file_list):
+                yield path.abspath(path.join(root, compiled_file)), compiled_file
+                file_list.remove(compiled_file)
+        else:
+            for file in filter(lambda x: x.endswith("." + suffix), files):
+                yield path.abspath(path.join(root, file)), file
+
+async def analyzeFile(full_file_path, is_windows):
+    """Analyze a single file asynchonously using analyzer script.
+
+    Args:
+        full_file_path (str): full path to the specific (*.obj / *.o) file
+        is_windows (bool): True iff a windows compilation (*.obj or *.o)
+    """
+    if disas_cmd.isSupported("createAndExecute"):
+        await disas_cmd.createAndExecute(full_file_path, is_windows, SCRIPT_PATH)
+    else:
+        database_path = await disas_cmd.createDatabase(full_file_path, is_windows)
+        await disas_cmd.executeScript(database_path, SCRIPT_PATH)
+
+async def processFile(full_file_path, is_windows, compiled_file, progress_bar, prompter, semaphore):
+    """Analyze a file asynchonously using a disassembler and parse the file stats.
+
+    Args:
+        full_file_path (str): full path to the specific (*.obj / *.o) file
+        is_windows (bool): True iff a windows compilation (*.obj or *.o)
+        compiled_file (str): file name of the compiled_file
+        progress_bar (progressBar): progress bar to update once file processing is finished
+        prompter (prompter): notify the user when an error occured
+        semaphore (semaphore): release it when the disassembler finished processing our file
+    """
+    # run the analsys on the files in an asynchrnous way
+    prompter.debug(f"{full_file_path} - {compiled_file}")
+    if progress_bar is None:
+        prompter.info(f"{compiled_file} - {full_file_path}")
+    # no need to analyze the file again if the process was canceled and the file state was saved
+    if not os.path.exists(full_file_path + STATE_FILE_SUFFIX):
+        await analyzeFile(full_file_path, is_windows)
+    # load the JSON data from it
+    try:
+        fd = open(full_file_path + STATE_FILE_SUFFIX, "r")
+    except IOError:
+        prompter.error(f"Failed to create the .JSON file for file: {compiled_file}")
+        prompter.error("Read the log file for more information:")
+        prompter.addIndent()
+        prompter.error(constructInitLogPath(full_file_path))
+        prompter.error(constructLogPath(full_file_path))
+        prompter.removeIndent()
+        prompter.removeIndent()
+        prompter.removeIndent()
+        prompter.error("Encountered an error, exiting")
+        exit(1)
+    # all was OK, can continue
+    parseFileStats(full_file_path, json.load(fd))
+    fd.close()
+    if progress_bar is not None:
+        progress_bar.advance(1)
+    # release semaphore and allow an instance to run on another file
+    semaphore.release()
+
+def resolveUnknowns():
+    """Resolve "unknown" references between the different compiled files."""
+    global src_functions_ctx
+
+    for src_func_index, src_func_ctx in enumerate(src_functions_ctx):
+        for resolved_call in src_func_ctx.unknown_funcs & set(src_functions_list):
+            src_func_ctx.recordCall(resolved_call)
+            src_func_ctx.unknown_funcs.remove(resolved_call)
+        for resolved_call in src_func_ctx.unknown_fptrs & set(src_functions_list):
+            src_func_ctx.recordCall(resolved_call)
+        src_func_ctx.unknown_fptrs.clear()
+
+async def analyzeLibrary(config_name, bin_dirs, compiled_ars, concurrency, prompter):
+    """Analyze the open source library, file-by-file and merge the results.
+
+    Args:
+        config_name (str): name of the final JSON config file
+        bin_dirs (list): list of paths to the binary folders containing the compiled *.o files
+        compiled_ars (list): list of paths to the compiled *.ar files
+        prompter (prompter): prompter instance
+    """
+    prompter.info("Starting to analyze the library")
+    prompter.addIndent()
+    ignore_archive = len(compiled_ars) == 0
+    finished_scan = False
+
+    # workaround the enumerate in the next loop
+    if ignore_archive:
+        compiled_ars = range(len(bin_dirs))
+
+    # ida has severe bugs, make sure to warn the user in advance
+    if disas_cmd.name() == ida_cmd_api.IdaCMD.name() and ' ' in SCRIPT_PATH:
+        prompter.error(f"IDA does not support spaces (' ') in the script's path. Please move {LIBRARY_NAME}'s directory accordingly (I feel your pain)")
+        prompter.removeIndent()
+        return
+
+    # We could have 2 iteration rounds here
+    while not finished_scan:
+        # Prepare & load the stats from each file
+        for ind, compiled_ar in enumerate(compiled_ars):
+            # check if this is a windows archive
+            is_windows = isWindows()
+            bin_dir = bin_dirs[ind]
+            bin_suffix = "o" if not is_windows else "obj"
+            if not ignore_archive:
+                prompter.info(f"Analyzing each of the files in the archive - {compiled_ar}")
+            else:
+                prompter.info(f"Analyzing each of the *.{bin_suffix} files in the bin directory")
+            prompter.addIndent()
+            archive_files = list(locateFiles(bin_dir, [x for x in getArchiveFiles(compiled_ar) if x.endswith("." + bin_suffix)] if not ignore_archive else None, bin_suffix))
+            # check if we need a progress bar
+            if len(archive_files) >= PROGRESS_BAR_THRESHOLD and prompter._min_level > logging.DEBUG:
+                progress_bar = ProgressBar("Analyzed %d/%d files - %d%% Completed", len(archive_files), 20, True, time_format="Elapsed %M:%S -")
+                progress_bar.start()
+            else:
+                progress_bar = None
+            # it makes more sense to have a sorted list
+            archive_files.sort()
+            # analyze many files at the same time, actions are parallel
+            semaphore = asyncio.Semaphore(concurrency)
+            for full_file_path, compiled_file in archive_files:
+                # ida has severe bugs, make sure to warn the user in advance
+                if disas_cmd.name() == "IDA" and ' ' in full_file_path:
+                    prompter.error("IDA does not support spaces (' ') in the file's path (in script mode). Please move the binary directory accordingly (I feel your pain)")
+                    prompter.removeIndent()
+                    return
+                await semaphore.acquire()
+                # start the work itself
+                asyncio.create_task(processFile(full_file_path, is_windows, compiled_file, progress_bar, prompter, semaphore))
+            # we want to wait for all the disassemblers to finish
+            for _ in range(concurrency):
+                await semaphore.acquire()
+            # wrap it up
+            if progress_bar is not None:
+                progress_bar.finish()
+            prompter.removeIndent()
+
+        # Resolve several unknowns refs as code refs
+        prompter.info("Resolving cross-references between different files")
+        resolveUnknowns()
+
+        # check if we have any files in the list
+        if len(src_file_mappings) == 0 and not ignore_archive:
+            prompter.error("No files found in the archive :(")
+            prompter.removeIndent()
+            new_path = prompter.input(f"Do you want to analyze all of the *.{bin_suffix} files in the bin directory? <Y/N>: ").lower()
+            if new_path != "y":
+                prompter.error("Finished with errors!")
+                exit(2)
+            # run again, and ignore the archive this time
+            ignore_archive = True
+            prompter.addIndent()
+        else:
+            finished_scan = True
+
+    # Remove empty files
+    prompter.info("Filtering out empty files")
+    for file_name in [x for x in src_file_mappings if len(src_file_mappings[x]) == 0]:
+        src_file_mappings.pop(file_name)
+
+    # Create the list of anchors
+    str_anchors   = []
+    const_anchors = []
+    anchors_list  = []
+    anchors_files = set()
+    prompter.info("Identifying possible Anchor functions")
+    prompter.addIndent()
+    seen_strings, seen_consts, function_list = getContextsStats()
+    for src_func_index, src_func_ctx in enumerate(src_functions_ctx):
+        is_str, threshold, candidates = anchor.isAnchor(src_func_ctx, seen_strings, seen_consts, function_list, prompter)
+        if candidates is None:
+            continue
+        if is_str:
+            str_anchors.append(src_func_index)
+        else:
+            const_anchors.append(src_func_index)
+        anchors_files.add(src_func_ctx.file)
+    prompter.removeIndent()
+
+    # strings before const, because they are faster to search for
+    anchors_list = str_anchors + const_anchors
+
+    # check if we have any files left
+    if len(src_file_mappings) == 0:
+        prompter.error("All files were empty :(")
+        prompter.removeIndent()
+        prompter.error("Finished with errors!")
+        exit(2)
+
+    # Check for an error
+    if len(anchors_list) == 0:
+        prompter.warning("Failed to find Anchor functions in the library :(")
+        prompter.warning("You should define manual anchors instead")
+
+    # Create the anchors file
+    prompter.info(f"Generating the full JSON file: {config_name}")
+    prompter.addIndent()
+    full_json = {}
+
+    # Serialize the anchor list
+    prompter.info("Writing the anchor list")
+    full_json[JSON_TAG_ANCHORS] = anchors_list
+
+    # Serialize the functions of each files
+    prompter.info("Writing the function list for each of the files")
+    file_dict = {}
+    # find a common file prefix, and remove it form the file path
+    if len(src_file_mappings) > 1:
+        base_value = list(src_file_mappings.keys())[0].split(path.sep)
+        comparison_value = list(src_file_mappings.keys())[-1].split(path.sep)
+        for index in range(min(len(comparison_value), len(base_value))):
+            if base_value[index] != comparison_value[index]:
+                break
+        common_path_len = len(path.sep.join(base_value[:index])) + 1
+    else:
+        common_path_len = len(bin_dirs[0]) + 1
+
+    for src_file_name in src_file_mappings:
+        file_dict[src_file_name[common_path_len:]] = [c.serialize() for c in src_file_mappings[src_file_name]]
+    full_json[JSON_TAG_FILES] = file_dict
+
+    # actually dump it
+    fd = open(config_name, "w")
+    json.dump(full_json, fd)
+    fd.close()
+    prompter.removeIndent()
+
+    prompter.info(f"Anchor to file ratio is: {len(anchors_files)}/{len(src_file_mappings)}")
+    prompter.info(f"Anchor to function ratio is: {len(anchors_list)}/{len(src_functions_list)}")
+    prompter.removeIndent()
+
+def verifyArchivesAndObjects(using_archives, couples, prompter):
+    """Verify that the archive and object files karta processes are valid.
+
+    Args:
+        using_archives (bool): is karta analyzing object files only or library files too
+        couples (list): couples of dir and lib files or only bin dirs according to the using_archives parameter
+        prompter (prompter): prompter to notify the user if any error occures
+    """
+    bin_dirs = []
+    archive_paths = []
+    error_occured = False
+    if using_archives:
+        for i in range(0, len(couples), 2):
+            if not path.exists(couples[i]):
+                prompter.error(f"Error the path {couples[i]} does not exist!")
+                error_occured = True
+            elif not path.isdir(couples[i]):
+                prompter.error(f"Error the path {couples[i]} exists but is not a directory!")
+                error_occured = True
+            else:
+                bin_dirs.append(couples[i])
+
+            if not path.exists(couples[i + 1]):
+                prompter.error(f"Error the path {couples[i + 1]} does not exist!")
+                error_occured = True
+            elif not path.isfile(couples[i + 1]):
+                prompter.error(f"Error the path {couples[i + 1]} exists but is not a file!")
+                error_occured = True
+            else:
+                archive_paths.append(couples[i + 1])
+    else:
+        for bin_dir in couples:
+            if not path.exists(bin_dir):
+                prompter.error(f"Error the path {bin_dir} does not exist!")
+                error_occured = True
+            elif not path.isdir(bin_dir):
+                prompter.error(f"Error the path {bin_dir} exists but is not a directory!")
+                error_occured = True
+        bin_dirs = couples
+
+    return (bin_dirs, archive_paths) if not error_occured else None
+
+def main(args=None):
+    """Create a .json configuration for the open source library version.
+
+    Args:
+        args (list): list of command line arguments
+    """
+    global disas_cmd
+
+    # argument parser
+    parser = argparse.ArgumentParser(description=f"Compiles a *.json configuration file for a specific version of an open source library, later to be used by {LIBRARY_NAME}'s Matcher.")
+    parser.add_argument("name", metavar="lib-name", type=str,
+                        help="name (case sensitive) of the open source library")
+    parser.add_argument("version", metavar="lib-version", type=str,
+                        help="version string (case sensitive) as used by the identifier")
+    parser.add_argument("couples", metavar="dir archive", type=str, nargs="+",
+                        help="directory with the compiled *.o / *.obj files + path to the matching *.a / *.lib file (if didn't use \"--no-archive\")")
+    parser.add_argument("-C", "--concurrency", default=5, type=int, help="number of disassemblers to run in parallel")
+    parser.add_argument("-D", "--debug", action="store_true", help="set logging level to logging.DEBUG")
+    parser.add_argument("-N", "--no-archive", action="store_false", help="extract data from all *.o / *.obj files in the directory")
+    parser.add_argument("-W", "--windows", action="store_true", help="signals that the binary was compiled for Windows")
+
+    # parse the args
+    args = parser.parse_args(args)
+    library_name    = args.name
+    library_version = args.version
+    is_debug        = args.debug
+    is_windows      = args.windows
+    using_archives  = args.no_archive
+    couples         = args.couples
+    concurrency     = args.concurrency
+
+    # open the log
+    prompter = Prompter(min_log_level=logging.INFO if not is_debug else logging.DEBUG)
+    if using_archives:
+        if len(couples) % 2 != 0:
+            parser.error("Odd length in list of dir,archive couples, should be: [(directory, archive name), ...]")
+
+    paths = verifyArchivesAndObjects(using_archives, couples, prompter)
+
+    if paths is None:
+        return
+
+    bin_dirs, archive_paths = paths
+
+    prompter.info("Starting the Script")
+
+    # requesting the path to the chosen disassembler
+    disas_cmd = identifyDisassemblerHandler(getDisasPath(prompter), prompter)
+    if disas_cmd is None:
+        return
+
+    # register our contexts
+    registerContexts(SourceContext, BinaryContext, IslandContext)
+
+    # use the user supplied flag
+    if is_windows:
+        setWindowsMode()
+
+    # analyze the open source library
+    asyncio.run(analyzeLibrary(constructConfigPath(library_name, library_version), bin_dirs, archive_paths, concurrency, prompter))
+
+    # finished
+    prompter.info("Finished Successfully")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

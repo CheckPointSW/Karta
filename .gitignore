@@ -1,28 +1,10 @@
-src/*.vpj
-src/*.vpw
-src/*.vpwhist
-src/*.vtg
-src/*.pyc
-src/libs/*.pyc
-src/config/*.pyc
-src/core/*.pyc
-src/disassembler/*.pyc
-src/disassembler/IDA/*.pyc
+*.pyc
+__pycache__
 
-/build/*
-/dist/*
-/Karta.egg-info/*
+/build
+/dist
+Karta.egg-info
 
 docs/_build/*
-docs/_build/*/*
-docs/_build/*/*/*
-docs/_build/*/*/*/*
 docs/_static/*
 docs/_templates/*
-/*.pyc
-/*/*.pyc
-/*/*/*.pyc
-/*/*/*/*.pyc
-/src/thumbs_up/analyzers/__pycache__/*.pyc
-/src/*/*/__pycache__/*.pyc
-/src/*/*/__pycache__/*.pyc
